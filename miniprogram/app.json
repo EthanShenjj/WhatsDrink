@@ -1,0 +1,46 @@
+{
+  "pages": [
+    "pages/home/index",
+    "pages/calendar/index",
+    "pages/choice/index",
+    "pages/profile/index",
+    "pages/record-form/index",
+    "pages/wheel-edit/index",
+    "pages/profile-edit/index",
+    "pages/privacy/index"
+  ],
+  "window": {
+    "navigationBarTitleText": "WhatsDrink",
+    "navigationBarBackgroundColor": "#F8F1E5",
+    "navigationBarTextStyle": "black",
+    "backgroundColor": "#F8F1E5",
+    "backgroundTextStyle": "dark"
+  },
+  "tabBar": {
+    "custom": true,
+    "color": "#5D3B26",
+    "selectedColor": "#D96C4A",
+    "backgroundColor": "#FBF6EC",
+    "list": [
+      {
+        "pagePath": "pages/home/index",
+        "text": "今日"
+      },
+      {
+        "pagePath": "pages/calendar/index",
+        "text": "日历"
+      },
+      {
+        "pagePath": "pages/choice/index",
+        "text": "Choice One"
+      },
+      {
+        "pagePath": "pages/profile/index",
+        "text": "我的"
+      }
+    ]
+  },
+  "style": "v2",
+  "lazyCodeLoading": "requiredComponents",
+  "sitemapLocation": "sitemap.json"
+}

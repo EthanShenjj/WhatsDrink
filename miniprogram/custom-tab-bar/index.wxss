@@ -1,0 +1,45 @@
+.tab-bar {
+  position: fixed;
+  z-index: 100;
+  right: 0;
+  bottom: 0;
+  left: 0;
+  display: flex;
+  box-sizing: border-box;
+  min-height: calc(116rpx + env(safe-area-inset-bottom));
+  padding-bottom: env(safe-area-inset-bottom);
+  border-top: 1rpx solid rgba(93, 59, 38, 0.14);
+  background-color: rgba(251, 246, 236, 0.97);
+  color: #5d3b26;
+}
+
+.tab-item {
+  position: relative;
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 5rpx;
+  padding-top: 12rpx;
+  font-family: "Songti SC", serif;
+}
+
+.tab-label {
+  font-size: 24rpx;
+  white-space: nowrap;
+}
+
+.is-selected {
+  color: #9f412e;
+}
+
+.is-selected::after {
+  position: absolute;
+  bottom: 10rpx;
+  width: 40rpx;
+  height: 5rpx;
+  border-radius: 99rpx;
+  background: #d96c4a;
+  content: "";
+}

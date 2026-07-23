@@ -1,0 +1,72 @@
+<view class="page-shell choice-page">
+  <text class="eyebrow">CHOICE ONE</text>
+  <text class="display-title">今天喝什么？</text>
+  <text class="choice-note">把纠结交给转盘，把喜欢留给今天。</text>
+
+  <view class="wheel-selector">
+    <picker
+      class="wheel-picker"
+      range="{{wheelNames}}"
+      value="{{activeIndex}}"
+      bindchange="changeWheel"
+      aria-label="当前转盘，{{activeWheel.name || '未选择'}}"
+    >
+      <view class="wheel-name-control">
+        <text class="wheel-name">{{activeWheel.name || '选择转盘'}}</text>
+        <t-icon name="chevron-down" size="32rpx" aria-hidden="true" />
+      </view>
+    </picker>
+    <view class="wheel-actions">
+      <button class="text-button wheel-action-button" bindtap="editWheel">编辑</button>
+      <button class="text-button wheel-action-button" bindtap="addWheel">新建</button>
+    </view>
+  </view>
+
+  <view class="wheel-context">
+    <view class="candidate-copy">
+      <text class="candidate-count">{{candidateCount}} 个候选</text>
+      <text class="candidate-summary">{{candidateSummary || '请先添加候选'}}</text>
+    </view>
+    <button
+      class="motion-toggle"
+      bindtap="toggleReducedMotion"
+      aria-pressed="{{reducedMotion ? 'true' : 'false'}}"
+      aria-label="精简转盘动效，当前{{reducedMotion ? '已开启' : '未开启'}}"
+    >
+      {{reducedMotion ? '精简动效' : '标准动效'}}
+    </button>
+  </view>
+
+  <canvas
+    type="2d"
+    id="wheelCanvas"
+    class="wheel-canvas"
+    role="img"
+    aria-label="转盘，{{candidateCount}} 个候选：{{candidateSummary}}"
+  />
+
+  <button
+    class="primary-button spin-button {{spinning ? 'is-spinning' : ''}}"
+    disabled="{{spinning}}"
+    bindtap="spin"
+  >
+    {{spinning ? '正在替你决定…' : '转一下'}}
+  </button>
+  <text
+    wx:if="{{validationMessage}}"
+    class="validation"
+    role="alert"
+    aria-live="polite"
+  >
+    {{validationMessage}}
+  </text>
+
+  <view wx:if="{{result}}" class="result-panel" role="status" aria-live="polite">
+    <text class="result-kicker">今天就喝</text>
+    <text class="result-name">{{result.label}}</text>
+    <button class="secondary-button" bindtap="useResult">
+      <t-icon name="check-circle" size="36rpx" />
+      <text>就喝这个</text>
+    </button>
+  </view>
+</view>

@@ -1,0 +1,23 @@
+<view wx:if="{{visible}}" class="privacy-mask" catchtouchmove="preventMove">
+  <view
+    class="privacy-dialog"
+    role="dialog"
+    aria-modal="true"
+    aria-labelledby="privacy-dialog-title"
+  >
+    <text id="privacy-dialog-title" class="dialog-title">继续前请确认隐私授权</text>
+    <text class="dialog-copy">
+      WhatsDrink 仅在你主动操作时使用头像昵称、相册或相机，用于完善个人资料和保存饮品照片。
+    </text>
+    <button class="privacy-link" bindtap="openPrivacy">查看数据与隐私说明</button>
+    <button
+      id="agree-privacy"
+      class="agree-button"
+      open-type="agreePrivacyAuthorization"
+      bindagreeprivacyauthorization="agree"
+    >
+      同意并继续
+    </button>
+    <button class="disagree-button" bindtap="disagree">暂不同意</button>
+  </view>
+</view>

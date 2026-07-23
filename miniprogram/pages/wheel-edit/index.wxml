@@ -1,0 +1,56 @@
+<view class="page-shell wheel-edit-page" wx:if="{{wheel}}">
+  <text class="eyebrow">CUSTOM WHEEL</text>
+  <text class="display-title">编辑转盘</text>
+
+  <view class="field">
+    <text class="field-label">转盘名称</text>
+    <input class="field-input" value="{{wheel.name}}" maxlength="20" bindinput="updateName" />
+  </view>
+
+  <view class="add-block">
+    <text class="section-title hand-underline">添加候选</text>
+    <view class="add-row">
+      <input
+        class="inline-input"
+        value="{{customLabel}}"
+        placeholder="例如：楼下咖啡店"
+        maxlength="30"
+        bindinput="updateCustomLabel"
+      />
+      <button class="small-button" bindtap="addCustom">添加自定义项</button>
+    </view>
+    <view class="add-row">
+      <picker class="catalog-picker" range="{{catalogLabels}}" value="{{catalogIndex}}" bindchange="changeCatalog">
+        <view class="picker-value">{{catalogLabels[catalogIndex]}}</view>
+      </picker>
+      <button class="small-button" bindtap="addCatalogItem">从品牌库添加</button>
+    </view>
+  </view>
+
+  <view class="item-head">
+    <text class="section-title hand-underline">候选项</text>
+    <text class="muted">{{wheel.items.length}} / 20</text>
+  </view>
+  <view class="item-list">
+    <view wx:for="{{wheel.items}}" wx:key="id" class="item-row">
+      <text>{{index + 1}}. {{item.label}}</text>
+      <button
+        class="remove-button"
+        data-id="{{item.id}}"
+        bindtap="removeItem"
+        aria-label="移除候选项 {{item.label}}"
+      >
+        移除
+      </button>
+    </view>
+  </view>
+  <text wx:if="{{validationMessage}}" class="validation" role="alert" aria-live="polite">
+    {{validationMessage}}
+  </text>
+
+  <button class="primary-button" bindtap="save">保存转盘</button>
+  <view class="footer-actions">
+    <button class="secondary-button" bindtap="copy">复制转盘</button>
+    <button class="secondary-button danger" bindtap="remove">删除转盘</button>
+  </view>
+</view>

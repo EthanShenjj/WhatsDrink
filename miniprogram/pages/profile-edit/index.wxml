@@ -1,0 +1,38 @@
+<view class="page-shell profile-edit-page">
+  <text class="eyebrow">YOUR PROFILE</text>
+  <text class="display-title">个人资料</text>
+  <text class="intro">头像与昵称均为可选，不会影响记录功能。</text>
+
+  <button
+    class="avatar-button"
+    open-type="chooseAvatar"
+    bindchooseavatar="chooseAvatar"
+    aria-label="{{avatarUrl ? '更换头像' : '选择头像'}}"
+  >
+    <image wx:if="{{avatarUrl}}" src="{{avatarUrl}}" mode="aspectFill" />
+    <text wx:else>选择头像</text>
+  </button>
+
+  <view class="field">
+    <text class="field-label">昵称</text>
+    <input
+      class="nickname-input"
+      type="nickname"
+      value="{{nickname}}"
+      maxlength="20"
+      placeholder="饮品记录者"
+      aria-label="昵称，可选"
+      bindinput="updateNickname"
+    />
+  </view>
+
+  <button
+    class="primary-button"
+    loading="{{saving}}"
+    disabled="{{saving}}"
+    bindtap="save"
+  >
+    {{saving ? '正在保存…' : '保存资料'}}
+  </button>
+  <privacy-popup />
+</view>

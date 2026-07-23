@@ -1,0 +1,82 @@
+<view class="page-shell home-page">
+  <view class="hero">
+    <text class="eyebrow">WHATS DRINK</text>
+    <text class="display-title">{{dateText}}</text>
+    <text class="hero-note">今天也辛苦啦，记下这一杯吧。</text>
+  </view>
+
+  <view wx:if="{{loading}}" class="loading-card" role="status" aria-live="polite">
+    <view class="loading-line loading-line-wide" />
+    <view class="loading-line" />
+    <text>正在加载今天的记录…</text>
+  </view>
+
+  <block wx:else>
+  <view class="summary">
+    <view class="summary-item">
+      <t-icon name="drink" size="46rpx" />
+      <view>
+        <text class="summary-value">{{count}}</text>
+        <text class="summary-unit">杯</text>
+        <text class="summary-label">今日饮品</text>
+      </view>
+    </view>
+    <view class="summary-divider" />
+    <view class="summary-item">
+      <t-icon name="chart-ring" size="46rpx" />
+      <view>
+        <text class="summary-value">{{knownCalories}}</text>
+        <text class="summary-unit">千卡</text>
+        <text class="summary-label">已知热量</text>
+      </view>
+    </view>
+  </view>
+
+  <button class="primary-button record-button" bindtap="addRecord">
+    <t-icon name="add-circle" color="#fffaf1" size="44rpx" />
+    <text>记一杯</text>
+  </button>
+  <text wx:if="{{unknownCaloriesCount > 0}}" class="calorie-note">
+    另有 {{unknownCaloriesCount}} 杯未填写热量
+  </text>
+
+  <view class="section-head">
+    <text class="section-title hand-underline">今天的饮品</text>
+    <button class="text-button" bindtap="openChoice">纠结？转一下</button>
+  </view>
+
+  <view wx:if="{{records.length}}" class="timeline">
+    <view
+      wx:for="{{records}}"
+      wx:key="id"
+      class="timeline-row"
+      data-id="{{item.id}}"
+      bindtap="editRecord"
+      role="button"
+      aria-label="编辑 {{item.timeText}} 的 {{item.drinkName}}，{{item.calorieText}}"
+    >
+      <view class="timeline-rail">
+        <view class="timeline-dot" />
+      </view>
+      <view class="record-time">{{item.timeText}}</view>
+      <image
+        class="record-image"
+        src="{{item.photoPath || item.fallbackImage}}"
+        mode="aspectFill"
+      />
+      <view class="record-main">
+        <text class="record-title">{{item.brandName ? item.brandName + ' · ' : ''}}{{item.drinkName}}</text>
+        <view class="record-meta-row">
+          <text class="record-meta">{{item.size}} · {{item.temperature}} · {{item.sweetness}}</text>
+          <text class="record-calorie">{{item.calorieText}}</text>
+        </view>
+      </view>
+    </view>
+  </view>
+
+  <view wx:else class="empty-state">
+    <text>今天还没有饮品记录。</text>
+    <text>第一杯，会是什么呢？</text>
+  </view>
+  </block>
+</view>

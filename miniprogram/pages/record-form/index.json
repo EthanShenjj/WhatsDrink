@@ -1,0 +1,7 @@
+{
+  "navigationBarTitleText": "记一杯",
+  "usingComponents": {
+    "t-icon": "tdesign-miniprogram/icon/icon",
+    "privacy-popup": "/components/privacy-popup/index"
+  }
+}

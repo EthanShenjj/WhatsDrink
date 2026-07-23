@@ -1,0 +1,104 @@
+<view class="page-shell calendar-page">
+  <view class="month-header">
+    <view
+      class="month-button"
+      bindtap="previousMonth"
+      role="button"
+      aria-label="查看上个月"
+      hover-class="month-button-hover"
+    >
+      <t-icon name="chevron-left" size="40rpx" aria-hidden="true" />
+    </view>
+    <text class="month-title" aria-label="当前月份 {{monthText}}">{{monthText}}</text>
+    <view
+      class="month-button"
+      bindtap="nextMonth"
+      role="button"
+      aria-label="查看下个月"
+      hover-class="month-button-hover"
+    >
+      <t-icon name="chevron-right" size="40rpx" aria-hidden="true" />
+    </view>
+  </view>
+
+  <view class="weekday-row" role="row">
+    <text
+      wx:for="{{weekdayLabels}}"
+      wx:key="*this"
+      class="weekday-label"
+      role="columnheader"
+    >
+      周{{item}}
+    </text>
+  </view>
+
+  <view class="month-grid" role="grid" aria-label="{{monthText}}饮品日历">
+    <view
+      wx:for="{{cells}}"
+      wx:key="key"
+      class="day-cell {{!item.inMonth ? 'is-placeholder' : ''}} {{item.isToday ? 'is-today' : ''}} {{selectedKey === item.key ? 'is-selected' : ''}}"
+      data-key="{{item.key}}"
+      bindtap="selectDate"
+      role="{{item.inMonth ? 'gridcell' : 'presentation'}}"
+      aria-label="{{item.inMonth ? item.key + '，' + (item.isToday ? '今天，' : '') + (item.recordCount ? item.recordCount + ' 杯记录' : '没有记录') : ''}}"
+      aria-selected="{{item.inMonth && selectedKey === item.key ? 'true' : 'false'}}"
+    >
+      <view wx:if="{{item.inMonth}}" class="day-surface">
+        <text wx:if="{{item.isToday}}" class="today-badge">今</text>
+        <text class="day-number">{{item.day}}</text>
+        <view
+          wx:if="{{selectedKey === item.key}}"
+          class="selected-day-dot"
+          aria-hidden="true"
+        />
+        <view
+          wx:elif="{{item.hasRecord}}"
+          class="day-stamp stamp-{{item.stampTone}}"
+          aria-hidden="true"
+        >
+          <t-icon name="drink" size="25rpx" />
+        </view>
+      </view>
+    </view>
+  </view>
+
+  <view class="selected-day-section">
+    <view class="selected-day-head">
+      <text class="selected-date-title">{{selectedDateHeading}}</text>
+      <button class="text-button add-record-button" bindtap="addRecord">记一杯</button>
+    </view>
+
+    <view class="selected-day-summary" aria-label="{{selectedCount}}杯，已知热量{{selectedCalories}}千卡">
+      <text><text class="summary-number">{{selectedCount}}</text> 杯饮品</text>
+      <view class="summary-divider" />
+      <text><text class="summary-number">{{selectedCalories}}</text> 千卡</text>
+    </view>
+
+    <view wx:if="{{selectedRecords.length}}" class="day-list">
+      <view
+        wx:for="{{selectedRecords}}"
+        wx:key="id"
+        class="day-row"
+        data-id="{{item.id}}"
+        bindtap="editRecord"
+        role="button"
+        aria-label="编辑 {{item.timeText}} 的 {{item.drinkName}}，{{item.calorieText}}"
+      >
+        <text class="day-time">{{item.timeText}}</text>
+        <image
+          class="day-image"
+          src="{{item.photoPath || item.fallbackImage}}"
+          mode="aspectFill"
+        />
+        <view class="day-main">
+          <text class="day-title">{{item.brandName ? item.brandName + ' · ' : ''}}{{item.drinkName}}</text>
+          <text class="day-meta">{{item.size}} · {{item.sweetness}}</text>
+        </view>
+        <text class="day-calorie">{{item.calorieText}}</text>
+      </view>
+    </view>
+    <view wx:else class="empty-state calendar-empty">
+      这一天还没有记录，第一杯会是什么呢？
+    </view>
+  </view>
+</view>

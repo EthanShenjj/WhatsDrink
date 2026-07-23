@@ -1,0 +1,9 @@
+{
+  "desc": "WhatsDrink sitemap",
+  "rules": [
+    {
+      "action": "allow",
+      "page": "*"
+    }
+  ]
+}

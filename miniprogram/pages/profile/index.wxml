@@ -1,0 +1,66 @@
+<view class="page-shell profile-page">
+  <view class="profile-head">
+    <view class="avatar">
+      <image wx:if="{{profile.avatarUrl}}" src="{{profile.avatarUrl}}" mode="aspectFill" />
+      <t-icon wx:else name="user" size="76rpx" color="#715946" />
+    </view>
+    <view class="profile-copy">
+      <text class="profile-name">{{profile.nickname || '饮品记录者'}}</text>
+      <button class="text-button edit-profile" bindtap="editProfile">编辑资料</button>
+    </view>
+  </view>
+
+  <view class="week-section">
+    <text class="section-title hand-underline">本周饮品</text>
+    <view class="week-strip" role="list" aria-label="本周饮品记录">
+      <view
+        wx:for="{{weekDays}}"
+        wx:key="key"
+        class="week-day {{item.isToday ? 'is-today' : ''}}"
+        role="listitem"
+        aria-label="周{{item.weekday}}，{{item.day}}日，{{item.count}}杯{{item.isToday ? '，今天' : ''}}"
+      >
+        <text class="week-label">{{item.weekday}}</text>
+        <text class="week-number">{{item.day}}</text>
+        <view class="week-stamp {{item.count ? 'has-drink' : ''}}">
+          <t-icon wx:if="{{item.count}}" name="drink" size="24rpx" />
+        </view>
+      </view>
+    </view>
+    <view class="week-summary">
+      <t-icon name="drink" size="44rpx" />
+      <text>本周 <text class="accent-number">{{weekCount}}</text> 杯 · 已知热量 <text class="accent-number">{{weekCalories}}</text> 千卡</text>
+    </view>
+    <text wx:if="{{weekUnknownCalories}}" class="unknown-note">
+      另有 {{weekUnknownCalories}} 杯未填写热量
+    </text>
+  </view>
+
+  <view class="settings-list">
+    <text class="settings-group-label">记录与隐私</text>
+    <button class="settings-row" bindtap="openCalendar">
+      <t-icon name="calendar" size="42rpx" />
+      <text>记录日历</text>
+      <t-icon name="chevron-right" size="36rpx" />
+    </button>
+    <button class="settings-row" bindtap="openPrivacy">
+      <t-icon name="secured" size="42rpx" />
+      <text>数据与隐私</text>
+      <t-icon name="chevron-right" size="36rpx" />
+    </button>
+  </view>
+
+  <view class="danger-zone">
+    <text class="settings-group-label danger-label">数据管理</text>
+    <button class="settings-row settings-row-danger" bindtap="clearRecords">
+      <t-icon name="delete" size="42rpx" />
+      <text>清除记录</text>
+      <text class="settings-hint">不可恢复</text>
+    </button>
+    <button class="settings-row settings-row-danger" bindtap="removeAccount">
+      <t-icon name="logout" size="42rpx" />
+      <text>注销账号</text>
+      <text class="settings-hint">永久删除</text>
+    </button>
+  </view>
+</view>

@@ -1,0 +1,6 @@
+{
+  "navigationBarTitleText": "记录日历",
+  "usingComponents": {
+    "t-icon": "tdesign-miniprogram/icon/icon"
+  }
+}

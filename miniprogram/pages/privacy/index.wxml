@@ -1,0 +1,21 @@
+<view class="page-shell privacy-page">
+  <text class="eyebrow">DATA & PRIVACY</text>
+  <text class="display-title">你的记录，只属于你</text>
+
+  <view class="privacy-section">
+    <text class="section-title hand-underline">我们保存什么</text>
+    <text>微信身份对应的内部用户标识、你主动填写的头像昵称、饮品记录、自定义转盘，以及你主动上传的饮品照片。</text>
+  </view>
+  <view class="privacy-section">
+    <text class="section-title hand-underline">为什么需要</text>
+    <text>这些数据只用于登录识别、同步个人记录、展示日历与转盘结果。热量只作为个人记录参考，不提供医疗、营养或减脂建议。</text>
+  </view>
+  <view class="privacy-section">
+    <text class="section-title hand-underline">你可以控制</text>
+    <text>你可以随时编辑或删除单条记录，在“我的”中清除全部记录，或者注销账号并删除个人资料、记录、照片和自定义转盘。</text>
+  </view>
+  <view class="privacy-section">
+    <text class="section-title hand-underline">照片权限</text>
+    <text>只有当你主动点击“添加一张照片”时，才会请求相册或相机能力。拒绝权限不会影响其他记录功能。</text>
+  </view>
+</view>

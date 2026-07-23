@@ -1,0 +1,6 @@
+{
+  "navigationBarTitleText": "Choice One",
+  "usingComponents": {
+    "t-icon": "tdesign-miniprogram/icon/icon"
+  }
+}

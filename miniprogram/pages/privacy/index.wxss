@@ -1,0 +1,11 @@
+.privacy-section {
+  margin-top: 56rpx;
+}
+
+.privacy-section > text:last-child {
+  display: block;
+  margin-top: 24rpx;
+  color: #6f5642;
+  font-size: 28rpx;
+  line-height: 1.9;
+}
