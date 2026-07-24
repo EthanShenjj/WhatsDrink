@@ -9,7 +9,7 @@
     aria-label="{{item.text}}"
     aria-current="{{selected === index ? 'page' : ''}}"
   >
-    <t-icon name="{{item.icon}}" size="44rpx" />
+    <wd-icon name="{{item.icon}}" size="44rpx" />
     <text class="tab-label">{{item.text}}</text>
   </view>
 </view>

@@ -3,7 +3,21 @@
   <text class="display-title">今天喝什么？</text>
   <text class="choice-note">把纠结交给转盘，把喜欢留给今天。</text>
 
-  <view class="wheel-selector">
+  <view class="wheel-panel">
+    <view class="wheel-panel-header">
+      <text class="wheel-control-label">当前转盘</text>
+      <view
+        class="motion-toggle"
+        bindtap="toggleReducedMotion"
+        role="button"
+        aria-pressed="{{reducedMotion ? 'true' : 'false'}}"
+        aria-label="精简转盘动效，当前{{reducedMotion ? '已开启' : '未开启'}}"
+        hover-class="control-hover"
+      >
+        {{reducedMotion ? '精简动效' : '标准动效'}}
+      </view>
+    </view>
+
     <picker
       class="wheel-picker"
       range="{{wheelNames}}"
@@ -13,36 +27,44 @@
     >
       <view class="wheel-name-control">
         <text class="wheel-name">{{activeWheel.name || '选择转盘'}}</text>
-        <t-icon name="chevron-down" size="32rpx" aria-hidden="true" />
+        <wd-icon name="chevron-down" size="30rpx" />
       </view>
     </picker>
-    <view class="wheel-actions">
-      <button class="text-button wheel-action-button" bindtap="editWheel">编辑</button>
-      <button class="text-button wheel-action-button" bindtap="addWheel">新建</button>
+
+    <view class="wheel-panel-footer">
+      <view class="candidate-copy">
+        <text class="candidate-count">{{candidateCount}} 个候选</text>
+        <text class="candidate-summary">{{candidateSummary || '请先添加候选'}}</text>
+      </view>
+      <view class="wheel-actions">
+        <view
+          class="wheel-action-button"
+          bindtap="editWheel"
+          role="button"
+          aria-label="编辑当前转盘"
+          hover-class="control-hover"
+        >
+          <wd-icon name="edit-1" size="30rpx" />
+          <text>编辑</text>
+        </view>
+        <view
+          class="wheel-action-button"
+          bindtap="addWheel"
+          role="button"
+          aria-label="新建转盘"
+          hover-class="control-hover"
+        >
+          <wd-icon name="add" size="32rpx" />
+          <text>新建</text>
+        </view>
+      </view>
     </view>
   </view>
 
-  <view class="wheel-context">
-    <view class="candidate-copy">
-      <text class="candidate-count">{{candidateCount}} 个候选</text>
-      <text class="candidate-summary">{{candidateSummary || '请先添加候选'}}</text>
-    </view>
-    <button
-      class="motion-toggle"
-      bindtap="toggleReducedMotion"
-      aria-pressed="{{reducedMotion ? 'true' : 'false'}}"
-      aria-label="精简转盘动效，当前{{reducedMotion ? '已开启' : '未开启'}}"
-    >
-      {{reducedMotion ? '精简动效' : '标准动效'}}
-    </button>
-  </view>
-
-  <canvas
-    type="2d"
-    id="wheelCanvas"
-    class="wheel-canvas"
-    role="img"
-    aria-label="转盘，{{candidateCount}} 个候选：{{candidateSummary}}"
+  <wheel-surface
+    id="wheelSurface"
+    canvas-label="转盘，{{candidateCount}} 个候选：{{candidateSummary}}"
+    bindready="onWheelCanvasReady"
   />
 
   <button
@@ -65,7 +87,7 @@
     <text class="result-kicker">今天就喝</text>
     <text class="result-name">{{result.label}}</text>
     <button class="secondary-button" bindtap="useResult">
-      <t-icon name="check-circle" size="36rpx" />
+      <wd-icon name="check-circle" size="36rpx" />
       <text>就喝这个</text>
     </button>
   </view>

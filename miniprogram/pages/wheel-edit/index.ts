@@ -9,6 +9,8 @@ import {
 import { createId } from '../../utils/id'
 import { brandToWheelItem, validateWheelItems } from '../../utils/wheel'
 
+let pageToastTimer: ReturnType<typeof setTimeout> | null = null
+
 Page({
   data: {
     wheel: null as Wheel | null,
@@ -16,6 +18,7 @@ Page({
     catalogLabels: BRANDS.map((brand) => brand.name),
     catalogIndex: 0,
     validationMessage: '',
+    pageToastMessage: '',
   },
   async onLoad(query: Record<string, string>) {
     const wheels = await listWheels()
@@ -50,6 +53,14 @@ Page({
   changeCatalog(event: WechatMiniprogram.PickerChange) {
     this.setData({ catalogIndex: Number(event.detail.value) })
   },
+  showPageToast(message: string) {
+    if (pageToastTimer) clearTimeout(pageToastTimer)
+    this.setData({ pageToastMessage: message })
+    pageToastTimer = setTimeout(() => {
+      this.setData({ pageToastMessage: '' })
+      pageToastTimer = null
+    }, 1800)
+  },
   addCatalogItem() {
     if (!this.data.wheel) return
     const brand = BRANDS[this.data.catalogIndex]
@@ -58,7 +69,7 @@ Page({
       (item) => item.brandId === brand.id || item.brandName === brand.name,
     )
     if (exists) {
-      wx.showToast({ title: '这个品牌已经添加', icon: 'none' })
+      this.showPageToast('该品牌已在候选项中')
       return
     }
     const item = brandToWheelItem(brand, createId('item'))
@@ -104,5 +115,9 @@ Page({
         wx.navigateBack()
       },
     })
+  },
+  onUnload() {
+    if (pageToastTimer) clearTimeout(pageToastTimer)
+    pageToastTimer = null
   },
 })

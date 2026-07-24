@@ -11,16 +11,16 @@
   ],
   "window": {
     "navigationBarTitleText": "WhatsDrink",
-    "navigationBarBackgroundColor": "#F8F1E5",
+    "navigationBarBackgroundColor": "#F1EFEA",
     "navigationBarTextStyle": "black",
-    "backgroundColor": "#F8F1E5",
+    "backgroundColor": "#F4F2ED",
     "backgroundTextStyle": "dark"
   },
   "tabBar": {
     "custom": true,
-    "color": "#5D3B26",
-    "selectedColor": "#D96C4A",
-    "backgroundColor": "#FBF6EC",
+    "color": "#8B8881",
+    "selectedColor": "#1C1B18",
+    "backgroundColor": "#FFFFFF",
     "list": [
       {
         "pagePath": "pages/home/index",

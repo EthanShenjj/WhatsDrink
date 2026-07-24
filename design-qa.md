@@ -50,3 +50,119 @@
 - Confirm the blue and brown drink stamps remain legible on Android font and icon rendering.
 
 final result: blocked
+
+---
+
+# WhatsDrink Wheel Editor Delete Control QA
+
+**Source visual truth**
+
+- Requested source screenshot: `/var/folders/bp/yjy37w_x5tgc2rp4yq9r4t4h0000gn/T/codex-clipboard-61601cab-cd56-40b9-abdb-51a91dbee287.png`
+- Source pixels: `340 × 422`
+- State: wheel editor with five candidate rows
+- Requested change: remove the visible “移除” copy and retain the delete icon
+
+**Implementation evidence**
+
+- Implementation surface: `miniprogram/pages/wheel-edit/index`
+- Post-change screenshot: unavailable
+- Static evidence: the visible text node was removed; the icon-only control retains its candidate-specific accessible label and a `72rpx × 72rpx` hit area
+
+**Required fidelity surfaces**
+
+- Fonts and typography: the unwanted “移除” label is absent from the template.
+- Spacing and layout rhythm: the trailing action column was reduced from `100rpx` to `72rpx`.
+- Colors and visual tokens: the existing danger color remains unchanged.
+- Image quality and asset fidelity: the existing local delete icon remains unchanged.
+- Copy and content: only the visible action copy was removed; the accessibility label remains.
+
+**Verification**
+
+- Project validation: passed
+- TypeScript: passed
+- Automated tests: 17 passed
+- WXML structure check: 11 templates passed
+- Post-change visual comparison: blocked because the WeChat Developer Tools simulator capture is unavailable
+
+**Comparison history**
+
+- Pass 1: source screenshot inspected, visible text removed, action column tightened, and static checks passed. A rendered simulator screenshot is still required for visual comparison.
+
+final result: blocked
+
+---
+
+# WhatsDrink Wheel Editor Design QA
+
+**Source evidence**
+
+- Reported implementation screenshot: `docs/audit/2026-07-24-wheel-edit-review/01-editor-before.png`
+- Implementation surface: `miniprogram/pages/wheel-edit/index`
+
+**Fixes implemented**
+
+- Split the eyebrow and page title into a stable vertical hierarchy.
+- Rebuilt the add-candidate area as two labeled, full-width form rows.
+- Replaced layout-sensitive native add/remove buttons with fixed-width accessible views and existing local icons.
+- Rebuilt candidate rows as fixed three-column layouts.
+- Normalized the save, copy, and delete action widths and hierarchy.
+
+**Verification**
+
+- Project validation: passed
+- TypeScript: passed
+- Automated tests: 17 passed
+- WXML structure check: 11 templates passed
+- Post-change implementation screenshot: unavailable
+- Console errors after rendering: unavailable
+
+**Remaining gate**
+
+- Recompile and capture the editor with five candidates.
+- Confirm that the title is on two lines, add actions stay fixed on the right, every remove action is right-aligned, and the save button spans the form width.
+
+final result: blocked
+
+---
+
+# WhatsDrink Choice One Follow-up QA
+
+**Source evidence**
+
+- Reported implementation screenshot: `docs/audit/choice-one-toolbar-before.png`
+- Second-pass implementation screenshot: `docs/audit/choice-one-panel-before-second-pass.png`
+- Screenshot state: five candidates, standard motion, no result selected
+- Implementation surface: `miniprogram/pages/choice/index`
+
+**Visible findings and fixes**
+
+- [P1] Current wheel name collapsed to an arrow-only control.
+  - Cause: the native `picker` was used directly as a CSS Grid item and collapsed to its smallest intrinsic width in the mini-program renderer.
+  - Pass 1 fix: placed the native control inside a regular Flex child with `flex: 1` and `min-width: 0`.
+  - Pass 2 evidence: the native picker still collapsed when sharing the row with native buttons, leaving the label vertically wrapped.
+  - Pass 2 fix: moved the picker to its own full-width row and placed the label outside the native control.
+- [P2] Edit and create actions floated without a clear relationship to the selected wheel.
+  - Pass 1 fix: grouped the wheel selector and actions inside one bordered panel.
+  - Pass 2 fix: replaced the two native action buttons with fixed-width accessible views using the existing local icon component, preventing native intrinsic widths from spreading them across the panel.
+- [P2] The motion preference looked like a primary action and consumed half the row.
+  - Fix: moved it to the panel header as a compact secondary status pill while preserving its pressed state and accessible label.
+- [P2] The eyebrow and page title shared one line and competed visually.
+  - Fix: made both block-level and tightened the title scale and vertical rhythm.
+- [P3] The wheel and CTA were slightly oversized relative to the information density.
+  - Fix: reduced the wheel to `520rpx` and gave the CTA an explicit centered `440rpx` width.
+
+**Verification**
+
+- Project validation: passed
+- TypeScript: passed
+- Automated tests: 16 passed
+- WXML structure check: 10 templates passed
+- Post-change implementation screenshot: unavailable
+- Console errors after rendering: unavailable
+
+**Remaining gate**
+
+- Recompile the mini program and capture Choice One in the same five-candidate state.
+- Confirm the full wheel name occupies its own row, the action icons remain grouped at the bottom right, and the panel has no horizontal overflow.
+
+final result: blocked

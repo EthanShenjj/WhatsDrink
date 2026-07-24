@@ -1,56 +1,131 @@
 <view class="page-shell wheel-edit-page" wx:if="{{wheel}}">
+  <view
+    wx:if="{{pageToastMessage}}"
+    class="page-toast"
+    role="status"
+    aria-live="polite"
+  >
+    <wd-icon name="check-circle" size="30rpx" />
+    <text>{{pageToastMessage}}</text>
+  </view>
+
   <text class="eyebrow">CUSTOM WHEEL</text>
   <text class="display-title">编辑转盘</text>
+  <text class="page-note">管理转盘名称和候选项，保存后会同步到 Choice One。</text>
 
   <view class="field">
     <text class="field-label">转盘名称</text>
-    <input class="field-input" value="{{wheel.name}}" maxlength="20" bindinput="updateName" />
+    <input
+      class="field-input"
+      value="{{wheel.name}}"
+      maxlength="20"
+      bindinput="updateName"
+      placeholder="给转盘起个名字"
+    />
   </view>
 
   <view class="add-block">
-    <text class="section-title hand-underline">添加候选</text>
-    <view class="add-row">
-      <input
-        class="inline-input"
-        value="{{customLabel}}"
-        placeholder="例如：楼下咖啡店"
-        maxlength="30"
-        bindinput="updateCustomLabel"
-      />
-      <button class="small-button" bindtap="addCustom">添加自定义项</button>
+    <view class="section-head">
+      <text class="section-title hand-underline">添加候选</text>
+      <text class="section-note">最多 20 项</text>
     </view>
-    <view class="add-row">
-      <picker class="catalog-picker" range="{{catalogLabels}}" value="{{catalogIndex}}" bindchange="changeCatalog">
-        <view class="picker-value">{{catalogLabels[catalogIndex]}}</view>
-      </picker>
-      <button class="small-button" bindtap="addCatalogItem">从品牌库添加</button>
+
+    <view class="add-stack">
+      <view class="add-field">
+        <text class="add-label">自定义候选</text>
+        <view class="add-control">
+          <input
+            class="inline-input"
+            value="{{customLabel}}"
+            placeholder="例如：楼下咖啡店"
+            maxlength="30"
+            bindinput="updateCustomLabel"
+          />
+          <view
+            class="add-action"
+            bindtap="addCustom"
+            role="button"
+            aria-label="添加自定义候选"
+            hover-class="control-hover"
+          >
+            <wd-icon name="add" size="28rpx" />
+            <text>添加</text>
+          </view>
+        </view>
+      </view>
+
+      <view class="add-field">
+        <text class="add-label">品牌库</text>
+        <view class="add-control">
+          <picker
+            class="catalog-picker"
+            range="{{catalogLabels}}"
+            value="{{catalogIndex}}"
+            bindchange="changeCatalog"
+          >
+            <view class="picker-value">
+              <text>{{catalogLabels[catalogIndex]}}</text>
+              <wd-icon name="chevron-down" size="28rpx" />
+            </view>
+          </picker>
+          <view
+            class="add-action"
+            bindtap="addCatalogItem"
+            role="button"
+            aria-label="从品牌库添加 {{catalogLabels[catalogIndex]}}"
+            hover-class="control-hover"
+          >
+            <wd-icon name="add" size="28rpx" />
+            <text>加入</text>
+          </view>
+        </view>
+      </view>
     </view>
   </view>
 
   <view class="item-head">
     <text class="section-title hand-underline">候选项</text>
-    <text class="muted">{{wheel.items.length}} / 20</text>
+    <text class="item-count">{{wheel.items.length}} / 20</text>
   </view>
   <view class="item-list">
     <view wx:for="{{wheel.items}}" wx:key="id" class="item-row">
-      <text>{{index + 1}}. {{item.label}}</text>
-      <button
+      <text class="item-index">{{index + 1}}</text>
+      <text class="item-label">{{item.label}}</text>
+      <view
         class="remove-button"
         data-id="{{item.id}}"
         bindtap="removeItem"
+        role="button"
         aria-label="移除候选项 {{item.label}}"
+        hover-class="control-hover"
       >
-        移除
-      </button>
+        <wd-icon name="delete" size="25rpx" />
+      </view>
     </view>
   </view>
   <text wx:if="{{validationMessage}}" class="validation" role="alert" aria-live="polite">
     {{validationMessage}}
   </text>
 
-  <button class="primary-button" bindtap="save">保存转盘</button>
+  <button class="primary-button save-button" bindtap="save">保存转盘</button>
   <view class="footer-actions">
-    <button class="secondary-button" bindtap="copy">复制转盘</button>
-    <button class="secondary-button danger" bindtap="remove">删除转盘</button>
+    <view
+      class="secondary-button footer-button"
+      bindtap="copy"
+      role="button"
+      aria-label="复制转盘"
+      hover-class="control-hover"
+    >
+      复制转盘
+    </view>
+    <view
+      class="secondary-button footer-button danger"
+      bindtap="remove"
+      role="button"
+      aria-label="删除转盘"
+      hover-class="control-hover"
+    >
+      删除转盘
+    </view>
   </view>
 </view>

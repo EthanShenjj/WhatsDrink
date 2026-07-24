@@ -3,6 +3,22 @@ import type { Brand, DrinkRecordDraft, WheelItem } from '../domain/types'
 export const MIN_WHEEL_ITEMS = 2
 export const MAX_WHEEL_ITEMS = 20
 
+export const getCanvasSetupStatus = (
+  hasNode: boolean,
+  width: number,
+  attempt: number,
+  maxAttempts = 4,
+): 'ready' | 'retry' | 'failed' => {
+  if (hasNode && width > 0) return 'ready'
+  return attempt < maxAttempts ? 'retry' : 'failed'
+}
+
+export const getWheelLabelRotation = (
+  middleAngle: number,
+  wheelRotation: number,
+  spinning: boolean,
+): number => (spinning ? Math.PI / 2 : -(middleAngle + wheelRotation))
+
 export const brandToWheelItem = (brand: Brand, id: string): WheelItem => ({
   id,
   label: brand.name,

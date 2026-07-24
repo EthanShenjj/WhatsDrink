@@ -13,9 +13,10 @@
   justify-content: center;
   overflow: hidden;
   margin: 70rpx auto 54rpx;
-  border: 2rpx dashed rgba(217, 108, 74, 0.55);
+  border: 8rpx solid var(--surface);
   border-radius: 50%;
-  background: rgba(239, 227, 209, 0.5);
+  background: var(--paper-deep);
+  box-shadow: var(--shadow-card);
   color: var(--muted);
   font-size: var(--text-small);
 }
@@ -27,6 +28,10 @@
 
 .field {
   margin-bottom: 54rpx;
+  padding: 28rpx;
+  border-radius: var(--radius-card);
+  background: var(--surface);
+  box-shadow: var(--shadow-card);
 }
 
 .field-label {
@@ -42,6 +47,6 @@
   padding: 0 24rpx;
   border: 1rpx solid var(--line);
   border-radius: var(--radius-control);
-  background: rgba(255, 250, 241, 0.5);
+  background: var(--surface-soft);
   font-size: var(--text-control);
 }

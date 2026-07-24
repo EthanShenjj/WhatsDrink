@@ -11,7 +11,7 @@
       mode="aspectFill"
     />
     <button class="photo-button" bindtap="choosePhoto">
-      <t-icon name="camera" size="38rpx" />
+      <wd-icon name="camera" size="38rpx" />
       <text>{{pendingPhotoPath || photoPath ? '更换照片' : '添加照片（可选）'}}</text>
     </button>
     <button
@@ -239,11 +239,11 @@
 
   <button
     class="primary-button submit-button"
-    loading="{{saving}}"
-    disabled="{{saving}}"
+    loading="{{authenticating || saving}}"
+    disabled="{{authenticating || saving}}"
     bindtap="submit"
   >
-    {{saving ? '正在保存…' : '保存记录'}}
+    {{authenticating ? '正在登录…' : saving ? '正在保存…' : '保存记录'}}
   </button>
   <button
     wx:if="{{editingId}}"

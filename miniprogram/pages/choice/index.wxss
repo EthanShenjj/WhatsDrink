@@ -1,72 +1,112 @@
-.choice-note {
+.choice-page > .eyebrow,
+.choice-page > .display-title {
   display: block;
-  margin-top: 18rpx;
-  color: var(--muted);
-  font-size: 28rpx;
 }
 
-.wheel-selector {
-  display: grid;
-  grid-template-columns: minmax(0, 1fr) auto;
-  gap: 18rpx;
+.choice-page > .display-title {
+  margin-top: 9rpx;
+  font-size: 56rpx;
+}
+
+.choice-note {
+  display: block;
+  margin-top: 12rpx;
+  color: var(--muted);
+  font-size: 26rpx;
+}
+
+.wheel-panel {
+  margin-top: 30rpx;
+  padding: 24rpx;
+  border: 1rpx solid rgba(28, 27, 24, 0.045);
+  border-radius: var(--radius-card);
+  background: var(--surface);
+  box-shadow: var(--shadow-card);
+}
+
+.wheel-panel-header {
+  display: flex;
+  min-height: 52rpx;
   align-items: center;
-  margin-top: 36rpx;
-  padding-bottom: 20rpx;
-  border-bottom: 1rpx solid var(--line);
+  justify-content: space-between;
+  gap: 16rpx;
+  margin-bottom: 12rpx;
 }
 
 .wheel-picker {
   display: block;
   width: 100%;
-  min-width: 0;
 }
 
 .wheel-name-control {
   display: flex;
   width: 100%;
-  min-width: 0;
   min-height: var(--control-height);
   align-items: center;
   justify-content: space-between;
   gap: 14rpx;
-  padding: 0 22rpx;
-  border: 1rpx solid var(--line);
-  border-radius: var(--radius-control);
-  background: rgba(255, 250, 241, 0.48);
+  padding: 0 20rpx;
+  border: 0;
+  border-radius: 20rpx;
+  background: var(--surface-soft);
   color: var(--ink);
 }
 
 .wheel-name {
   display: block;
+}
+
+.wheel-control-label {
+  color: var(--muted);
+  font-size: 19rpx;
+  font-weight: 600;
+  letter-spacing: 3rpx;
+  white-space: nowrap;
+}
+
+.wheel-name {
   overflow: hidden;
   min-width: 0;
-  font-size: var(--text-control);
+  flex: 1;
+  font-size: 30rpx;
   font-weight: 600;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
 
+.wheel-panel-footer {
+  display: flex;
+  min-height: 88rpx;
+  align-items: center;
+  gap: 16rpx;
+  margin-top: 16rpx;
+  padding-top: 16rpx;
+  border-top: 1rpx solid var(--line);
+}
+
 .wheel-actions {
   display: flex;
-  flex-shrink: 0;
-  gap: 4rpx;
+  flex: 0 0 164rpx;
+  justify-content: flex-end;
+  gap: 8rpx;
 }
 
 .wheel-action-button {
-  min-width: 76rpx;
-  min-height: 76rpx;
-  padding: 0 10rpx;
-  font-size: var(--text-small);
-}
-
-.wheel-context {
   display: flex;
+  width: 78rpx;
+  height: 72rpx;
+  flex: 0 0 78rpx;
+  flex-direction: column;
   align-items: center;
-  justify-content: space-between;
-  gap: 24rpx;
-  min-height: 106rpx;
-  padding: 18rpx 0;
-  border-bottom: 1rpx solid var(--line);
+  justify-content: center;
+  gap: 3rpx;
+  padding: 0;
+  border: 1rpx solid var(--line);
+  border-radius: 18rpx;
+  background: var(--surface-soft);
+  color: var(--accent-deep);
+  font-size: 20rpx;
+  line-height: 1.1;
 }
 
 .candidate-copy {
@@ -81,10 +121,10 @@
 
 .candidate-summary {
   overflow: hidden;
-  margin-top: 6rpx;
+  margin-top: 4rpx;
   color: var(--muted);
-  font-size: var(--text-caption);
-  line-height: 1.5;
+  font-size: 22rpx;
+  line-height: 1.35;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
@@ -96,29 +136,32 @@
 }
 
 .motion-toggle {
-  width: auto;
-  min-width: 144rpx;
-  min-height: 76rpx;
+  display: flex;
+  min-width: 124rpx;
+  min-height: 52rpx;
   flex-shrink: 0;
-  margin: 0;
+  align-items: center;
+  justify-content: center;
   padding: 0 16rpx;
+  border: 1rpx solid var(--line);
   border-radius: 99rpx;
-  background: rgba(239, 227, 209, 0.68);
-  color: var(--ink);
-  font-size: var(--text-caption);
+  background: var(--surface-soft);
+  color: var(--muted);
+  font-size: 20rpx;
   line-height: 1;
   white-space: nowrap;
 }
 
-.wheel-canvas {
-  display: block;
-  width: 536rpx;
-  height: 536rpx;
-  margin: 30rpx auto 26rpx;
+.control-hover {
+  opacity: 0.66;
 }
 
 .spin-button {
-  min-height: 94rpx;
+  width: 440rpx;
+  min-height: 92rpx;
+  margin: 0 auto;
+  border-radius: 46rpx;
+  font-size: 31rpx;
 }
 
 .spin-button.is-spinning {
@@ -135,8 +178,11 @@
 
 .result-panel {
   margin-top: 38rpx;
-  padding: 28rpx 0;
-  border-top: 1rpx solid var(--line);
+  padding: 30rpx;
+  border: 1rpx solid rgba(28, 27, 24, 0.045);
+  border-radius: var(--radius-card);
+  background: var(--surface);
+  box-shadow: var(--shadow-card);
   text-align: center;
 }
 

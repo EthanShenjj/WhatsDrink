@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import type { WheelItem } from '../miniprogram/domain/types'
+import * as wheelUtils from '../miniprogram/utils/wheel'
 import {
   brandToWheelItem,
   chooseWheelItem,
@@ -22,6 +23,39 @@ const items: WheelItem[] = [
 ]
 
 describe('Choice One wheel', () => {
+  it('retries canvas setup until both its node and layout size are ready', () => {
+    const getCanvasSetupStatus = (
+      wheelUtils as typeof wheelUtils & {
+        getCanvasSetupStatus?: (
+          hasNode: boolean,
+          width: number,
+          attempt: number,
+          maxAttempts?: number,
+        ) => 'ready' | 'retry' | 'failed'
+      }
+    ).getCanvasSetupStatus
+
+    expect(getCanvasSetupStatus?.(false, 0, 0, 4)).toBe('retry')
+    expect(getCanvasSetupStatus?.(true, 0, 2, 4)).toBe('retry')
+    expect(getCanvasSetupStatus?.(true, 520, 2, 4)).toBe('ready')
+    expect(getCanvasSetupStatus?.(false, 0, 4, 4)).toBe('failed')
+  })
+
+  it('rotates labels with the wheel during motion and restores readability at rest', () => {
+    const getWheelLabelRotation = (
+      wheelUtils as typeof wheelUtils & {
+        getWheelLabelRotation?: (
+          middleAngle: number,
+          wheelRotation: number,
+          spinning: boolean,
+        ) => number
+      }
+    ).getWheelLabelRotation
+
+    expect(getWheelLabelRotation?.(0.4, 1.2, true)).toBeCloseTo(Math.PI / 2)
+    expect(getWheelLabelRotation?.(0.4, 1.2, false)).toBeCloseTo(-1.6)
+  })
+
   it('creates catalog candidates from brands without drink details', () => {
     const item = brandToWheelItem(
       { id: 'luckin', name: '瑞幸', category: 'coffee', public: true, version: 1 },

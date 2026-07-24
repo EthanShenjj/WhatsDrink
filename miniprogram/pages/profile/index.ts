@@ -3,9 +3,51 @@ import {
   clearAllRecords,
   deleteAccount,
   ensureProfile,
+  hasRecordAccess,
   listRecords,
+  loginForRecordAccess,
+  saveProfile,
+  uploadRecordPhoto,
 } from '../../services/repository'
 import { dateKey, getWeekDays, summarizeRecords } from '../../utils/date'
+
+let profileLoginPromise: Promise<boolean> | null = null
+let resolveProfileLogin: ((authenticated: boolean) => void) | null = null
+
+interface ProfileLoginHost {
+  data: {
+    profile: UserProfile | null
+  }
+  setData(data: Record<string, unknown>): void
+}
+
+const requireProfileLogin = (host: ProfileLoginHost): Promise<boolean> => {
+  const profile = host.data.profile
+  const profileReady = Boolean(
+    profile?.avatarUrl &&
+      profile.nickname.trim() &&
+      profile.nickname !== '饮品记录者',
+  )
+  if (hasRecordAccess() && profileReady) return Promise.resolve(true)
+  if (profileLoginPromise) return Promise.resolve(false)
+
+  host.setData({
+    loginSheetVisible: true,
+    loginAvatarUrl: '',
+    loginNickname: '',
+  })
+  profileLoginPromise = new Promise((resolve) => {
+    resolveProfileLogin = resolve
+  })
+  return profileLoginPromise
+}
+
+const settleProfileLogin = (host: ProfileLoginHost, authenticated: boolean): void => {
+  host.setData({ loginSheetVisible: false, loginSaving: false })
+  resolveProfileLogin?.(authenticated)
+  resolveProfileLogin = null
+  profileLoginPromise = null
+}
 
 Page({
   data: {
@@ -14,6 +56,10 @@ Page({
     weekCount: 0,
     weekCalories: 0,
     weekUnknownCalories: 0,
+    loginSheetVisible: false,
+    loginAvatarUrl: '',
+    loginNickname: '',
+    loginSaving: false,
   },
   onShow() {
     this.getTabBar?.()?.setData({ selected: 3 })
@@ -39,16 +85,59 @@ Page({
       weekUnknownCalories: summary.unknownCaloriesCount,
     })
   },
-  editProfile() {
+  chooseLoginAvatar(event: WechatMiniprogram.CustomEvent<{ avatarUrl: string }>) {
+    this.setData({ loginAvatarUrl: event.detail.avatarUrl })
+  },
+  updateLoginNickname(event: WechatMiniprogram.Input) {
+    this.setData({ loginNickname: event.detail.value })
+  },
+  async confirmProfileLogin(event: WechatMiniprogram.FormSubmit) {
+    if (this.data.loginSaving) return
+    const nickname = String(event.detail.value.nickname || this.data.loginNickname).trim()
+    const loginAvatarUrl = this.data.loginAvatarUrl
+    if (!loginAvatarUrl) {
+      wx.showToast({ title: '请选择微信头像', icon: 'none' })
+      return
+    }
+    if (!nickname) {
+      wx.showToast({ title: '请填写微信昵称', icon: 'none' })
+      return
+    }
+
+    this.setData({ loginSaving: true })
+    try {
+      await loginForRecordAccess()
+      const avatarUrl = await uploadRecordPhoto(loginAvatarUrl)
+      const profile = await saveProfile({ nickname, avatarUrl })
+      this.setData({ profile })
+      settleProfileLogin(this, true)
+    } catch {
+      this.setData({ loginSaving: false })
+      wx.showToast({ title: '登录失败，请重试', icon: 'none' })
+    }
+  },
+  cancelProfileLogin() {
+    if (this.data.loginSaving) return
+    settleProfileLogin(this, false)
+  },
+  preventLoginSheetClose() {},
+  onUnload() {
+    if (profileLoginPromise) settleProfileLogin(this, false)
+  },
+  async editProfile() {
+    if (!(await requireProfileLogin(this))) return
     wx.navigateTo({ url: '/pages/profile-edit/index' })
   },
-  openCalendar() {
+  async openCalendar() {
+    if (!(await requireProfileLogin(this))) return
     wx.switchTab({ url: '/pages/calendar/index' })
   },
-  openPrivacy() {
+  async openPrivacy() {
+    if (!(await requireProfileLogin(this))) return
     wx.navigateTo({ url: '/pages/privacy/index' })
   },
-  clearRecords() {
+  async clearRecords() {
+    if (!(await requireProfileLogin(this))) return
     wx.showModal({
       title: '清除全部记录？',
       content: '这会删除所有饮品记录和照片，但保留转盘与个人资料。此操作无法恢复。',
@@ -62,7 +151,8 @@ Page({
       },
     })
   },
-  removeAccount() {
+  async removeAccount() {
+    if (!(await requireProfileLogin(this))) return
     wx.showModal({
       title: '注销 WhatsDrink 账号？',
       content: '个人资料、饮品记录、照片和自定义转盘都会被永久删除。',

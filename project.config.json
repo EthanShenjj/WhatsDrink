@@ -1,5 +1,5 @@
 {
-  "appid": "wx278b68722febf36a",
+  "appid": "wxd29da814d2b50d53",
   "projectname": "WhatsDrink",
   "description": "记录每天喝什么，并用 Choice One 帮你做决定",
   "compileType": "miniprogram",
@@ -47,5 +47,6 @@
     "ignore": [],
     "include": []
   },
-  "editorSetting": {}
+  "editorSetting": {},
+  "libVersion": "3.15.0"
 }

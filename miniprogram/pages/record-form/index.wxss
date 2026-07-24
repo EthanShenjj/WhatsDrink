@@ -17,8 +17,10 @@
 .photo-preview {
   width: 150rpx;
   height: 150rpx;
+  border: 6rpx solid var(--surface);
   border-radius: 24rpx;
   background: var(--paper-deep);
+  box-shadow: var(--shadow-card);
 }
 
 .photo-button {
@@ -28,8 +30,8 @@
   gap: 12rpx;
   padding: 0 24rpx;
   border: 1rpx solid var(--line);
-  border-radius: var(--radius-control);
-  background: rgba(255, 250, 241, 0.4);
+  border-radius: 44rpx;
+  background: var(--surface);
   color: var(--ink);
   font-size: var(--text-small);
 }
@@ -39,9 +41,12 @@
 }
 
 .form-section {
-  margin-top: 58rpx;
-  padding-top: 44rpx;
-  border-top: 1rpx solid var(--line);
+  margin-top: 28rpx;
+  padding: 30rpx;
+  border: 1rpx solid rgba(28, 27, 24, 0.045);
+  border-radius: var(--radius-card);
+  background: var(--surface);
+  box-shadow: var(--shadow-card);
 }
 
 .form-section-head {
@@ -93,7 +98,7 @@
   padding: 0 22rpx;
   border: 1rpx solid var(--line);
   border-radius: var(--radius-control);
-  background: rgba(255, 250, 241, 0.5);
+  background: var(--surface-soft);
   font-size: var(--text-body);
 }
 
@@ -135,7 +140,7 @@
   padding: 22rpx;
   border: 1rpx solid var(--line);
   border-radius: var(--radius-control);
-  background: rgba(255, 250, 241, 0.5);
+  background: var(--surface-soft);
   font-size: var(--text-body);
   line-height: 1.7;
 }

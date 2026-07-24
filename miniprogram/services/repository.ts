@@ -10,6 +10,9 @@ import { createId } from '../utils/id'
 import { brandToWheelItem, normalizeWheelItemsToBrands } from '../utils/wheel'
 import { CLOUD_ENV_ID, STORAGE_KEYS, USE_CLOUD } from './config'
 
+let recordSessionReady = false
+let cloudSessionReady = false
+
 const defaultWheelItems = (): WheelItem[] =>
   BRANDS.filter((brand) =>
     ['starbucks', 'luckin', 'manner', 'tims', 'mstand'].includes(brand.id),
@@ -69,6 +72,14 @@ const callCloud = async <T>(name: string, data: object): Promise<T> => {
   return result.data as T
 }
 
+const requestWechatLogin = (): Promise<void> =>
+  new Promise((resolve, reject) => {
+    wx.login({
+      success: () => resolve(),
+      fail: reject,
+    })
+  })
+
 export const initializeCloud = (): boolean => {
   if (!USE_CLOUD || !wx.cloud) return false
   wx.cloud.init({ env: CLOUD_ENV_ID, traceUser: true })
@@ -76,7 +87,7 @@ export const initializeCloud = (): boolean => {
 }
 
 export const ensureProfile = async (): Promise<UserProfile> => {
-  if (USE_CLOUD) return callCloud<UserProfile>('login', {})
+  if (USE_CLOUD && cloudSessionReady) return callCloud<UserProfile>('login', {})
   const existing = getStored<UserProfile | null>(STORAGE_KEYS.profile, null)
   if (existing) return existing
   const now = Date.now()
@@ -91,10 +102,30 @@ export const ensureProfile = async (): Promise<UserProfile> => {
   return profile
 }
 
+export const hasRecordAccess = (): boolean => recordSessionReady
+
+export const loginForRecordAccess = async (): Promise<UserProfile> => {
+  if (recordSessionReady) return ensureProfile()
+  await requestWechatLogin()
+  recordSessionReady = true
+  if (USE_CLOUD) {
+    try {
+      const profile = await callCloud<UserProfile>('login', {})
+      cloudSessionReady = true
+      return profile
+    } catch {
+      return ensureProfile()
+    }
+  }
+  return ensureProfile()
+}
+
 export const saveProfile = async (
   patch: Pick<UserProfile, 'nickname' | 'avatarUrl'>,
 ): Promise<UserProfile> => {
-  if (USE_CLOUD) return callCloud<UserProfile>('accountMutation', { action: 'saveProfile', patch })
+  if (USE_CLOUD && cloudSessionReady) {
+    return callCloud<UserProfile>('accountMutation', { action: 'saveProfile', patch })
+  }
   const current = await ensureProfile()
   const next = { ...current, ...patch, updatedAt: Date.now() }
   if (current.avatarUrl && current.avatarUrl !== next.avatarUrl) {
@@ -105,7 +136,7 @@ export const saveProfile = async (
 }
 
 export const listRecords = async (): Promise<DrinkRecord[]> => {
-  if (USE_CLOUD) {
+  if (USE_CLOUD && cloudSessionReady) {
     const db = wx.cloud.database()
     const response = await db
       .collection('drink_records')
@@ -135,7 +166,7 @@ export const saveRecord = async (draft: DrinkRecordDraft): Promise<DrinkRecord> 
     createdAt: now,
     updatedAt: now,
   }
-  if (USE_CLOUD) {
+  if (USE_CLOUD && cloudSessionReady) {
     return callCloud<DrinkRecord>('recordMutation', {
       action: draft.id ? 'update' : 'create',
       record,
@@ -157,7 +188,7 @@ export const saveRecord = async (draft: DrinkRecordDraft): Promise<DrinkRecord> 
 }
 
 export const deleteRecord = async (id: string): Promise<void> => {
-  if (USE_CLOUD) {
+  if (USE_CLOUD && cloudSessionReady) {
     await callCloud('recordMutation', { action: 'delete', id })
     return
   }
@@ -168,20 +199,24 @@ export const deleteRecord = async (id: string): Promise<void> => {
 }
 
 export const listWheels = async (): Promise<Wheel[]> => {
-  if (USE_CLOUD) {
-    const db = wx.cloud.database()
-    const response = await db
-      .collection('wheels')
-      .where({ _openid: '{openid}' })
-      .orderBy('updatedAt', 'desc')
-      .get()
-    const wheels = (response.data as Array<Record<string, unknown>>).map((item) =>
-      normalizeWheel({
-        ...(item as unknown as Wheel),
-        id: String(item.id || item._id),
-      }),
-    )
-    if (wheels.length) return wheels
+  if (USE_CLOUD && cloudSessionReady) {
+    try {
+      const db = wx.cloud.database()
+      const response = await db
+        .collection('wheels')
+        .where({ _openid: '{openid}' })
+        .orderBy('updatedAt', 'desc')
+        .get()
+      const wheels = (response.data as Array<Record<string, unknown>>).map((item) =>
+        normalizeWheel({
+          ...(item as unknown as Wheel),
+          id: String(item.id || item._id),
+        }),
+      )
+      if (wheels.length) return wheels
+    } catch {
+      // Preview and offline environments fall back to the local/default wheel below.
+    }
   }
   const wheels = getStored<Wheel[]>(STORAGE_KEYS.wheels, [])
   if (wheels.length) {
@@ -196,7 +231,9 @@ export const listWheels = async (): Promise<Wheel[]> => {
 
 export const saveWheel = async (wheel: Wheel): Promise<Wheel> => {
   const normalizedWheel = normalizeWheel(wheel)
-  if (USE_CLOUD) return callCloud<Wheel>('wheelMutation', { action: 'save', wheel: normalizedWheel })
+  if (USE_CLOUD && cloudSessionReady) {
+    return callCloud<Wheel>('wheelMutation', { action: 'save', wheel: normalizedWheel })
+  }
   const wheels = await listWheels()
   const next = { ...normalizedWheel, updatedAt: Date.now() }
   const index = wheels.findIndex((item) => item.id === next.id)
@@ -218,7 +255,7 @@ export const copyWheel = async (source: Wheel): Promise<Wheel> =>
   )
 
 export const deleteWheel = async (id: string): Promise<void> => {
-  if (USE_CLOUD) {
+  if (USE_CLOUD && cloudSessionReady) {
     await callCloud('wheelMutation', { action: 'delete', id })
     return
   }
@@ -227,7 +264,7 @@ export const deleteWheel = async (id: string): Promise<void> => {
 }
 
 export const clearAllRecords = async (): Promise<void> => {
-  if (USE_CLOUD) {
+  if (USE_CLOUD && cloudSessionReady) {
     await callCloud('accountMutation', { action: 'clearRecords' })
     return
   }
@@ -236,7 +273,7 @@ export const clearAllRecords = async (): Promise<void> => {
 }
 
 export const deleteAccount = async (): Promise<void> => {
-  if (USE_CLOUD) {
+  if (USE_CLOUD && cloudSessionReady) {
     await callCloud('accountMutation', { action: 'deleteAccount' })
     return
   }
@@ -247,7 +284,7 @@ export const deleteAccount = async (): Promise<void> => {
 }
 
 export const uploadRecordPhoto = async (tempFilePath: string): Promise<string> => {
-  if (!USE_CLOUD) {
+  if (!USE_CLOUD || !cloudSessionReady) {
     return new Promise<string>((resolve, reject) => {
       wx.getFileSystemManager().saveFile({
         tempFilePath,

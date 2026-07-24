@@ -12,33 +12,36 @@
   </view>
 
   <block wx:else>
-  <view class="summary">
-    <view class="summary-item">
-      <t-icon name="drink" size="46rpx" />
-      <view>
-        <text class="summary-value">{{count}}</text>
-        <text class="summary-unit">杯</text>
-        <text class="summary-label">今日饮品</text>
+  <view class="overview-card">
+    <view class="overview-label">TODAY'S OVERVIEW</view>
+    <view class="summary">
+      <view class="summary-item">
+        <wd-icon name="drink" size="42rpx" />
+        <view>
+          <text class="summary-value">{{count}}</text>
+          <text class="summary-unit">杯</text>
+          <text class="summary-label">今日饮品</text>
+        </view>
+      </view>
+      <view class="summary-divider" />
+      <view class="summary-item">
+        <wd-icon name="chart-ring" size="42rpx" />
+        <view>
+          <text class="summary-value">{{knownCalories}}</text>
+          <text class="summary-unit">千卡</text>
+          <text class="summary-label">已知热量</text>
+        </view>
       </view>
     </view>
-    <view class="summary-divider" />
-    <view class="summary-item">
-      <t-icon name="chart-ring" size="46rpx" />
-      <view>
-        <text class="summary-value">{{knownCalories}}</text>
-        <text class="summary-unit">千卡</text>
-        <text class="summary-label">已知热量</text>
-      </view>
-    </view>
-  </view>
 
-  <button class="primary-button record-button" bindtap="addRecord">
-    <t-icon name="add-circle" color="#fffaf1" size="44rpx" />
-    <text>记一杯</text>
-  </button>
-  <text wx:if="{{unknownCaloriesCount > 0}}" class="calorie-note">
-    另有 {{unknownCaloriesCount}} 杯未填写热量
-  </text>
+    <button class="primary-button record-button" bindtap="addRecord">
+      <wd-icon name="add-circle-light" size="40rpx" />
+      <text>记一杯</text>
+    </button>
+    <text wx:if="{{unknownCaloriesCount > 0}}" class="calorie-note">
+      另有 {{unknownCaloriesCount}} 杯未填写热量
+    </text>
+  </view>
 
   <view class="section-head">
     <text class="section-title hand-underline">今天的饮品</text>

@@ -1,7 +1,12 @@
 import type { Wheel, WheelItem } from '../../domain/types'
 import { createWheel, listWheels } from '../../services/repository'
 import { STORAGE_KEYS } from '../../services/config'
-import { chooseWheelItem, validateWheelItems, wheelItemToDraft } from '../../utils/wheel'
+import {
+  chooseWheelItem,
+  getWheelLabelRotation,
+  validateWheelItems,
+  wheelItemToDraft,
+} from '../../utils/wheel'
 
 interface Canvas2DLike {
   fillStyle: string
@@ -28,6 +33,14 @@ interface CanvasLike {
   height: number
   getContext(type: '2d'): Canvas2DLike
   requestAnimationFrame?(callback: (time: number) => void): number
+}
+
+interface WheelSurfaceLike {
+  refresh(): void
+  getCanvasState(): {
+    canvas: CanvasLike | null
+    size: number
+  }
 }
 
 const COLORS = ['#D96C4A', '#E6B66F', '#6F8FA6', '#9CAF88', '#C98D75', '#B29A7E']
@@ -58,7 +71,7 @@ Page({
     this.loadWheels()
   },
   onReady() {
-    this.setupCanvas()
+    this.bindWheelCanvas()
   },
   async loadWheels() {
     const wheels = await listWheels()
@@ -73,25 +86,21 @@ Page({
       candidateSummary: (wheels[activeIndex]?.items || []).map((item) => item.label).join('、'),
       candidateCount: wheels[activeIndex]?.items.length || 0,
     })
-    wx.nextTick(() => this.drawWheel())
+    wx.nextTick(() => this.bindWheelCanvas())
   },
-  setupCanvas() {
-    this.createSelectorQuery()
-      .select('#wheelCanvas')
-      .fields({ node: true, size: true })
-      .exec((result) => {
-        const item = result[0] as { node?: CanvasLike; width?: number; height?: number }
-        if (!item?.node || !item.width) return
-        const canvas = item.node
-        const ratio = wx.getWindowInfo().pixelRatio
-        canvas.width = item.width * ratio
-        canvas.height = (item.height || item.width) * ratio
-        const context = canvas.getContext('2d')
-        context.scale(ratio, ratio)
-        this.canvas = canvas
-        this.canvasSize = item.width
-        this.drawWheel()
-      })
+  onWheelCanvasReady() {
+    this.bindWheelCanvas()
+  },
+  bindWheelCanvas() {
+    const surface = this.selectComponent('#wheelSurface') as unknown as WheelSurfaceLike | null
+    const state = surface?.getCanvasState()
+    if (!state?.canvas || !state.size) {
+      surface?.refresh()
+      return
+    }
+    this.canvas = state.canvas
+    this.canvasSize = state.size
+    this.drawWheel()
   },
   changeWheel(event: WechatMiniprogram.PickerChange) {
     const index = Number(event.detail.value)
@@ -107,7 +116,7 @@ Page({
     })
     this.drawWheel()
   },
-  drawWheel(rotation?: number) {
+  drawWheel(rotation?: number, labelsFollowWheel = false) {
     if (!this.canvas || !this.canvasSize || !this.data.activeWheel) return
     const currentRotation = rotation ?? this.rotation
     const context = this.canvas.getContext('2d')
@@ -134,7 +143,7 @@ Page({
       const middle = start + sector / 2
       context.rotate(middle)
       context.translate(radius * 0.6, 0)
-      context.rotate(-(middle + currentRotation))
+      context.rotate(getWheelLabelRotation(middle, currentRotation, labelsFollowWheel))
       context.fillStyle = LABEL_COLORS[index % LABEL_COLORS.length]
       context.font = `${items.length > 10 ? 11 : 13}px "Songti SC", serif`
       context.textAlign = 'center'
@@ -188,12 +197,13 @@ Page({
       const progress = Math.min((Date.now() - start) / duration, 1)
       const eased = 1 - Math.pow(1 - progress, 3)
       this.rotation = startRotation + alignment * eased
-      this.drawWheel(this.rotation)
+      this.drawWheel(this.rotation, true)
       if (progress < 1) {
         if (this.canvas?.requestAnimationFrame) this.canvas.requestAnimationFrame(frame)
         else setTimeout(frame, 16)
       } else {
         this.setData({ spinning: false, result: selected })
+        this.drawWheel(this.rotation)
         wx.vibrateShort({ type: 'light' })
       }
     }

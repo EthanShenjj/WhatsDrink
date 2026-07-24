@@ -37,8 +37,11 @@ exports.main = async (event) => {
       }
       const id = text(input.id, 100)
       const data = sanitizeRecord(input, OPENID)
-      if (id) await records.doc(id).set({ data })
-      else {
+      if (id) {
+        const conflict = await records.where({ _id: id }).limit(1).get()
+        if (conflict.data.length) throw new Error('记录已存在，不能覆盖')
+        await records.doc(id).set({ data })
+      } else {
         const result = await records.add({ data })
         return { ok: true, data: publicRecord(data, result._id) }
       }

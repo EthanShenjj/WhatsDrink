@@ -2,11 +2,20 @@
   <view class="profile-head">
     <view class="avatar">
       <image wx:if="{{profile.avatarUrl}}" src="{{profile.avatarUrl}}" mode="aspectFill" />
-      <t-icon wx:else name="user" size="76rpx" color="#715946" />
+      <wd-icon wx:else name="user" size="76rpx" />
     </view>
     <view class="profile-copy">
       <text class="profile-name">{{profile.nickname || '饮品记录者'}}</text>
-      <button class="text-button edit-profile" bindtap="editProfile">编辑资料</button>
+      <text class="profile-subtitle">认真记录生活里的每一杯</text>
+    </view>
+    <view
+      class="edit-profile"
+      bindtap="editProfile"
+      role="button"
+      aria-label="编辑个人资料"
+      hover-class="row-hover"
+    >
+      编辑资料
     </view>
   </view>
 
@@ -23,12 +32,12 @@
         <text class="week-label">{{item.weekday}}</text>
         <text class="week-number">{{item.day}}</text>
         <view class="week-stamp {{item.count ? 'has-drink' : ''}}">
-          <t-icon wx:if="{{item.count}}" name="drink" size="24rpx" />
+          <wd-icon wx:if="{{item.count}}" name="drink" size="24rpx" />
         </view>
       </view>
     </view>
     <view class="week-summary">
-      <t-icon name="drink" size="44rpx" />
+      <wd-icon name="drink" size="44rpx" />
       <text>本周 <text class="accent-number">{{weekCount}}</text> 杯 · 已知热量 <text class="accent-number">{{weekCalories}}</text> 千卡</text>
     </view>
     <text wx:if="{{weekUnknownCalories}}" class="unknown-note">
@@ -38,29 +47,126 @@
 
   <view class="settings-list">
     <text class="settings-group-label">记录与隐私</text>
-    <button class="settings-row" bindtap="openCalendar">
-      <t-icon name="calendar" size="42rpx" />
+    <view
+      class="settings-row"
+      bindtap="openCalendar"
+      role="button"
+      aria-label="打开记录日历"
+      hover-class="row-hover"
+    >
+      <wd-icon name="calendar" size="42rpx" />
       <text>记录日历</text>
-      <t-icon name="chevron-right" size="36rpx" />
-    </button>
-    <button class="settings-row" bindtap="openPrivacy">
-      <t-icon name="secured" size="42rpx" />
+      <wd-icon name="chevron-right" size="36rpx" />
+    </view>
+    <view
+      class="settings-row"
+      bindtap="openPrivacy"
+      role="button"
+      aria-label="打开数据与隐私"
+      hover-class="row-hover"
+    >
+      <wd-icon name="secured" size="42rpx" />
       <text>数据与隐私</text>
-      <t-icon name="chevron-right" size="36rpx" />
-    </button>
+      <wd-icon name="chevron-right" size="36rpx" />
+    </view>
   </view>
 
   <view class="danger-zone">
     <text class="settings-group-label danger-label">数据管理</text>
-    <button class="settings-row settings-row-danger" bindtap="clearRecords">
-      <t-icon name="delete" size="42rpx" />
+    <view
+      class="settings-row settings-row-danger"
+      bindtap="clearRecords"
+      role="button"
+      aria-label="清除全部记录，不可恢复"
+      hover-class="row-hover"
+    >
+      <wd-icon name="delete" size="42rpx" />
       <text>清除记录</text>
       <text class="settings-hint">不可恢复</text>
-    </button>
-    <button class="settings-row settings-row-danger" bindtap="removeAccount">
-      <t-icon name="logout" size="42rpx" />
+    </view>
+    <view
+      class="settings-row settings-row-danger"
+      bindtap="removeAccount"
+      role="button"
+      aria-label="注销账号，永久删除"
+      hover-class="row-hover"
+    >
+      <wd-icon name="logout" size="42rpx" />
       <text>注销账号</text>
       <text class="settings-hint">永久删除</text>
-    </button>
+    </view>
   </view>
 </view>
+
+<view
+  wx:if="{{loginSheetVisible}}"
+  class="login-sheet-layer"
+  catchtouchmove="preventLoginSheetClose"
+>
+  <view class="login-sheet-mask" catchtap="cancelProfileLogin"></view>
+  <form
+    class="login-sheet"
+    bindsubmit="confirmProfileLogin"
+    catchtap="preventLoginSheetClose"
+    role="dialog"
+    aria-label="微信快捷登录"
+  >
+    <view class="login-sheet-handle"></view>
+    <text class="login-sheet-title">微信快捷登录</text>
+    <text class="login-sheet-description">
+      请选择微信头像并确认昵称，登录后会默认展示在“我的”页面。
+    </text>
+
+    <button
+      class="login-avatar-button"
+      open-type="chooseAvatar"
+      bindchooseavatar="chooseLoginAvatar"
+      aria-label="{{loginAvatarUrl ? '更换微信头像' : '选择微信头像'}}"
+    >
+      <image
+        wx:if="{{loginAvatarUrl}}"
+        src="{{loginAvatarUrl}}"
+        mode="aspectFill"
+      />
+      <view wx:else class="login-avatar-placeholder">
+        <wd-icon name="user" size="60rpx" />
+        <text>选择微信头像</text>
+      </view>
+    </button>
+
+    <view class="login-nickname-field">
+      <text class="login-field-label">微信昵称</text>
+      <input
+        class="login-nickname-input"
+        name="nickname"
+        type="nickname"
+        value="{{loginNickname}}"
+        maxlength="20"
+        placeholder="点击选择或填写微信昵称"
+        bindinput="updateLoginNickname"
+        aria-label="微信昵称"
+      />
+    </view>
+
+    <view class="login-sheet-actions">
+      <button
+        class="login-cancel-button"
+        disabled="{{loginSaving}}"
+        catchtap="cancelProfileLogin"
+      >
+        暂不登录
+      </button>
+      <button
+        class="login-confirm-button"
+        form-type="submit"
+        loading="{{loginSaving}}"
+        disabled="{{loginSaving}}"
+      >
+        {{loginSaving ? '正在登录…' : '确认并登录'}}
+      </button>
+    </view>
+    <view class="login-sheet-safe-bottom"></view>
+  </form>
+</view>
+
+<privacy-popup />

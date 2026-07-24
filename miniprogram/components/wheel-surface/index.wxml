@@ -1,0 +1,7 @@
+<canvas
+  type="2d"
+  id="wheelCanvas"
+  class="wheel-canvas"
+  role="img"
+  aria-label="{{canvasLabel}}"
+/>

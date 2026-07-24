@@ -8,16 +8,17 @@
   display: flex;
   align-items: flex-end;
   padding: 32rpx;
-  background: rgba(48, 31, 21, 0.42);
+  background: rgba(28, 27, 24, 0.42);
 }
 
 .privacy-dialog {
   width: 100%;
   padding: 42rpx 36rpx calc(30rpx + env(safe-area-inset-bottom));
-  border-radius: 30rpx;
-  background: #fbf6ec;
-  color: #4a2e1f;
-  font-family: "Songti SC", serif;
+  border-radius: 32rpx;
+  background: #ffffff;
+  box-shadow: 0 20rpx 60rpx rgba(28, 27, 24, 0.18);
+  color: #1c1b18;
+  font-family: -apple-system, BlinkMacSystemFont, "PingFang SC", sans-serif;
 }
 
 .dialog-title,
@@ -32,7 +33,7 @@
 
 .dialog-copy {
   margin-top: 20rpx;
-  color: #765d49;
+  color: #78746d;
   font-size: 27rpx;
   line-height: 1.75;
 }
@@ -42,7 +43,7 @@
   min-height: var(--control-height, 88rpx);
   padding: 0 16rpx;
   background: transparent;
-  color: var(--muted, #715946);
+  color: var(--muted, #78746d);
   font-size: var(--text-small, 26rpx);
 }
 
@@ -54,9 +55,9 @@
 .agree-button {
   min-height: var(--control-height, 88rpx);
   margin-top: 28rpx;
-  border-radius: 18rpx;
-  background: var(--accent-action, #b94e35);
-  color: #fffaf1;
+  border-radius: 44rpx;
+  background: var(--accent-action, #1f1e1b);
+  color: #ffffff;
   font-size: 30rpx;
   font-weight: 600;
 }

@@ -1,6 +1,6 @@
 {
   "navigationBarTitleText": "今日",
   "usingComponents": {
-    "t-icon": "tdesign-miniprogram/icon/icon"
+    "wd-icon": "/components/local-icon/index"
   }
 }
