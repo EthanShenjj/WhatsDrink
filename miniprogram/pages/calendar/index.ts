@@ -48,9 +48,13 @@ Page({
     this.loadData()
   },
   async loadData() {
-    const records = await listRecords()
-    this.setData({ records })
-    this.refreshCalendar()
+    try {
+      const records = await listRecords()
+      this.setData({ records })
+      this.refreshCalendar()
+    } catch {
+      wx.showToast({ title: '日历加载失败，请重试', icon: 'none' })
+    }
   },
   refreshCalendar() {
     const recordsByKey = this.data.records.reduce<Record<string, DrinkRecord[]>>((groups, record) => {

@@ -10,7 +10,13 @@
     aria-label="{{avatarUrl ? '更换头像' : '选择头像'}}"
   >
     <image wx:if="{{avatarUrl}}" src="{{avatarUrl}}" mode="aspectFill" />
-    <text wx:else>选择头像</text>
+    <view wx:else class="avatar-edit-placeholder">
+      <wd-icon name="user" size="72rpx" />
+      <text>选择头像</text>
+    </view>
+    <view class="avatar-edit-badge">
+      <wd-icon name="camera" size="26rpx" />
+    </view>
   </button>
 
   <view class="field">

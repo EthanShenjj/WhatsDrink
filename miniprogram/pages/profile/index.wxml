@@ -1,8 +1,19 @@
 <view class="page-shell profile-page">
   <view class="profile-head">
-    <view class="avatar">
-      <image wx:if="{{profile.avatarUrl}}" src="{{profile.avatarUrl}}" mode="aspectFill" />
-      <wd-icon wx:else name="user" size="76rpx" />
+    <view
+      class="avatar-frame"
+      catchtap="editProfile"
+      role="button"
+      aria-label="头像，点击编辑个人资料"
+      hover-class="avatar-frame-hover"
+    >
+      <view class="avatar">
+        <image wx:if="{{profile.avatarUrl}}" src="{{profile.avatarUrl}}" mode="aspectFill" />
+        <wd-icon wx:else name="user" size="72rpx" />
+      </view>
+      <view class="avatar-camera-badge">
+        <wd-icon name="camera" size="22rpx" />
+      </view>
     </view>
     <view class="profile-copy">
       <text class="profile-name">{{profile.nickname || '饮品记录者'}}</text>
@@ -46,7 +57,20 @@
   </view>
 
   <view class="settings-list">
-    <text class="settings-group-label">记录与隐私</text>
+    <text class="settings-group-label">提醒、记录与隐私</text>
+    <view
+      class="settings-row {{reminderBusy ? 'is-busy' : ''}}"
+      bindtap="subscribeReminder"
+      role="button"
+      aria-label="订阅今晚八点的饮品记录提醒"
+      hover-class="row-hover"
+    >
+      <wd-icon name="calendar" size="42rpx" />
+      <text>订阅今晚提醒</text>
+      <text class="settings-hint">
+        {{reminderStatus && reminderStatus.remainingCount ? '可提醒 ' + reminderStatus.remainingCount + ' 次' : (reminderStatus && !reminderStatus.configured ? '待配置' : '20:00')}}
+      </text>
+    </view>
     <view
       class="settings-row"
       bindtap="openCalendar"
@@ -96,77 +120,6 @@
       <text class="settings-hint">永久删除</text>
     </view>
   </view>
-</view>
-
-<view
-  wx:if="{{loginSheetVisible}}"
-  class="login-sheet-layer"
-  catchtouchmove="preventLoginSheetClose"
->
-  <view class="login-sheet-mask" catchtap="cancelProfileLogin"></view>
-  <form
-    class="login-sheet"
-    bindsubmit="confirmProfileLogin"
-    catchtap="preventLoginSheetClose"
-    role="dialog"
-    aria-label="微信快捷登录"
-  >
-    <view class="login-sheet-handle"></view>
-    <text class="login-sheet-title">微信快捷登录</text>
-    <text class="login-sheet-description">
-      请选择微信头像并确认昵称，登录后会默认展示在“我的”页面。
-    </text>
-
-    <button
-      class="login-avatar-button"
-      open-type="chooseAvatar"
-      bindchooseavatar="chooseLoginAvatar"
-      aria-label="{{loginAvatarUrl ? '更换微信头像' : '选择微信头像'}}"
-    >
-      <image
-        wx:if="{{loginAvatarUrl}}"
-        src="{{loginAvatarUrl}}"
-        mode="aspectFill"
-      />
-      <view wx:else class="login-avatar-placeholder">
-        <wd-icon name="user" size="60rpx" />
-        <text>选择微信头像</text>
-      </view>
-    </button>
-
-    <view class="login-nickname-field">
-      <text class="login-field-label">微信昵称</text>
-      <input
-        class="login-nickname-input"
-        name="nickname"
-        type="nickname"
-        value="{{loginNickname}}"
-        maxlength="20"
-        placeholder="点击选择或填写微信昵称"
-        bindinput="updateLoginNickname"
-        aria-label="微信昵称"
-      />
-    </view>
-
-    <view class="login-sheet-actions">
-      <button
-        class="login-cancel-button"
-        disabled="{{loginSaving}}"
-        catchtap="cancelProfileLogin"
-      >
-        暂不登录
-      </button>
-      <button
-        class="login-confirm-button"
-        form-type="submit"
-        loading="{{loginSaving}}"
-        disabled="{{loginSaving}}"
-      >
-        {{loginSaving ? '正在登录…' : '确认并登录'}}
-      </button>
-    </view>
-    <view class="login-sheet-safe-bottom"></view>
-  </form>
 </view>
 
 <privacy-popup />

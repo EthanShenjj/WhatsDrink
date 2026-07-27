@@ -73,13 +73,25 @@ exports.main = async (event) => {
 
       if (event.action === 'deleteAccount') {
         const wheelCollection = db.collection('wheels')
+        const subscriptionCollection = db.collection('reminder_subscriptions')
         let wheelPage = []
         do {
           wheelPage = (await wheelCollection.where({ _openid: OPENID }).limit(100).get()).data
           await Promise.all(wheelPage.map((wheel) => wheelCollection.doc(wheel._id).remove()))
         } while (wheelPage.length === 100)
+        const subscriptions = await subscriptionCollection
+          .where({ _openid: OPENID })
+          .limit(100)
+          .get()
         await Promise.all(
-          profiles.data.map((profile) => db.collection('user_profiles').doc(profile._id).remove()),
+          [
+            ...profiles.data.map((profile) =>
+              db.collection('user_profiles').doc(profile._id).remove(),
+            ),
+            ...subscriptions.data.map((subscription) =>
+              subscriptionCollection.doc(subscription._id).remove(),
+            ),
+          ],
         )
       }
 

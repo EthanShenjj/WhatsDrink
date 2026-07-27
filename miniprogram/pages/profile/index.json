@@ -1,5 +1,5 @@
 {
-  "navigationBarTitleText": "我的",
+  "navigationBarTitleText": "Profile",
   "usingComponents": {
     "wd-icon": "/components/local-icon/index",
     "privacy-popup": "/components/privacy-popup/index"

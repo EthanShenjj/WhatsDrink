@@ -1,0 +1,143 @@
+<!DOCTYPE html><html lang="zh-CN"><head><meta charset="utf-8"><meta content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover" name="viewport"><link href="https://fonts.googleapis.com/css2?family=Manrope:wght@600;700&amp;family=Be+Vietnam+Pro:wght@400;700&amp;display=swap" rel="stylesheet"><link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@20..48,100..700,0..1,-50..200" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"><script src="https://cdn.tailwindcss.com"></script><script id="tailwind-config">tailwind.config = { darkMode: "class", theme: { extend: { "colors": { "error-container": "#ffdad6", "tertiary": "#331f00", "on-secondary-fixed": "#390b00", "outline-variant": "#d3c3bc", "outline": "#81756e", "inverse-surface": "#31302d", "surface": "#fdfbf9", "secondary-fixed-dim": "#ffb59d", "on-surface-variant": "#4f453f", "error": "#ba1a1a", "on-secondary-container": "#772f16", "tertiary-container": "#503300", "tertiary-fixed-dim": "#f2be73", "secondary": "#97472c", "primary-fixed": "#ffdbc8", "secondary-fixed": "#ffdbd0", "surface-container-highest": "#f0ede9", "surface-container-high": "#f6f3ee", "background": "#fdfbf9", "on-secondary-fixed-variant": "#783017", "primary": "#321f13", "surface-dim": "#f0ede9", "surface-container": "#fcf9f4", "surface-variant": "#f0ede9", "surface-container-low": "#fcf9f4", "on-primary-fixed-variant": "#594234", "on-error": "#ffffff", "on-background": "#1c1c19", "inverse-on-surface": "#fdfbf9", "on-tertiary-fixed": "#291800", "on-secondary": "#ffffff", "on-surface": "#1c1c19", "on-error-container": "#93000a", "surface-bright": "#fdfbf9", "on-tertiary-fixed-variant": "#624000", "secondary-container": "#fe9978", "primary-container": "#4a3427", "on-tertiary-container": "#ca9a54", "surface-tint": "#73594a", "on-tertiary": "#ffffff", "primary-fixed-dim": "#e1c0ae", "surface-container-lowest": "#ffffff", "on-primary": "#ffffff", "on-primary-fixed": "#29170c", "inverse-primary": "#e1c0ae", "on-primary-container": "#bb9c8b", "tertiary-fixed": "#ffddb2" }, "borderRadius": { "DEFAULT": "1rem", "lg": "2rem", "xl": "3rem", "full": "9999px" }, "spacing": { "base": "8px", "stack-sm": "12px", "stack-md": "24px", "gutter": "16px", "stack-lg": "40px", "container-padding": "20px" }, "fontFamily": { "headline-lg-mobile": ["Manrope"], "body-md": ["Be Vietnam Pro"], "label-caps": ["Manrope"], "headline-md": ["Manrope"], "headline-lg": ["Manrope"], "body-lg": ["Be Vietnam Pro"] }, "fontSize": { "headline-lg-mobile": ["24px", {"lineHeight": "32px", "fontWeight": "700"}], "body-md": ["14px", {"lineHeight": "20px", "fontWeight": "400"}], "label-caps": ["12px", {"lineHeight": "16px", "letterSpacing": "0.1em", "fontWeight": "700"}], "headline-md": ["22px", {"lineHeight": "30px", "fontWeight": "600"}], "headline-lg": ["28px", {"lineHeight": "36px", "letterSpacing": "-0.02em", "fontWeight": "700"}], "body-lg": ["16px", {"lineHeight": "24px", "fontWeight": "400"}] } } } }</script><style>@layer base { body { -webkit-tap-highlight-color: transparent; overscroll-behavior-y: none; } .pb-safe { padding-bottom: env(safe-area-inset-bottom); } .pt-safe { padding-top: env(safe-area-inset-top); } } .cloud-shadow { box-shadow: 0 12px 40px -10px rgba(74, 52, 39, 0.05); } ::-webkit-scrollbar { display: none; }</style><style>
+    body {
+      min-height: max(884px, 100dvh);
+    }
+  </style>
+</head><body class="text-on-surface font-body-md bg-surface-bright" style="background-color: rgb(253, 252, 251);"><header class="fixed top-0 w-full z-50 pt-safe backdrop-blur-xl bg-surface-bright/90 border-b border-surface-container-highest/50" style="background-color: rgba(253, 252, 251, 0.9);"><div class="h-14 px-container-padding flex items-center justify-between"><h1 class="font-headline-md text-headline-md text-primary tracking-tight">Calendar</h1><div class="w-8 h-8 rounded-full bg-primary flex items-center justify-center"><span class="material-symbols-outlined text-on-primary text-[18px]">person</span></div></div></header><main class="relative w-full pt-20 pb-32 bg-surface-bright" style="background-color: rgb(253, 252, 251);"><div class="flex flex-col w-full px-container-padding gap-stack-md">
+<!-- Calendar Container Card -->
+<div class="bg-surface-container-lowest rounded-lg cloud-shadow p-6 flex flex-col gap-6">
+<!-- Header -->
+<div class="flex items-center justify-between">
+<button class="w-10 h-10 rounded-full bg-surface-container flex items-center justify-center text-primary active:scale-95 transition-transform">
+<span class="material-symbols-outlined text-[20px]">chevron_left</span>
+</button>
+<div class="text-center">
+<p class="font-label-caps text-label-caps text-on-surface-variant tracking-widest uppercase mb-1">Drink Calendar</p>
+<h2 class="font-headline-lg-mobile text-headline-lg-mobile text-primary">2026年7月</h2>
+</div>
+<button class="w-10 h-10 rounded-full bg-surface-container flex items-center justify-center text-primary active:scale-95 transition-transform">
+<span class="material-symbols-outlined text-[20px]">chevron_right</span>
+</button>
+</div>
+<!-- Calendar Grid -->
+<div class="flex flex-col gap-4">
+<!-- Weekdays -->
+<div class="grid grid-cols-7 text-center">
+<span class="font-label-caps text-label-caps text-outline">一</span>
+<span class="font-label-caps text-label-caps text-outline">二</span>
+<span class="font-label-caps text-label-caps text-outline">三</span>
+<span class="font-label-caps text-label-caps text-outline">四</span>
+<span class="font-label-caps text-label-caps text-outline">五</span>
+<span class="font-label-caps text-label-caps text-outline">六</span>
+<span class="font-label-caps text-label-caps text-outline">日</span>
+</div>
+<!-- Horizontal Divider -->
+<div class="h-px bg-surface-container-highest w-full"></div>
+<!-- Days -->
+<div class="grid grid-cols-7 gap-y-4">
+<!-- Empty slots for July 2026 start on Wednesday -->
+<div class="h-10"></div>
+<div class="h-10"></div>
+<!-- 1st to 5th -->
+<div class="h-10 flex items-center justify-center font-body-lg text-body-lg text-on-surface">1</div>
+<div class="h-10 flex items-center justify-center font-body-lg text-body-lg text-on-surface">2</div>
+<div class="h-10 flex items-center justify-center font-body-lg text-body-lg text-on-surface">3</div>
+<div class="h-10 flex items-center justify-center font-body-lg text-body-lg text-on-surface">4</div>
+<div class="h-10 flex items-center justify-center font-body-lg text-body-lg text-on-surface">5</div>
+<!-- 6th to 12th -->
+<div class="h-10 flex items-center justify-center font-body-lg text-body-lg text-on-surface">6</div>
+<div class="h-10 flex items-center justify-center font-body-lg text-body-lg text-on-surface">7</div>
+<div class="h-10 flex items-center justify-center font-body-lg text-body-lg text-on-surface">8</div>
+<div class="h-10 flex items-center justify-center font-body-lg text-body-lg text-on-surface">9</div>
+<div class="h-10 flex items-center justify-center font-body-lg text-body-lg text-on-surface">10</div>
+<div class="h-10 flex items-center justify-center font-body-lg text-body-lg text-on-surface">11</div>
+<div class="h-10 flex items-center justify-center font-body-lg text-body-lg text-on-surface">12</div>
+<!-- 13th to 19th -->
+<div class="h-10 flex items-center justify-center font-body-lg text-body-lg text-on-surface">13</div>
+<div class="h-10 flex items-center justify-center font-body-lg text-body-lg text-on-surface">14</div>
+<div class="h-10 flex items-center justify-center font-body-lg text-body-lg text-on-surface">15</div>
+<div class="h-10 flex items-center justify-center font-body-lg text-body-lg text-on-surface">16</div>
+<div class="h-10 flex items-center justify-center font-body-lg text-body-lg text-on-surface">17</div>
+<div class="h-10 flex items-center justify-center font-body-lg text-body-lg text-on-surface">18</div>
+<div class="h-10 flex items-center justify-center font-body-lg text-body-lg text-on-surface">19</div>
+<!-- 20th to 26th -->
+<div class="h-10 flex items-center justify-center font-body-lg text-body-lg text-on-surface">20</div>
+<div class="h-10 flex items-center justify-center font-body-lg text-body-lg text-on-surface">21</div>
+<div class="h-10 flex items-center justify-center font-body-lg text-body-lg text-on-surface">22</div>
+<!-- 23rd with record -->
+<div class="relative h-10 flex flex-col items-center justify-center font-body-lg text-body-lg text-on-surface">
+<span class="">23</span>
+<span class="material-symbols-outlined text-[12px] absolute -bottom-1 text-secondary" style="font-variation-settings: 'FILL' 1;">coffee</span>
+</div>
+<div class="h-10 flex items-center justify-center font-body-lg text-body-lg text-on-surface">24</div>
+<div class="h-10 flex items-center justify-center font-body-lg text-body-lg text-on-surface">25</div>
+<!-- Today 26th -->
+<div class="relative h-10 flex items-center justify-center">
+<div class="w-10 h-12 bg-secondary-fixed rounded-full flex flex-col items-center justify-center scale-110 shadow-sm">
+<span class="text-[10px] font-bold text-on-secondary-fixed-variant leading-none mb-0.5">今</span>
+<span class="font-headline-md text-headline-md text-on-secondary-fixed leading-none">26</span>
+<div class="w-1 h-1 bg-on-secondary-fixed-variant rounded-full mt-1"></div>
+</div>
+</div>
+<!-- 27th to 31st -->
+<div class="h-10 flex items-center justify-center font-body-lg text-body-lg text-on-surface">27</div>
+<div class="h-10 flex items-center justify-center font-body-lg text-body-lg text-on-surface">28</div>
+<div class="h-10 flex items-center justify-center font-body-lg text-body-lg text-on-surface">29</div>
+<div class="h-10 flex items-center justify-center font-body-lg text-body-lg text-on-surface">30</div>
+<div class="h-10 flex items-center justify-center font-body-lg text-body-lg text-on-surface">31</div>
+</div>
+</div>
+</div>
+<!-- Summary Card for Selected Date -->
+<div class="bg-surface-container-lowest rounded-lg cloud-shadow p-6 flex flex-col gap-8">
+<div class="flex items-center justify-between">
+<div class="flex flex-col">
+<h3 class="font-headline-md text-headline-md text-primary">7月26日，周日</h3>
+<div class="flex items-center gap-4 mt-2">
+<div class="flex items-baseline gap-1">
+<span class="font-headline-md text-headline-md text-primary">0</span>
+<span class="font-body-md text-body-md text-on-surface-variant">杯饮品</span>
+</div>
+<div class="w-px h-4 bg-surface-container-highest"></div>
+<div class="flex items-baseline gap-1">
+<span class="font-headline-md text-headline-md text-primary">0</span>
+<span class="font-body-md text-body-md text-on-surface-variant">千卡</span>
+</div>
+</div>
+</div>
+<button class="bg-primary text-on-primary px-6 py-3 rounded-full font-headline-md text-headline-md shadow-lg active:scale-95 transition-transform flex items-center gap-2">
+<span class="material-symbols-outlined text-[20px]">add</span>
+<span class="">记一杯</span>
+</button>
+</div>
+<!-- Empty State Illustration/Text -->
+<div class="flex flex-col items-center justify-center py-4 opacity-60">
+<div class="relative w-24 h-24 mb-4">
+<div class="absolute inset-0 bg-secondary-fixed/10 rounded-full animate-pulse"></div>
+<div class="absolute inset-0 flex items-center justify-center">
+<span class="material-symbols-outlined text-[48px] text-secondary/60">nest_eco_leaf</span>
+</div>
+</div>
+<p class="font-body-lg text-body-lg text-on-surface-variant text-center px-8">这一天还没有记录，第一杯会是什么呢？</p>
+</div>
+</div>
+<!-- Decorative Accent -->
+<div class="w-full flex justify-center py-4">
+<div class="h-1 w-12 bg-surface-container-highest rounded-full"></div>
+</div>
+</div>
+<script>
+  // Simple interaction to mimic day selection
+  document.querySelectorAll('.grid.grid-cols-7 > div').forEach(day => {
+    day.addEventListener('touchstart', function() {
+      if (!this.querySelector('.bg-secondary-fixed')) {
+         this.classList.add('scale-95');
+         setTimeout(() => this.classList.remove('scale-95'), 100);
+      }
+    });
+  });
+</script></main><nav class="fixed bottom-0 w-full z-50 pb-safe backdrop-blur-xl cloud-shadow bg-surface-bright/95 border-t border-surface-container-highest/50" data-active-classes="text-secondary font-bold" style="background-color: rgba(253, 252, 251, 0.95);"><div class="h-16 px-gutter flex items-center justify-around"><a class="flex flex-col items-center gap-1 text-on-surface-variant transition-colors" data-path="today" href="#"><span class="material-symbols-outlined">coffee</span><span class="font-label-caps text-label-caps">今日</span></a><a aria-current="page" class="flex flex-col items-center gap-1 transition-colors text-secondary font-bold" data-path="calendar" href="#"><span class="material-symbols-outlined">calendar_month</span><span class="font-label-caps text-label-caps">日历</span></a><a class="flex flex-col items-center gap-1 text-on-surface-variant transition-colors" data-path="decision-wheel" href="#"><span class="material-symbols-outlined">explore</span><span class="font-label-caps text-label-caps">纠结</span></a><a class="flex flex-col items-center gap-1 text-on-surface-variant transition-colors" data-path="profile" href="#"><span class="material-symbols-outlined">account_circle</span><span class="font-label-caps text-label-caps">我的</span></a></div></nav>
+
+
+</body></html>

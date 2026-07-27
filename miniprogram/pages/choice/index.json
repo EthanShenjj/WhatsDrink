@@ -1,7 +1,6 @@
 {
-  "navigationBarTitleText": "Choice One",
+  "navigationBarTitleText": "Decision Wheel",
   "usingComponents": {
-    "wd-icon": "/components/local-icon/index",
-    "wheel-surface": "/components/wheel-surface/index"
+    "wd-icon": "/components/local-icon/index"
   }
 }

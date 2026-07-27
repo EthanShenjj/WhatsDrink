@@ -12,6 +12,9 @@ import { CLOUD_ENV_ID, STORAGE_KEYS, USE_CLOUD } from './config'
 
 let recordSessionReady = false
 let cloudSessionReady = false
+let cloudLoginPromise: Promise<UserProfile> | null = null
+
+const CLOUD_RECORD_PAGE_SIZE = 20
 
 const defaultWheelItems = (): WheelItem[] =>
   BRANDS.filter((brand) =>
@@ -47,6 +50,21 @@ const setStored = <T>(key: string, value: T): void => {
   wx.setStorageSync(key, value)
 }
 
+const ensureLocalProfile = (): UserProfile => {
+  const existing = getStored<UserProfile | null>(STORAGE_KEYS.profile, null)
+  if (existing) return existing
+  const now = Date.now()
+  const profile: UserProfile = {
+    id: 'local-user',
+    nickname: '饮品记录者',
+    avatarUrl: '',
+    createdAt: now,
+    updatedAt: now,
+  }
+  setStored(STORAGE_KEYS.profile, profile)
+  return profile
+}
+
 const deleteLocalFiles = async (paths: Array<string | undefined>): Promise<void> => {
   const fileSystem = wx.getFileSystemManager()
   await Promise.all(
@@ -72,13 +90,129 @@ const callCloud = async <T>(name: string, data: object): Promise<T> => {
   return result.data as T
 }
 
-const requestWechatLogin = (): Promise<void> =>
-  new Promise((resolve, reject) => {
-    wx.login({
-      success: () => resolve(),
-      fail: reject,
-    })
+const uploadLocalFileToCloud = async (
+  localPath: string,
+  cloudPath: string,
+): Promise<string> => {
+  const result = await wx.cloud.uploadFile({ cloudPath, filePath: localPath })
+  return result.fileID
+}
+
+const wheelSignature = (wheel: Wheel): string =>
+  JSON.stringify({
+    name: wheel.name.trim(),
+    items: normalizeWheel(wheel).items.map((item) => item.label.trim()),
   })
+
+const listCloudWheels = async (): Promise<Wheel[]> => {
+  const db = wx.cloud.database()
+  const wheels: Wheel[] = []
+  let offset = 0
+  while (true) {
+    const response = await db
+      .collection('wheels')
+      .where({ _openid: '{openid}' })
+      .orderBy('updatedAt', 'desc')
+      .skip(offset)
+      .limit(CLOUD_RECORD_PAGE_SIZE)
+      .get()
+    const page = (response.data as Array<Record<string, unknown>>).map((item) =>
+      normalizeWheel({
+        ...(item as unknown as Wheel),
+        id: String(item.id || item._id),
+      }),
+    )
+    wheels.push(...page)
+    if (page.length < CLOUD_RECORD_PAGE_SIZE) break
+    offset += CLOUD_RECORD_PAGE_SIZE
+  }
+  return wheels
+}
+
+const migrateLocalDataToCloud = async (cloudProfile: UserProfile): Promise<UserProfile> => {
+  const localProfile = getStored<UserProfile | null>(STORAGE_KEYS.profile, null)
+  const localRecords = getStored<DrinkRecord[]>(STORAGE_KEYS.records, [])
+  const localWheels = getStored<Wheel[]>(STORAGE_KEYS.wheels, [])
+  let migratedProfile = cloudProfile
+
+  if (
+    localProfile &&
+    localProfile.id === 'local-user' &&
+    (localProfile.nickname !== '饮品记录者' || Boolean(localProfile.avatarUrl))
+  ) {
+    let avatarUrl = localProfile.avatarUrl
+    if (avatarUrl && !avatarUrl.startsWith('cloud://')) {
+      avatarUrl = await uploadLocalFileToCloud(
+        avatarUrl,
+        `profile-photos/${cloudProfile.id}/avatar.jpg`,
+      )
+    }
+    migratedProfile = await callCloud<UserProfile>('accountMutation', {
+      action: 'saveProfile',
+      patch: {
+        nickname: localProfile.nickname,
+        avatarUrl,
+      },
+    })
+  }
+
+  for (const storedRecord of localRecords) {
+    const record = {
+      ...storedRecord,
+      clientRequestId: storedRecord.clientRequestId || `migration:${storedRecord.id}`,
+    }
+    if (record.photoPath && !record.photoPath.startsWith('cloud://')) {
+      record.photoPath = await uploadLocalFileToCloud(
+        record.photoPath,
+        `record-photos/${cloudProfile.id}/legacy-${record.id}.jpg`,
+      )
+    }
+    await callCloud<DrinkRecord>('recordMutation', {
+      action: 'create',
+      record,
+    })
+  }
+
+  if (localWheels.length) {
+    const cloudSignatures = new Set((await listCloudWheels()).map(wheelSignature))
+
+    for (const wheel of localWheels.map(normalizeWheel)) {
+      if (cloudSignatures.has(wheelSignature(wheel))) continue
+      await callCloud<Wheel>('wheelMutation', {
+        action: 'save',
+        wheel,
+      })
+    }
+  }
+
+  if (localRecords.length) wx.removeStorageSync(STORAGE_KEYS.records)
+  if (localWheels.length) wx.removeStorageSync(STORAGE_KEYS.wheels)
+  setStored(STORAGE_KEYS.profile, migratedProfile)
+  return migratedProfile
+}
+
+const establishCloudSession = async (migrateLocal = true): Promise<UserProfile> => {
+  if (!recordSessionReady) {
+    recordSessionReady = true
+  }
+  if (!USE_CLOUD) return ensureLocalProfile()
+  if (cloudSessionReady) return ensureLocalProfile()
+  if (cloudLoginPromise) return cloudLoginPromise
+
+  cloudLoginPromise = (async () => {
+    const profile = await callCloud<UserProfile>('login', {})
+    const readyProfile = migrateLocal ? await migrateLocalDataToCloud(profile) : profile
+    cloudSessionReady = true
+    setStored(STORAGE_KEYS.profile, readyProfile)
+    return readyProfile
+  })()
+
+  try {
+    return await cloudLoginPromise
+  } finally {
+    cloudLoginPromise = null
+  }
+}
 
 export const initializeCloud = (): boolean => {
   if (!USE_CLOUD || !wx.cloud) return false
@@ -87,44 +221,33 @@ export const initializeCloud = (): boolean => {
 }
 
 export const ensureProfile = async (): Promise<UserProfile> => {
-  if (USE_CLOUD && cloudSessionReady) return callCloud<UserProfile>('login', {})
-  const existing = getStored<UserProfile | null>(STORAGE_KEYS.profile, null)
-  if (existing) return existing
-  const now = Date.now()
-  const profile: UserProfile = {
-    id: 'local-user',
-    nickname: '饮品记录者',
-    avatarUrl: '',
-    createdAt: now,
-    updatedAt: now,
+  if (USE_CLOUD && cloudSessionReady) {
+    return ensureLocalProfile()
   }
-  setStored(STORAGE_KEYS.profile, profile)
-  return profile
+  return ensureLocalProfile()
 }
 
 export const hasRecordAccess = (): boolean => recordSessionReady
 
 export const loginForRecordAccess = async (): Promise<UserProfile> => {
-  if (recordSessionReady) return ensureProfile()
-  await requestWechatLogin()
-  recordSessionReady = true
-  if (USE_CLOUD) {
-    try {
-      const profile = await callCloud<UserProfile>('login', {})
-      cloudSessionReady = true
-      return profile
-    } catch {
-      return ensureProfile()
-    }
+  if (!USE_CLOUD && recordSessionReady) return ensureLocalProfile()
+  try {
+    return await establishCloudSession()
+  } catch {
+    return ensureLocalProfile()
   }
-  return ensureProfile()
 }
 
 export const saveProfile = async (
   patch: Pick<UserProfile, 'nickname' | 'avatarUrl'>,
 ): Promise<UserProfile> => {
   if (USE_CLOUD && cloudSessionReady) {
-    return callCloud<UserProfile>('accountMutation', { action: 'saveProfile', patch })
+    const profile = await callCloud<UserProfile>('accountMutation', {
+      action: 'saveProfile',
+      patch,
+    })
+    setStored(STORAGE_KEYS.profile, profile)
+    return profile
   }
   const current = await ensureProfile()
   const next = { ...current, ...patch, updatedAt: Date.now() }
@@ -138,13 +261,22 @@ export const saveProfile = async (
 export const listRecords = async (): Promise<DrinkRecord[]> => {
   if (USE_CLOUD && cloudSessionReady) {
     const db = wx.cloud.database()
-    const response = await db
-      .collection('drink_records')
-      .where({ _openid: '{openid}' })
-      .orderBy('consumedAt', 'desc')
-      .limit(100)
-      .get()
-    return (response.data as Array<Record<string, unknown>>).map((item) => ({
+    const records: Array<Record<string, unknown>> = []
+    let offset = 0
+    while (true) {
+      const response = await db
+        .collection('drink_records')
+        .where({ _openid: '{openid}' })
+        .orderBy('consumedAt', 'desc')
+        .skip(offset)
+        .limit(CLOUD_RECORD_PAGE_SIZE)
+        .get()
+      const page = response.data as Array<Record<string, unknown>>
+      records.push(...page)
+      if (page.length < CLOUD_RECORD_PAGE_SIZE) break
+      offset += CLOUD_RECORD_PAGE_SIZE
+    }
+    return records.map((item) => ({
       ...(item as unknown as DrinkRecord),
       id: String(item.id || item._id),
     }))
@@ -201,18 +333,7 @@ export const deleteRecord = async (id: string): Promise<void> => {
 export const listWheels = async (): Promise<Wheel[]> => {
   if (USE_CLOUD && cloudSessionReady) {
     try {
-      const db = wx.cloud.database()
-      const response = await db
-        .collection('wheels')
-        .where({ _openid: '{openid}' })
-        .orderBy('updatedAt', 'desc')
-        .get()
-      const wheels = (response.data as Array<Record<string, unknown>>).map((item) =>
-        normalizeWheel({
-          ...(item as unknown as Wheel),
-          id: String(item.id || item._id),
-        }),
-      )
+      const wheels = await listCloudWheels()
       if (wheels.length) return wheels
     } catch {
       // Preview and offline environments fall back to the local/default wheel below.
@@ -264,8 +385,11 @@ export const deleteWheel = async (id: string): Promise<void> => {
 }
 
 export const clearAllRecords = async (): Promise<void> => {
-  if (USE_CLOUD && cloudSessionReady) {
+  if (USE_CLOUD) {
+    await establishCloudSession()
     await callCloud('accountMutation', { action: 'clearRecords' })
+    wx.removeStorageSync(STORAGE_KEYS.records)
+    wx.removeStorageSync(STORAGE_KEYS.recordDraft)
     return
   }
   await deleteLocalFiles((await listRecords()).map((record) => record.photoPath))
@@ -273,14 +397,17 @@ export const clearAllRecords = async (): Promise<void> => {
 }
 
 export const deleteAccount = async (): Promise<void> => {
-  if (USE_CLOUD && cloudSessionReady) {
-    await callCloud('accountMutation', { action: 'deleteAccount' })
-    return
-  }
   const profile = getStored<UserProfile | null>(STORAGE_KEYS.profile, null)
-  const records = await listRecords()
+  const records = getStored<DrinkRecord[]>(STORAGE_KEYS.records, [])
+  if (USE_CLOUD) {
+    await establishCloudSession(false)
+    await callCloud('accountMutation', { action: 'deleteAccount' })
+  }
   await deleteLocalFiles([profile?.avatarUrl, ...records.map((record) => record.photoPath)])
   Object.values(STORAGE_KEYS).forEach((key) => wx.removeStorageSync(key))
+  recordSessionReady = false
+  cloudSessionReady = false
+  cloudLoginPromise = null
 }
 
 export const uploadRecordPhoto = async (tempFilePath: string): Promise<string> => {

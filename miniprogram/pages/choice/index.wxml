@@ -3,15 +3,39 @@
   <text class="display-title">今天喝什么？</text>
   <text class="choice-note">把纠结交给转盘，把喜欢留给今天。</text>
 
+  <view class="mode-switch" role="tablist" aria-label="选择决定方式">
+    <view
+      class="mode-tab {{choiceMode === 'wheel' ? 'is-active' : ''}}"
+      data-mode="wheel"
+      bindtap="switchChoiceMode"
+      role="tab"
+      aria-selected="{{choiceMode === 'wheel' ? 'true' : 'false'}}"
+      hover-class="control-hover"
+    >
+      纠结转盘
+    </view>
+    <view
+      class="mode-tab {{choiceMode === 'claw' ? 'is-active' : ''}}"
+      data-mode="claw"
+      bindtap="switchChoiceMode"
+      role="tab"
+      aria-selected="{{choiceMode === 'claw' ? 'true' : 'false'}}"
+      hover-class="control-hover"
+    >
+      抓娃娃机
+    </view>
+  </view>
+
   <view class="wheel-panel">
     <view class="wheel-panel-header">
       <text class="wheel-control-label">当前转盘</text>
       <view
-        class="motion-toggle"
+        class="motion-toggle {{spinning || clawBusy ? 'is-disabled' : ''}}"
         bindtap="toggleReducedMotion"
         role="button"
         aria-pressed="{{reducedMotion ? 'true' : 'false'}}"
-        aria-label="精简转盘动效，当前{{reducedMotion ? '已开启' : '未开启'}}"
+        aria-disabled="{{spinning || clawBusy ? 'true' : 'false'}}"
+        aria-label="精简决定动效，当前{{reducedMotion ? '已开启' : '未开启'}}"
         hover-class="control-hover"
       >
         {{reducedMotion ? '精简动效' : '标准动效'}}
@@ -61,19 +85,170 @@
     </view>
   </view>
 
-  <wheel-surface
-    id="wheelSurface"
-    canvas-label="转盘，{{candidateCount}} 个候选：{{candidateSummary}}"
-    bindready="onWheelCanvasReady"
-  />
+  <block wx:if="{{choiceMode === 'wheel'}}">
+    <view class="wheel-stage">
+      <canvas
+        id="wheelCanvas"
+        canvas-id="wheelCanvas"
+        class="wheel-canvas"
+        role="img"
+        aria-label="转盘，{{candidateCount}} 个候选：{{candidateSummary}}"
+      />
+    </view>
 
-  <button
-    class="primary-button spin-button {{spinning ? 'is-spinning' : ''}}"
-    disabled="{{spinning}}"
-    bindtap="spin"
-  >
-    {{spinning ? '正在替你决定…' : '转一下'}}
-  </button>
+    <button
+      class="primary-button spin-button {{spinning ? 'is-spinning' : ''}} {{result ? 'is-result' : ''}}"
+      disabled="{{spinning}}"
+      bindtap="handleWheelPrimaryAction"
+    >
+      {{spinning ? '正在替你决定…' : result ? '就喝 ' + result.label + ' 并记录' : '转一下'}}
+    </button>
+
+    <view
+      class="decision-status {{result ? 'is-visible' : ''}}"
+      role="status"
+      aria-live="polite"
+      aria-atomic="true"
+    >
+      <text>{{result ? '今天就喝 ' + result.label : ''}}</text>
+    </view>
+
+    <button
+      wx:if="{{result}}"
+      class="text-button retry-button"
+      bindtap="spin"
+    >
+      再转一次
+    </button>
+
+    <view class="choice-tip">
+      <text>当你犹豫不决时，转盘给出的答案，往往最接近你心里真正想要的那一杯。</text>
+    </view>
+  </block>
+
+  <block wx:else>
+    <view class="claw-experience">
+      <view
+        class="claw-machine-stage phase-{{clawPhase}}"
+        role="img"
+        aria-label="暖白色饮品抓娃娃机，玻璃池中放有多杯无品牌咖啡"
+      >
+        <view wx:if="{{clawAssetFailed}}" class="claw-machine-fallback">
+          <view class="claw-fallback-top">
+            <text>CLAW</text>
+            <view class="claw-fallback-lights">
+              <view></view>
+              <view></view>
+              <view></view>
+            </view>
+          </view>
+          <view class="claw-fallback-glass">
+            <view class="claw-fallback-rail"></view>
+            <view class="claw-fallback-hook"></view>
+            <view class="claw-fallback-cups">
+              <view></view>
+              <view></view>
+              <view></view>
+              <view></view>
+            </view>
+          </view>
+          <view class="claw-fallback-console">
+            <view class="claw-fallback-stick"></view>
+            <view class="claw-fallback-button"></view>
+          </view>
+          <view class="claw-fallback-chute">抓取出口</view>
+        </view>
+
+        <block wx:else>
+          <image
+            class="claw-machine-image"
+            src="/assets/claw-machine-empty.webp"
+            mode="widthFix"
+            binderror="handleClawAssetError"
+            aria-hidden="true"
+          />
+
+          <image
+            class="claw-arm"
+            src="/assets/claw-arm.webp"
+            mode="widthFix"
+            binderror="handleClawAssetError"
+            aria-hidden="true"
+          />
+
+          <view class="claw-prize-window">
+            <view
+              class="claw-prize-pool"
+              aria-hidden="true"
+            >
+              <view
+                wx:for="{{clawPoolCups}}"
+                wx:key="id"
+                class="claw-prize {{clawPhase !== 'ready' && clawPhase !== 'lowering' && index === clawWinningIndex ? 'is-grabbing' : ''}}"
+              >
+                <image
+                  class="claw-prize-image"
+                  src="/assets/claw-prize-cup.webp"
+                  mode="widthFix"
+                  binderror="handleClawAssetError"
+                  aria-hidden="true"
+                />
+              </view>
+            </view>
+          </view>
+
+          <view
+            wx:if="{{clawPrize && (clawPhase === 'gripping' || clawPhase === 'lifting' || clawPhase === 'releasing')}}"
+            class="claw-carried-prize"
+            aria-hidden="true"
+          >
+            <image
+              class="claw-carried-image"
+              src="/assets/claw-prize-cup.webp"
+              mode="widthFix"
+              binderror="handleClawAssetError"
+            />
+          </view>
+
+          <view
+            wx:if="{{clawPrize && (clawPhase === 'rolling' || clawPhase === 'won')}}"
+            class="claw-output-prize"
+            aria-hidden="true"
+          >
+            <image
+              class="claw-output-image"
+              src="/assets/claw-prize-cup.webp"
+              mode="widthFix"
+              binderror="handleClawAssetError"
+            />
+            <text class="claw-output-label">{{clawPrize.label}}</text>
+          </view>
+        </block>
+      </view>
+
+      <view class="claw-controls" role="group" aria-label="随机抓取控制">
+        <text class="sr-only" role="status" aria-live="polite" aria-atomic="true">
+          {{clawStatusText}}
+        </text>
+        <button
+          class="primary-button claw-grab-button {{clawBusy ? 'is-busy' : ''}} {{result ? 'is-result' : ''}}"
+          disabled="{{clawBusy}}"
+          bindtap="handleClawPrimaryAction"
+        >
+          {{clawBusy ? (clawPhase === 'rolling' ? '正在出杯…' : '随机抓取中…') : result ? '就喝 ' + result.label + ' 并记录' : '随机抓一下'}}
+        </button>
+        <button
+          wx:if="{{result}}"
+          class="text-button retry-button"
+          bindtap="grabPrize"
+        >
+          再抓一次
+        </button>
+      </view>
+      <text class="claw-helper">每个候选品牌机会相同，按下按钮随机抓一杯。</text>
+    </view>
+  </block>
+
   <text
     wx:if="{{validationMessage}}"
     class="validation"
@@ -82,13 +257,4 @@
   >
     {{validationMessage}}
   </text>
-
-  <view wx:if="{{result}}" class="result-panel" role="status" aria-live="polite">
-    <text class="result-kicker">今天就喝</text>
-    <text class="result-name">{{result.label}}</text>
-    <button class="secondary-button" bindtap="useResult">
-      <wd-icon name="check-circle" size="36rpx" />
-      <text>就喝这个</text>
-    </button>
-  </view>
 </view>

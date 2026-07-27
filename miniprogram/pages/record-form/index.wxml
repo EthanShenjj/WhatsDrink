@@ -4,15 +4,19 @@
   <text class="form-intro">先记下喝了什么，其他信息都可以稍后补充。</text>
 
   <view class="photo-field">
-    <image
-      wx:if="{{pendingPhotoPath || photoPath}}"
-      class="photo-preview"
-      src="{{pendingPhotoPath || photoPath}}"
-      mode="aspectFill"
-    />
-    <button class="photo-button" bindtap="choosePhoto">
-      <wd-icon name="camera" size="38rpx" />
-      <text>{{pendingPhotoPath || photoPath ? '更换照片' : '添加照片（可选）'}}</text>
+    <button class="photo-button {{pendingPhotoPath || photoPath ? 'has-photo' : ''}}" bindtap="choosePhoto">
+      <image
+        wx:if="{{pendingPhotoPath || photoPath}}"
+        class="photo-preview"
+        src="{{pendingPhotoPath || photoPath}}"
+        mode="aspectFill"
+      />
+      <view class="photo-button-content">
+        <view class="photo-icon">
+          <wd-icon name="camera" size="46rpx" />
+        </view>
+        <text>{{pendingPhotoPath || photoPath ? '更换照片' : '添加照片（可选）'}}</text>
+      </view>
     </button>
     <button
       wx:if="{{pendingPhotoPath || photoPath}}"
@@ -244,6 +248,13 @@
     bindtap="submit"
   >
     {{authenticating ? '正在登录…' : saving ? '正在保存…' : '保存记录'}}
+  </button>
+  <button
+    class="secondary-button cancel-record-button"
+    disabled="{{saving}}"
+    bindtap="cancel"
+  >
+    取消
   </button>
   <button
     wx:if="{{editingId}}"

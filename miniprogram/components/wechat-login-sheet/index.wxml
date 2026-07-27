@@ -1,0 +1,82 @@
+<view
+  wx:if="{{visible}}"
+  class="login-sheet-layer"
+  catchtouchmove="preventClose"
+>
+  <view class="login-sheet-mask" catchtap="cancel"></view>
+  <form
+    class="login-sheet"
+    bindsubmit="confirm"
+    catchtap="preventClose"
+    role="dialog"
+    aria-label="微信快捷登录"
+  >
+    <view class="login-sheet-handle"></view>
+    <view class="login-sheet-header">
+      <text class="login-sheet-kicker">WELCOME</text>
+      <text class="login-sheet-title">登录后记录这杯</text>
+      <text class="login-sheet-description">
+        使用微信头像和昵称，开始记录生活里的每一杯
+      </text>
+    </view>
+
+    <view class="login-avatar-section">
+      <button
+        class="login-avatar-button"
+        open-type="chooseAvatar"
+        bindchooseavatar="chooseAvatar"
+        aria-label="{{avatarUrl ? '更换微信头像' : '选择微信头像'}}"
+      >
+        <image wx:if="{{avatarUrl}}" src="{{avatarUrl}}" mode="aspectFill" />
+        <view wx:else class="login-avatar-placeholder">
+          <wd-icon name="user" size="52rpx" />
+        </view>
+        <view class="login-avatar-badge">
+          <wd-icon name="camera" size="22rpx" />
+        </view>
+      </button>
+      <view class="login-avatar-copy">
+        <text class="login-avatar-title">{{avatarUrl ? '微信头像已选择' : '选择微信头像'}}</text>
+        <text class="login-avatar-hint">将展示在“我的”页面</text>
+        <text class="login-avatar-action">{{avatarUrl ? '点击头像可更换' : '点击左侧头像选择'}}</text>
+      </view>
+    </view>
+
+    <view class="login-nickname-field">
+      <view class="login-field-heading">
+        <text class="login-field-label">微信昵称</text>
+        <text class="login-field-required">必填</text>
+      </view>
+      <input
+        class="login-nickname-input"
+        name="nickname"
+        type="nickname"
+        value="{{nickname}}"
+        maxlength="20"
+        placeholder="点击选择或填写微信昵称"
+        bindinput="updateNickname"
+        aria-label="微信昵称"
+      />
+    </view>
+
+    <view class="login-sheet-actions">
+      <button
+        class="login-confirm-button"
+        form-type="submit"
+        loading="{{saving}}"
+        disabled="{{saving}}"
+      >
+        {{saving ? '正在登录…' : '确认并登录'}}
+      </button>
+      <button
+        class="login-cancel-button"
+        disabled="{{saving}}"
+        catchtap="cancel"
+      >
+        暂不登录
+      </button>
+    </view>
+    <text class="login-sheet-footnote">头像和昵称仅用于完善你的个人资料</text>
+    <view class="login-sheet-safe-bottom"></view>
+  </form>
+</view>

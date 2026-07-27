@@ -14,7 +14,11 @@ describe('wheel repository fallback', () => {
           collection: () => ({
             where: () => ({
               orderBy: () => ({
-                get: () => Promise.reject(new Error('cloud environment unavailable')),
+                skip: () => ({
+                  limit: () => ({
+                    get: () => Promise.reject(new Error('cloud environment unavailable')),
+                  }),
+                }),
               }),
             }),
           }),

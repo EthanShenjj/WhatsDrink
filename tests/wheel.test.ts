@@ -101,9 +101,21 @@ describe('Choice One wheel', () => {
     ).toBe('最多添加 20 个候选项')
   })
 
-  it('maps deterministic random values to first and last candidates', () => {
+  it('maps deterministic random values to first and last candidates for every random mode', () => {
     expect(chooseWheelItem(items, () => 0)).toBe(items[0])
     expect(chooseWheelItem(items, () => 0.999999)).toBe(items[2])
+  })
+
+  it('gives every candidate an equal-width interval in the random range', () => {
+    const equalCandidates = Array.from({ length: 5 }, (_, index) => ({
+      id: String(index),
+      label: `候选 ${index + 1}`,
+    }))
+
+    equalCandidates.forEach((candidate, index) => {
+      const intervalMidpoint = (index + 0.5) / equalCandidates.length
+      expect(chooseWheelItem(equalCandidates, () => intervalMidpoint)).toBe(candidate)
+    })
   })
 
   it('converts a structured result into a prefilled unsaved record draft', () => {

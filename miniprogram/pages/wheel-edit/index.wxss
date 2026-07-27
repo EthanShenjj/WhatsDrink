@@ -45,7 +45,7 @@
 
 .wheel-edit-page > .display-title {
   margin-top: 8rpx;
-  font-size: 58rpx;
+  font-size: 48rpx;
 }
 
 .page-note {
@@ -57,8 +57,9 @@
 
 .field,
 .add-block {
-  margin-top: 30rpx;
-  padding: 28rpx;
+  margin-top: 32rpx;
+  padding: 40rpx;
+  border: 1rpx solid rgba(211, 195, 188, 0.16);
   border-radius: var(--radius-card);
   background: var(--surface);
   box-shadow: var(--shadow-card);
@@ -67,8 +68,9 @@
 .field-label {
   display: block;
   margin-bottom: 14rpx;
-  color: var(--muted);
+  color: var(--outline);
   font-size: var(--text-caption);
+  font-weight: 600;
 }
 
 .field-input,
@@ -79,8 +81,8 @@
   min-height: var(--control-height);
   align-items: center;
   padding: 0 24rpx;
-  border: 1rpx solid var(--line);
-  border-radius: var(--radius-control);
+  border: 0;
+  border-radius: 48rpx;
   background: var(--surface-soft);
   color: var(--ink);
   font-size: var(--text-body);
@@ -95,7 +97,7 @@
 
 .section-note,
 .add-label {
-  color: var(--muted);
+  color: var(--outline);
   font-size: var(--text-caption);
 }
 
@@ -143,13 +145,13 @@
 
 .add-action {
   display: flex;
-  width: 128rpx;
-  flex: 0 0 128rpx;
+  width: 136rpx;
+  flex: 0 0 136rpx;
   min-height: var(--control-height);
   align-items: center;
   justify-content: center;
   gap: 8rpx;
-  border-radius: var(--radius-control);
+  border-radius: 48rpx;
   background: var(--accent-action);
   color: #fff;
   font-size: var(--text-small);
@@ -173,7 +175,7 @@
   overflow: hidden;
   margin: 20rpx 0 34rpx;
   padding: 0 24rpx;
-  border: 1rpx solid rgba(28, 27, 24, 0.045);
+  border: 1rpx solid rgba(211, 195, 188, 0.16);
   border-radius: var(--radius-card);
   background: var(--surface);
   box-shadow: var(--shadow-card);
@@ -181,7 +183,7 @@
 
 .item-row {
   display: grid;
-  min-height: 88rpx;
+  min-height: 102rpx;
   grid-template-columns: 42rpx minmax(0, 1fr) 72rpx;
   gap: 12rpx;
   align-items: center;
@@ -220,7 +222,7 @@
 
 .save-button {
   width: 100%;
-  margin: 0;
+  margin: 16rpx 0 0;
 }
 
 .footer-actions {

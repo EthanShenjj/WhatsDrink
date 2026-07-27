@@ -1,17 +1,17 @@
 .calendar-page {
-  padding-top: 30rpx;
+  padding-top: 40rpx;
 }
 
 .calendar-card,
 .selected-day-section {
-  border: 1rpx solid rgba(28, 27, 24, 0.045);
+  border: 1rpx solid rgba(211, 195, 188, 0.16);
   border-radius: var(--radius-card);
   background: var(--surface);
   box-shadow: var(--shadow-card);
 }
 
 .calendar-card {
-  padding: 28rpx 20rpx 20rpx;
+  padding: 44rpx 30rpx 30rpx;
 }
 
 .month-header {
@@ -30,10 +30,10 @@
 }
 
 .month-kicker {
-  color: var(--accent-deep);
-  font-size: 18rpx;
-  font-weight: 600;
-  letter-spacing: 3rpx;
+  color: var(--muted);
+  font-size: 20rpx;
+  font-weight: 700;
+  letter-spacing: 2rpx;
 }
 
 .month-title {
@@ -41,8 +41,8 @@
   min-width: 0;
   margin-top: 7rpx;
   color: var(--ink);
-  font-size: 42rpx;
-  font-weight: 650;
+  font-size: 48rpx;
+  font-weight: 700;
   line-height: 1.2;
   text-align: center;
   text-overflow: ellipsis;
@@ -56,7 +56,7 @@
   flex: 0 0 68rpx;
   align-items: center;
   justify-content: center;
-  border: 1rpx solid var(--line);
+  border: 0;
   border-radius: 50%;
   background: var(--surface-soft);
   color: var(--ink);
@@ -70,7 +70,8 @@
   display: flex;
   min-height: 58rpx;
   align-items: center;
-  border-top: 1rpx solid var(--line);
+  margin: 0 6rpx;
+  border-top: 0;
   border-bottom: 1rpx solid var(--line);
 }
 
@@ -93,7 +94,7 @@
 .day-cell {
   display: flex;
   width: 14.285714%;
-  height: 112rpx;
+  height: 106rpx;
   flex: 0 0 14.285714%;
   align-items: center;
   justify-content: center;
@@ -106,8 +107,8 @@
 .day-surface {
   position: relative;
   display: flex;
-  width: 68rpx;
-  height: 96rpx;
+  width: 72rpx;
+  height: 88rpx;
   flex-direction: column;
   align-items: center;
   justify-content: center;
@@ -121,8 +122,8 @@
 }
 
 .day-cell.is-selected .day-surface {
-  background: #ede5df;
-  color: var(--accent-deep);
+  background: rgba(255, 219, 208, 0.68);
+  color: var(--accent);
 }
 
 .day-cell.is-selected .day-number {
@@ -186,8 +187,8 @@
 }
 
 .selected-day-section {
-  margin-top: 24rpx;
-  padding: 28rpx;
+  margin-top: 32rpx;
+  padding: 36rpx;
 }
 
 .selected-day-head {

@@ -1,10 +1,14 @@
 import { BRANDS, DRINKS, drinksForBrand } from '../../data/catalog'
-import type { Brand, Drink, DrinkCategory, DrinkRecordDraft } from '../../domain/types'
+import type {
+  Brand,
+  Drink,
+  DrinkCategory,
+  DrinkRecordDraft,
+} from '../../domain/types'
 import { STORAGE_KEYS } from '../../services/config'
 import {
   deleteRecord,
   getRecord,
-  hasRecordAccess,
   loginForRecordAccess,
   saveRecord,
   uploadRecordPhoto,
@@ -17,19 +21,6 @@ const SIZE_OPTIONS = ['小杯', '中杯', '大杯', '超大杯', '其他']
 const TEMPERATURE_OPTIONS = ['冰', '少冰', '去冰', '常温', '热']
 const SWEETNESS_OPTIONS = ['无糖', '三分糖', '五分糖', '七分糖', '标准糖', '其他']
 const RATING_OPTIONS = ['未评分', '1 分', '2 分', '3 分', '4 分', '5 分']
-
-const confirmRecordLogin = (): Promise<boolean> =>
-  new Promise((resolve) => {
-    wx.showModal({
-      title: '登录后记一杯',
-      content: '登录后可以保存饮品记录，并在日历和统计中查看。',
-      confirmText: '微信登录',
-      cancelText: '暂不登录',
-      confirmColor: '#B94E35',
-      success: (result) => resolve(result.confirm),
-      fail: () => resolve(false),
-    })
-  })
 
 const optionIndex = (options: string[], value: string, fallback = 0): number => {
   const index = options.indexOf(value)
@@ -72,18 +63,16 @@ Page({
     priceError: '',
   },
   async onLoad(query: Record<string, string>) {
-    if (!hasRecordAccess() && !(await confirmRecordLogin())) {
-      wx.navigateBack()
-      return
-    }
     try {
       await loginForRecordAccess()
-      this.setData({ authenticating: false })
+      await this.initializeForm(query)
     } catch {
       wx.showToast({ title: '登录失败', icon: 'none' })
       setTimeout(() => wx.navigateBack(), 600)
-      return
     }
+  },
+  async initializeForm(query: Record<string, string>) {
+    this.setData({ authenticating: false })
     this.rebuildBrands('coffee')
     if (query.id) {
       const record = await getRecord(query.id)
@@ -276,6 +265,10 @@ Page({
   removePhoto() {
     this.setData({ photoPath: '', pendingPhotoPath: '' })
     this.persistDraft()
+  },
+  cancel() {
+    if (this.data.saving) return
+    wx.navigateBack()
   },
   currentDraft(): DrinkRecordDraft {
     const category = CATEGORY_VALUES[this.data.categoryIndex]

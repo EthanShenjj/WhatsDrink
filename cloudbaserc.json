@@ -29,7 +29,8 @@
       "runtime": "Nodejs20.19",
       "handler": "index.main",
       "timeout": 10,
-      "memorySize": 256
+      "memorySize": 256,
+      "installDependency": true
     },
     {
       "name": "seedCatalog",
@@ -37,6 +38,35 @@
       "handler": "index.main",
       "timeout": 60,
       "memorySize": 256
+    },
+    {
+      "name": "subscriptionMutation",
+      "runtime": "Nodejs20.19",
+      "handler": "index.main",
+      "timeout": 10,
+      "memorySize": 256,
+      "installDependency": true,
+      "envVariables": {
+        "SUBSCRIBE_TEMPLATE_ID": "hieR96ze7icSJ8tuvN7ZcjJUiaznG155yMEkbT-mHGA",
+        "SUBSCRIBE_TEMPLATE_VERSION": "1.0.0",
+        "SUBSCRIBE_TEMPLATE_CONTENT": "今晚喝了什么？记得来记录一下",
+        "SUBSCRIBE_PAGE": "pages/home/index"
+      }
+    },
+    {
+      "name": "sendDrinkReminder",
+      "runtime": "Nodejs20.19",
+      "handler": "index.main",
+      "timeout": 60,
+      "memorySize": 256,
+      "installDependency": true,
+      "triggers": [
+        {
+          "name": "dailyDrinkReminder",
+          "type": "timer",
+          "config": "0 0 20 * * * *"
+        }
+      ]
     }
   ]
 }

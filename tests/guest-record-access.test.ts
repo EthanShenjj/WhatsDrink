@@ -14,13 +14,14 @@ describe('guest record access', () => {
     expect(appSource).not.toContain('ensureProfile')
   })
 
-  it('requests record login from the record form entry point', () => {
+  it('starts record access silently without requiring avatar or nickname', () => {
     const formSource = readFileSync('miniprogram/pages/record-form/index.ts', 'utf8')
+    const formTemplate = readFileSync('miniprogram/pages/record-form/index.wxml', 'utf8')
 
-    expect(formSource).toContain('loginForRecordAccess')
     expect(formSource).toContain('await loginForRecordAccess()')
-    expect(formSource).toContain('wx.showModal')
-    expect(formSource).toContain('登录后记一杯')
+    expect(formSource).not.toContain('profileIsReady')
+    expect(formSource).not.toContain('loginSheetVisible')
+    expect(formTemplate).not.toContain('<wechat-login-sheet')
   })
 
   it('reads local records without querying cloud before login', async () => {
@@ -90,11 +91,13 @@ describe('guest record access', () => {
           collection: () => ({
             where: () => ({
               orderBy: () => ({
-                limit: () => ({
-                  get: async () => {
-                    cloudQueries += 1
-                    return { data: [] }
-                  },
+                skip: () => ({
+                  limit: () => ({
+                    get: async () => {
+                      cloudQueries += 1
+                      return { data: [] }
+                    },
+                  }),
                 }),
               }),
             }),
@@ -111,7 +114,7 @@ describe('guest record access', () => {
     await repository.loginForRecordAccess()
     await repository.listRecords()
 
-    expect(loginCalls).toBe(1)
+    expect(loginCalls).toBe(0)
     expect(loginFunctionCalls).toBe(1)
     expect(cloudQueries).toBe(1)
   })

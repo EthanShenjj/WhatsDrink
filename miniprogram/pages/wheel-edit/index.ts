@@ -19,16 +19,22 @@ Page({
     catalogIndex: 0,
     validationMessage: '',
     pageToastMessage: '',
+    operationBusy: false,
   },
   async onLoad(query: Record<string, string>) {
-    const wheels = await listWheels()
-    const wheel = wheels.find((item) => item.id === query.id)
-    if (!wheel) {
-      wx.showToast({ title: '转盘不存在', icon: 'none' })
+    try {
+      const wheels = await listWheels()
+      const wheel = wheels.find((item) => item.id === query.id)
+      if (!wheel) {
+        wx.showToast({ title: '转盘不存在', icon: 'none' })
+        wx.navigateBack()
+        return
+      }
+      this.setData({ wheel: { ...wheel, items: wheel.items.map((item) => ({ ...item })) } })
+    } catch {
+      wx.showToast({ title: '转盘加载失败，请重试', icon: 'none' })
       wx.navigateBack()
-      return
     }
-    this.setData({ wheel: { ...wheel, items: wheel.items.map((item) => ({ ...item })) } })
   },
   updateName(event: WechatMiniprogram.Input) {
     if (!this.data.wheel) return
@@ -81,7 +87,7 @@ Page({
     this.setData({ 'wheel.items': this.data.wheel.items.filter((item) => item.id !== id) })
   },
   async save() {
-    if (!this.data.wheel) return
+    if (!this.data.wheel || this.data.operationBusy) return
     const name = this.data.wheel.name.trim()
     if (!name) {
       wx.showToast({ title: '请填写转盘名称', icon: 'none' })
@@ -93,17 +99,31 @@ Page({
       wx.showToast({ title: error, icon: 'none' })
       return
     }
-    await saveWheel({ ...this.data.wheel, name })
-    wx.showToast({ title: '已保存', icon: 'success' })
-    setTimeout(() => wx.navigateBack(), 500)
+    this.setData({ operationBusy: true })
+    try {
+      await saveWheel({ ...this.data.wheel, name })
+      wx.showToast({ title: '已保存', icon: 'success' })
+      setTimeout(() => wx.navigateBack(), 500)
+    } catch {
+      wx.showToast({ title: '保存失败，请重试', icon: 'none' })
+    } finally {
+      this.setData({ operationBusy: false })
+    }
   },
   async copy() {
-    if (!this.data.wheel) return
-    await copyWheel(this.data.wheel)
-    wx.showToast({ title: '已复制', icon: 'success' })
+    if (!this.data.wheel || this.data.operationBusy) return
+    this.setData({ operationBusy: true })
+    try {
+      await copyWheel(this.data.wheel)
+      wx.showToast({ title: '已复制', icon: 'success' })
+    } catch {
+      wx.showToast({ title: '复制失败，请重试', icon: 'none' })
+    } finally {
+      this.setData({ operationBusy: false })
+    }
   },
   remove() {
-    if (!this.data.wheel) return
+    if (!this.data.wheel || this.data.operationBusy) return
     wx.showModal({
       title: '删除这个转盘？',
       content: '删除后无法恢复，至少会保留一个默认转盘。',
@@ -111,8 +131,15 @@ Page({
       confirmColor: '#A54B3F',
       success: async (result) => {
         if (!result.confirm || !this.data.wheel) return
-        await deleteWheel(this.data.wheel.id)
-        wx.navigateBack()
+        this.setData({ operationBusy: true })
+        try {
+          await deleteWheel(this.data.wheel.id)
+          wx.navigateBack()
+        } catch {
+          wx.showToast({ title: '删除失败，请重试', icon: 'none' })
+        } finally {
+          this.setData({ operationBusy: false })
+        }
       },
     })
   },

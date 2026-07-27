@@ -8,12 +8,15 @@ exports.main = async () => {
   if (!OPENID) return { ok: false, message: '无法识别当前微信用户' }
 
   const collection = db.collection('user_profiles')
-  const existing = await collection.where({ _openid: OPENID }).limit(1).get()
   const now = Date.now()
   const wheelCollection = db.collection('wheels')
-  const existingWheels = await wheelCollection.where({ _openid: OPENID }).limit(1).get()
+  const [existing, existingWheels] = await Promise.all([
+    collection.where({ _openid: OPENID }).limit(1).get(),
+    wheelCollection.where({ _openid: OPENID }).limit(1).get(),
+  ])
+  const setupTasks = []
   if (!existingWheels.data.length) {
-    await wheelCollection.add({
+    setupTasks.push(wheelCollection.add({
       data: {
         _openid: OPENID,
         name: '今天喝什么咖啡',
@@ -27,11 +30,12 @@ exports.main = async () => {
         createdAt: now,
         updatedAt: now,
       },
-    })
+    }))
   }
 
-  if (!existing.data.length) {
-    await collection.add({
+  const profile = existing.data[0]
+  if (!profile) {
+    setupTasks.push(collection.add({
       data: {
         _openid: OPENID,
         nickname: '饮品记录者',
@@ -39,7 +43,11 @@ exports.main = async () => {
         createdAt: now,
         updatedAt: now,
       },
-    })
+    }))
+  }
+  if (setupTasks.length) await Promise.all(setupTasks)
+
+  if (!profile) {
     return {
       ok: true,
       data: {
@@ -52,7 +60,6 @@ exports.main = async () => {
     }
   }
 
-  const profile = existing.data[0]
   return {
     ok: true,
     data: {

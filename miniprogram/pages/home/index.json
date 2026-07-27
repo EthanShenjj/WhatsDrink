@@ -1,5 +1,5 @@
 {
-  "navigationBarTitleText": "今日",
+  "navigationBarTitleText": "Today",
   "usingComponents": {
     "wd-icon": "/components/local-icon/index"
   }

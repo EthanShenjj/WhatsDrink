@@ -16,7 +16,9 @@
     <view class="overview-label">TODAY'S OVERVIEW</view>
     <view class="summary">
       <view class="summary-item">
-        <wd-icon name="drink" size="42rpx" />
+        <view class="summary-icon summary-icon-primary">
+          <wd-icon name="drink" size="38rpx" />
+        </view>
         <view>
           <text class="summary-value">{{count}}</text>
           <text class="summary-unit">杯</text>
@@ -25,7 +27,9 @@
       </view>
       <view class="summary-divider" />
       <view class="summary-item">
-        <wd-icon name="chart-ring" size="42rpx" />
+        <view class="summary-icon summary-icon-secondary">
+          <wd-icon name="chart-ring" size="38rpx" />
+        </view>
         <view>
           <text class="summary-value">{{knownCalories}}</text>
           <text class="summary-unit">千卡</text>
@@ -45,7 +49,10 @@
 
   <view class="section-head">
     <text class="section-title hand-underline">今天的饮品</text>
-    <button class="text-button" bindtap="openChoice">纠结？转一下</button>
+    <button class="text-button choice-shortcut" bindtap="openChoice">
+      <wd-icon name="chart-pie" size="28rpx" />
+      <text>纠结？转一下</text>
+    </button>
   </view>
 
   <view wx:if="{{records.length}}" class="timeline">

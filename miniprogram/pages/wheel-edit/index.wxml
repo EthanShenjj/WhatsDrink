@@ -107,22 +107,31 @@
     {{validationMessage}}
   </text>
 
-  <button class="primary-button save-button" bindtap="save">保存转盘</button>
+  <button
+    class="primary-button save-button"
+    bindtap="save"
+    loading="{{operationBusy}}"
+    disabled="{{operationBusy}}"
+  >
+    保存同步
+  </button>
   <view class="footer-actions">
     <view
-      class="secondary-button footer-button"
+      class="secondary-button footer-button {{operationBusy ? 'is-disabled' : ''}}"
       bindtap="copy"
       role="button"
       aria-label="复制转盘"
+      aria-disabled="{{operationBusy ? 'true' : 'false'}}"
       hover-class="control-hover"
     >
       复制转盘
     </view>
     <view
-      class="secondary-button footer-button danger"
+      class="secondary-button footer-button danger {{operationBusy ? 'is-disabled' : ''}}"
       bindtap="remove"
       role="button"
       aria-label="删除转盘"
+      aria-disabled="{{operationBusy ? 'true' : 'false'}}"
       hover-class="control-hover"
     >
       删除转盘

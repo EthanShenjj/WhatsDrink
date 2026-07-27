@@ -2,33 +2,80 @@
   display: block;
   margin-top: 18rpx;
   color: var(--muted);
-  font-size: 26rpx;
+  font-size: 27rpx;
+  line-height: 42rpx;
 }
 
 .avatar-button {
+  position: relative;
   display: flex;
-  width: 190rpx;
-  height: 190rpx;
+  box-sizing: border-box;
+  width: 192rpx !important;
+  height: 192rpx;
+  max-width: 192rpx !important;
+  min-width: 192rpx !important;
   align-items: center;
   justify-content: center;
-  overflow: hidden;
-  margin: 70rpx auto 54rpx;
-  border: 8rpx solid var(--surface);
+  overflow: visible;
+  margin: 72rpx auto 64rpx !important;
+  padding: 0;
+  border: 6rpx solid var(--surface);
   border-radius: 50%;
-  background: var(--paper-deep);
-  box-shadow: var(--shadow-card);
-  color: var(--muted);
-  font-size: var(--text-small);
+  background: var(--surface-high);
+  box-shadow:
+    0 16rpx 38rpx rgba(74, 52, 39, 0.14),
+    0 0 0 1rpx rgba(125, 77, 54, 0.08);
+  color: var(--accent-deep);
+  line-height: 1;
+}
+
+.avatar-button::after {
+  border: 0;
 }
 
 .avatar-button image {
   width: 100%;
   height: 100%;
+  border-radius: 50%;
+}
+
+.avatar-edit-placeholder {
+  display: flex;
+  width: 100%;
+  height: 100%;
+  align-items: center;
+  flex-direction: column;
+  justify-content: center;
+  gap: 12rpx;
+  border-radius: 50%;
+}
+
+.avatar-edit-placeholder text {
+  color: var(--accent-deep);
+  font-size: 22rpx;
+  font-weight: 600;
+}
+
+.avatar-edit-badge {
+  position: absolute;
+  right: -4rpx;
+  bottom: 4rpx;
+  display: flex;
+  width: 50rpx;
+  height: 50rpx;
+  align-items: center;
+  justify-content: center;
+  border: 6rpx solid var(--paper);
+  border-radius: 50%;
+  background: var(--accent-deep);
+  box-shadow: 0 8rpx 18rpx rgba(74, 52, 39, 0.2);
+  color: #ffffff;
 }
 
 .field {
-  margin-bottom: 54rpx;
-  padding: 28rpx;
+  margin-bottom: 48rpx;
+  padding: 32rpx;
+  border: 1rpx solid rgba(211, 195, 188, 0.16);
   border-radius: var(--radius-card);
   background: var(--surface);
   box-shadow: var(--shadow-card);
@@ -45,8 +92,16 @@
   width: 100%;
   min-height: var(--control-height);
   padding: 0 24rpx;
-  border: 1rpx solid var(--line);
-  border-radius: var(--radius-control);
+  border: 0;
+  border-radius: 48rpx;
   background: var(--surface-soft);
   font-size: var(--text-control);
+}
+
+.profile-edit-page > .primary-button {
+  width: calc(100vw - 80rpx) !important;
+  max-width: none !important;
+  gap: 12rpx;
+  margin-right: 0 !important;
+  margin-left: 0 !important;
 }

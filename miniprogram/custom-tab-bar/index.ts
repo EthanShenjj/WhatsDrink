@@ -1,6 +1,7 @@
 Component({
   data: {
     selected: 0,
+    hidden: false,
     list: [
       { pagePath: '/pages/home/index', text: '今日', icon: 'home' },
       { pagePath: '/pages/calendar/index', text: '日历', icon: 'calendar' },

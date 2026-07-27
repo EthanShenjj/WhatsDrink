@@ -1,32 +1,36 @@
 page {
-  --paper: #f4f2ed;
-  --paper-deep: #ebe7df;
+  --paper: #fdfcfb;
+  --paper-deep: #f2eee9;
   --surface: #ffffff;
   --surface-soft: #faf9f6;
-  --ink: #1c1b18;
-  --muted: #78746d;
-  --line: rgba(28, 27, 24, 0.09);
-  --accent: #a36a4d;
-  --accent-deep: #7d4d36;
-  --accent-action: #1f1e1b;
-  --blue: #718b96;
-  --danger: #a84e42;
-  --shadow-card: 0 12rpx 34rpx rgba(37, 30, 24, 0.055);
+  --surface-high: #f7f4f1;
+  --surface-highest: #f2eee9;
+  --ink: #321f13;
+  --ink-body: #1c1c19;
+  --muted: #4f453f;
+  --outline: #81756e;
+  --line: rgba(211, 195, 188, 0.42);
+  --accent: #97472c;
+  --accent-deep: #783017;
+  --accent-action: #321f13;
+  --accent-soft: #ffdbd0;
+  --blue: #6d8ca4;
+  --danger: #ba1a1a;
+  --shadow-card: 0 20rpx 60rpx rgba(74, 52, 39, 0.055);
+  --shadow-control: 0 14rpx 30rpx rgba(50, 31, 19, 0.1);
   --text-caption: 24rpx;
-  --text-small: 26rpx;
+  --text-small: 27rpx;
   --text-body: 28rpx;
   --text-control: 30rpx;
-  --radius-control: 20rpx;
-  --radius-card: 28rpx;
-  --control-height: 88rpx;
+  --radius-control: 32rpx;
+  --radius-card: 48rpx;
+  --control-height: 96rpx;
   min-height: 100%;
   background-color: var(--paper);
-  background-image:
-    radial-gradient(circle at 10% 0%, rgba(255, 255, 255, 0.92), transparent 30%),
-    linear-gradient(180deg, #f1efea 0, #f6f5f2 560rpx, #f6f5f2 100%);
-  color: var(--ink);
-  font-family: -apple-system, BlinkMacSystemFont, "PingFang SC", "Helvetica Neue", sans-serif;
-  font-size: 30rpx;
+  color: var(--ink-body);
+  font-family: "PingFang SC", -apple-system, BlinkMacSystemFont, "Helvetica Neue", sans-serif;
+  font-size: 28rpx;
+  line-height: 1.5;
 }
 
 view,
@@ -51,33 +55,39 @@ button::after {
 
 .page-shell {
   min-height: 100vh;
-  padding: 28rpx 32rpx calc(190rpx + env(safe-area-inset-bottom));
+  padding: 40rpx 40rpx calc(176rpx + env(safe-area-inset-bottom));
 }
 
 .eyebrow {
+  display: block;
   color: var(--accent-deep);
-  font-size: 21rpx;
-  font-weight: 600;
-  letter-spacing: 5rpx;
+  font-size: 22rpx;
+  font-weight: 700;
+  line-height: 32rpx;
+  letter-spacing: 4rpx;
 }
 
 .display-title {
-  margin-top: 10rpx;
-  font-size: 58rpx;
-  font-weight: 650;
-  line-height: 1.16;
+  display: block;
+  margin-top: 8rpx;
+  color: var(--ink);
+  font-size: 48rpx;
+  font-weight: 700;
+  line-height: 64rpx;
   letter-spacing: -1rpx;
 }
 
 .section-title {
-  font-size: 34rpx;
+  color: var(--ink);
+  font-size: 36rpx;
   font-weight: 650;
+  line-height: 52rpx;
 }
 
 .hand-underline {
   display: inline-block;
-  padding-bottom: 10rpx;
-  border-bottom: 4rpx solid var(--accent);
+  padding-bottom: 6rpx;
+  border-bottom: 6rpx solid rgba(151, 71, 44, 0.14);
 }
 
 .muted {
@@ -89,14 +99,14 @@ button::after {
   align-items: center;
   justify-content: center;
   width: 100%;
-  min-height: 96rpx;
-  border-radius: 48rpx;
+  min-height: 104rpx;
+  border-radius: 52rpx;
   background: var(--accent-action);
-  box-shadow: 0 12rpx 24rpx rgba(28, 27, 24, 0.14);
+  box-shadow: var(--shadow-control);
   color: #ffffff;
   font-size: 32rpx;
-  font-weight: 600;
-  letter-spacing: 2rpx;
+  font-weight: 650;
+  letter-spacing: 1rpx;
 }
 
 .primary-button[disabled],
@@ -110,11 +120,12 @@ button::after {
   justify-content: center;
   min-height: var(--control-height);
   padding: 0 28rpx;
-  border: 1rpx solid rgba(28, 27, 24, 0.14);
+  border: 0;
   border-radius: 44rpx;
-  background: var(--surface);
+  background: var(--surface-highest);
   color: var(--ink);
   font-size: var(--text-body);
+  font-weight: 600;
 }
 
 .text-button {
@@ -132,10 +143,10 @@ button::after {
 }
 
 .empty-state {
-  padding: 72rpx 24rpx;
+  padding: 80rpx 24rpx;
   color: var(--muted);
   text-align: center;
-  line-height: 1.8;
+  line-height: 1.75;
 }
 
 .safe-bottom {

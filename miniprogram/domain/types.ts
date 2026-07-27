@@ -76,6 +76,17 @@ export interface UserProfile {
   updatedAt: number
 }
 
+export type ReminderSubscriptionDecision = 'accept' | 'reject' | 'ban' | 'filter'
+
+export interface ReminderSubscriptionStatus {
+  configured: boolean
+  enabled: boolean
+  remainingCount: number
+  reminderTime: string
+  lastDecision: ReminderSubscriptionDecision | ''
+  lastSentDate: string
+}
+
 export interface DaySummary {
   count: number
   knownCalories: number

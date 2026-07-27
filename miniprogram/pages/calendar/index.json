@@ -1,5 +1,5 @@
 {
-  "navigationBarTitleText": "记录日历",
+  "navigationBarTitleText": "Calendar",
   "usingComponents": {
     "wd-icon": "/components/local-icon/index"
   }
