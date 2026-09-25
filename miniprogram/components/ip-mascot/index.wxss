@@ -1,0 +1,25 @@
+.ip-mascot {
+  position: relative;
+  display: block;
+  flex: 0 0 auto;
+  transform-origin: 50% 86%;
+}
+
+.ip-mascot-image {
+  display: block;
+  width: 100%;
+  height: 100%;
+}
+
+.motion-float { animation: mascot-float 3.2s ease-in-out infinite; }
+.motion-pop { animation: mascot-pop 260ms cubic-bezier(.2,.85,.3,1.25) both; }
+
+@keyframes mascot-float {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-8rpx); }
+}
+
+@keyframes mascot-pop {
+  from { opacity: 0; transform: scale(.86) translateY(10rpx); }
+  to { opacity: 1; transform: scale(1) translateY(0); }
+}

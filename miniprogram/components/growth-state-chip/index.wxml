@@ -1,0 +1,12 @@
+<view
+  class="state-chip state-{{state}} {{interactive ? 'is-interactive' : ''}}"
+  bindtap="onTap"
+  role="{{interactive ? 'button' : 'text'}}"
+  aria-label="{{label}} {{timeframe}}"
+>
+  <view class="state-dot"></view>
+  <text class="state-label">{{label}}</text>
+  <text wx:if="{{timeframe}}" class="state-time">· {{timeframe}}</text>
+  <local-icon wx:if="{{locked}}" name="lock" size="24rpx" />
+  <text wx:if="{{interactive}}" class="state-arrow">›</text>
+</view>

@@ -1,52 +1,72 @@
 .tab-bar {
   position: fixed;
   z-index: 100;
-  right: 0;
-  bottom: 0;
-  left: 0;
+  right: 18rpx;
+  bottom: calc(14rpx + env(safe-area-inset-bottom));
+  left: 18rpx;
   display: flex;
   box-sizing: border-box;
-  min-height: calc(128rpx + env(safe-area-inset-bottom));
-  overflow: hidden;
-  padding: 10rpx 24rpx env(safe-area-inset-bottom);
-  border-top: 1rpx solid rgba(211, 195, 188, 0.34);
-  background: #fdfcfb;
-  box-shadow: 0 -16rpx 44rpx rgba(74, 52, 39, 0.035);
-  color: #4f453f;
+  min-height: 126rpx;
+  padding: 8rpx 16rpx;
+  border: 1rpx solid rgba(255,255,255,.9);
+  border-radius: 36rpx;
+  background: rgba(255,255,255,.94);
+  box-shadow: 0 18rpx 54rpx rgba(49,57,121,.2);
+  backdrop-filter: blur(24rpx);
 }
 
 .tab-item {
   position: relative;
   display: flex;
   min-width: 0;
+  min-height: 108rpx;
   flex: 1;
-  flex-direction: column;
   align-items: center;
   justify-content: center;
-  min-height: 108rpx;
-  gap: 6rpx;
-  font-family: -apple-system, BlinkMacSystemFont, "PingFang SC", sans-serif;
+  flex-direction: column;
+  gap: 0;
+  transition: transform 180ms ease;
 }
+
+.tab-item:active { transform: scale(.95); }
+
+.tab-icon-wrap {
+  position: relative;
+  display: flex;
+  width: 70rpx;
+  height: 60rpx;
+  align-items: center;
+  justify-content: center;
+  border-radius: 22rpx;
+}
+
+.tab-icon { width: 40rpx; height: 40rpx; opacity: .48; }
+.is-selected .tab-icon { opacity: 1; filter: saturate(1.7) hue-rotate(185deg); }
 
 .tab-label {
   overflow: hidden;
   max-width: 100%;
-  font-size: 20rpx;
+  color: #777C91;
+  font-size: 21rpx;
   font-weight: 600;
+  line-height: 32rpx;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
 
-.is-selected {
-  color: #97472c;
-}
+.is-selected .tab-label { color: #3E47C8; }
+.tab-selected-indicator { position: absolute; bottom: 2rpx; width: 24rpx; height: 5rpx; border-radius: 99rpx; background: #5B6CFF; }
 
-.is-selected::after {
-  position: absolute;
-  bottom: 4rpx;
-  width: 30rpx;
-  height: 4rpx;
-  border-radius: 99rpx;
-  background: #97472c;
-  content: "";
+.tab-item-add { transform: translateY(-24rpx); }
+.tab-item-add:active { transform: translateY(-24rpx) scale(.95); }
+.tab-item-add .tab-icon-wrap {
+  width: 104rpx;
+  height: 104rpx;
+  border: 7rpx solid rgba(255,255,255,.96);
+  border-radius: 52rpx;
+  background: linear-gradient(135deg, #5B76FF, #A88BFF);
+  box-shadow: 0 14rpx 32rpx rgba(91,108,255,.34);
 }
+.tab-add-pin { width: 52rpx; height: 52rpx; filter: brightness(0) invert(1); }
+.tab-add-plus { position: absolute; right: 19rpx; bottom: 20rpx; width: 24rpx; height: 24rpx; }
+.tab-item-add .tab-label { margin-top: -2rpx; color: #4A4F73; }

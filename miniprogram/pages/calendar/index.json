@@ -1,6 +1,0 @@
-{
-  "navigationBarTitleText": "Calendar",
-  "usingComponents": {
-    "wd-icon": "/components/local-icon/index"
-  }
-}

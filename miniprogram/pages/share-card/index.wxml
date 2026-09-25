@@ -1,0 +1,58 @@
+<view class="page-shell share-page">
+  <view wx:if="{{loading}}" class="share-loading"><text class="muted">正在准备卡片…</text></view>
+  <empty-state wx:elif="{{!footprint && !mapStats}}" title="无法生成分享卡" description="记录可能已经被删除" />
+  <block wx:else>
+    <text class="eyebrow">SHARE A MEMORY</text>
+    <text class="display-title">分享这一束光</text>
+
+    <image wx:if="{{imageUrl}}" class="generated-image card" src="{{imageUrl}}" mode="widthFix" />
+    <view wx:elif="{{mapStats}}" class="map-share-preview card">
+      <view class="map-share-hero">
+        <view class="map-share-copy">
+          <text class="eyebrow">LIFEMAP · LIGHTING MAP</text>
+          <text class="section-title">{{mapLabel}}</text>
+          <text class="map-share-count">{{mapStats.places}} 个地点</text>
+        </view>
+        <ip-mascot state="journey" expression="happy" size="156rpx" motion="float" label="分享足迹的小拾" />
+      </view>
+      <text class="muted">{{mapStats.provinces}} 个省/州 · {{mapStats.cities}} 座城市 · {{mapStats.photoCount}} 张照片</text>
+      <text wx:if="{{mapHighlight}}" class="muted">{{mapHighlight}}</text>
+      <view class="map-share-cities"><text wx:for="{{mapCities}}" wx:key="*this" class="chip">{{item}}</text></view>
+    </view>
+    <view wx:else class="share-preview-wrap">
+      <share-preview footprint="{{footprint}}" config="{{config}}" />
+    </view>
+
+    <view wx:if="{{footprint}}" class="privacy-card card">
+      <view class="privacy-title-row">
+        <local-icon name="lock" size="34rpx" />
+        <view>
+          <text class="privacy-title">分享隐私</text>
+          <text class="privacy-sub">经纬度永不进入分享卡</text>
+        </view>
+      </view>
+      <view class="privacy-row">
+        <text>隐藏详细地址</text>
+        <switch checked="{{config.hideAddress}}" color="#5B6CFF" data-key="hideAddress" bindchange="onPrivacyChange" />
+      </view>
+      <view class="privacy-row">
+        <text>隐藏日期</text>
+        <switch checked="{{config.hideDate}}" color="#5B6CFF" data-key="hideDate" bindchange="onPrivacyChange" />
+      </view>
+      <view class="privacy-row">
+        <text>隐藏短记</text>
+        <switch checked="{{config.hideNote}}" color="#5B6CFF" data-key="hideNote" bindchange="onPrivacyChange" />
+      </view>
+    </view>
+
+    <canvas canvas-id="shareCanvas" class="share-canvas"></canvas>
+
+    <view class="share-actions">
+      <button class="secondary-button" loading="{{generating}}" bindtap="onGenerate">生成图片</button>
+      <button class="secondary-button" bindtap="onSaveImage">保存相册</button>
+      <button class="primary-button" open-type="share" disabled="{{!imageUrl}}">转发给朋友</button>
+      <text wx:if="{{imageUrl && !codeAvailable}}" class="share-hint">当前未能生成小程序码，卡片仍可保存或转发。</text>
+      <text class="share-hint">先生成图片，再转发或保存。分享链接只打开小程序首页，不会公开私人足迹详情。</text>
+    </view>
+  </block>
+</view>

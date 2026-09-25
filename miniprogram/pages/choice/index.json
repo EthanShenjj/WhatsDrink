@@ -1,6 +1,0 @@
-{
-  "navigationBarTitleText": "Decision Wheel",
-  "usingComponents": {
-    "wd-icon": "/components/local-icon/index"
-  }
-}

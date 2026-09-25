@@ -1,0 +1,15 @@
+{
+  "navigationBarTitleText": "拾光迹",
+  "navigationStyle": "custom",
+  "disableScroll": true,
+  "usingComponents": {
+    "local-icon": "/components/local-icon/index",
+    "map-controls": "/components/map-controls/index",
+    "filter-sheet": "/components/filter-sheet/index",
+    "footprint-card": "/components/footprint-card/index",
+    "empty-state": "/components/empty-state/index",
+    "ip-mascot": "/components/ip-mascot/index",
+    "growth-state-chip": "/components/growth-state-chip/index",
+    "privacy-popup": "/components/privacy-popup/index"
+  }
+}

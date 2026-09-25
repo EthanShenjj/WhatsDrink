@@ -1,0 +1,32 @@
+<view wx:if="{{footprint}}" class="share-card">
+  <view class="share-brand">
+    <view class="share-brand-mark"><ip-mascot state="journey" expression="record" size="70rpx" label="小拾" /></view>
+    <view>
+      <text class="share-brand-name">拾光迹</text>
+      <text class="share-brand-sub">LIFEMAP · YOUR WORLD IN MOMENTS</text>
+    </view>
+  </view>
+
+  <view wx:if="{{photoUrls.length}}" class="share-photos share-photos-{{photoUrls.length}}">
+    <image wx:for="{{photoUrls}}" wx:key="*this" class="share-photo" src="{{item}}" mode="aspectFill" />
+  </view>
+  <view wx:else class="share-photo-empty">
+    <ip-mascot state="journey" expression="companion" size="230rpx" motion="float" label="陪伴这段回忆的小拾" />
+  </view>
+
+  <view class="share-content">
+    <text class="share-poi">{{footprint.poiName}}</text>
+    <text wx:if="{{addressText}}" class="share-location">{{addressText}}</text>
+    <view wx:if="{{dateText || moodText}}" class="share-meta">
+      <text wx:if="{{dateText}}">{{dateText}}</text>
+      <text wx:if="{{dateText && moodText}}"> · </text>
+      <text wx:if="{{moodText}}">{{moodIcon}} {{moodText}}</text>
+    </view>
+    <text wx:if="{{noteText}}" class="share-note">“{{noteText}}”</text>
+  </view>
+
+  <view class="share-footer">
+    <text>把走过的地方，留成一张会长大的地图</text>
+    <view class="share-code-placeholder"><text>小程序码</text></view>
+  </view>
+</view>

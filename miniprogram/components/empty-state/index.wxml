@@ -1,0 +1,6 @@
+<view class="empty-wrap">
+  <ip-mascot state="{{state}}" expression="{{expression}}" size="170rpx" motion="float" label="小拾，{{title}}" />
+  <text class="empty-title">{{title}}</text>
+  <text wx:if="{{description}}" class="empty-description">{{description}}</text>
+  <button wx:if="{{actionText}}" class="empty-action" bindtap="onAction">{{actionText}}</button>
+</view>

@@ -1,0 +1,9 @@
+{
+  "navigationBarTitleText": "新增足迹",
+  "usingComponents": {
+    "ip-feedback": "/components/ip-feedback/index",
+    "local-icon": "/components/local-icon/index",
+    "photo-uploader": "/components/photo-uploader/index",
+    "mood-picker": "/components/mood-picker/index"
+  }
+}

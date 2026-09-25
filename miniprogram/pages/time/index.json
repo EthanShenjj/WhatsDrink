@@ -1,0 +1,14 @@
+{
+  "navigationBarTitleText": "时光",
+  "usingComponents": {
+    "local-icon": "/components/local-icon/index",
+    "calendar-grid": "/components/calendar-grid/index",
+    "footprint-card": "/components/footprint-card/index",
+    "empty-state": "/components/empty-state/index",
+    "ip-mascot": "/components/ip-mascot/index",
+    "growth-state-chip": "/components/growth-state-chip/index",
+    "ip-feedback": "/components/ip-feedback/index",
+    "brand-card": "/components/brand-card/index",
+    "privacy-popup": "/components/privacy-popup/index"
+  }
+}

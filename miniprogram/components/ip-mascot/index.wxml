@@ -1,0 +1,8 @@
+<view
+  class="ip-mascot motion-{{normalizedMotion}} expression-{{normalizedExpression}}"
+  style="width:{{size}};height:{{size}};"
+  role="img"
+  aria-label="{{label}}"
+>
+  <image class="ip-mascot-image" src="{{imageSrc}}" mode="aspectFit" />
+</view>

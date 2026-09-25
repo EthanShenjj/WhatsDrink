@@ -1,0 +1,59 @@
+.mood-scroll {
+  width: 100%;
+  white-space: nowrap;
+}
+
+.mood-row {
+  display: inline-flex;
+  align-items: center;
+  gap: 18rpx;
+  padding: 8rpx 4rpx;
+}
+
+.mood-item {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 8rpx;
+  padding: 8rpx 4rpx;
+  opacity: 0.55;
+  transition: opacity 160ms ease-out, transform 160ms ease-out;
+}
+
+.mood-item.is-selected {
+  opacity: 1;
+  transform: scale(1.05);
+}
+
+.mood-emoji-wrap {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 88rpx;
+  height: 88rpx;
+  border-radius: 50%;
+  background: var(--surface-highest);
+  transition: background 160ms ease-out;
+}
+
+.is-selected .mood-emoji-wrap {
+  background: var(--amber-soft);
+  box-shadow: 0 0 0 3rpx var(--amber);
+}
+
+.mood-emoji {
+  font-size: 44rpx;
+  line-height: 1;
+}
+
+.mood-label {
+  color: var(--muted);
+  font-size: 22rpx;
+  font-weight: 500;
+}
+
+.is-selected .mood-label {
+  color: var(--amber-deep);
+  font-weight: 600;
+}

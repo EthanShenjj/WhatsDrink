@@ -1,0 +1,1240 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=1080, height=1920" />
+    <script src="https://cdn.jsdelivr.net/npm/gsap@3.14.2/dist/gsap.min.js"></script>
+    <style>
+      @font-face {
+        font-family: "Manrope";
+        src: local("AvenirNext-Regular");
+        font-weight: 100 599;
+      }
+
+      @font-face {
+        font-family: "Manrope";
+        src: local("AvenirNext-DemiBold");
+        font-weight: 600 799;
+      }
+
+      @font-face {
+        font-family: "Manrope";
+        src: local("AvenirNext-Heavy");
+        font-weight: 800 1000;
+      }
+
+      @font-face {
+        font-family: "Be Vietnam Pro";
+        src: local("Avenir-Roman");
+      }
+
+      @font-face {
+        font-family: "PingFang SC";
+        src: local("HiraginoSansGB-W3");
+        font-weight: 100 499;
+      }
+
+      @font-face {
+        font-family: "PingFang SC";
+        src: local("HiraginoSansGB-W6");
+        font-weight: 500 1000;
+      }
+
+      * {
+        box-sizing: border-box;
+      }
+
+      html,
+      body {
+        width: 1080px;
+        height: 1920px;
+        margin: 0;
+        overflow: hidden;
+        background: #fcf9f4;
+      }
+
+      body {
+        color: #321f13;
+        font-family: "PingFang SC", "Be Vietnam Pro", sans-serif;
+        -webkit-font-smoothing: antialiased;
+      }
+
+      #root {
+        position: relative;
+        width: 1080px;
+        height: 1920px;
+        overflow: hidden;
+        background: #fcf9f4;
+      }
+
+      .scene {
+        position: absolute;
+        inset: 0;
+        width: 1080px;
+        height: 1920px;
+        overflow: hidden;
+        background-color: #fcf9f4;
+      }
+
+      #scene-1 {
+        z-index: 1;
+      }
+
+      #scene-2,
+      #scene-3,
+      #scene-4,
+      #scene-5 {
+        z-index: 2;
+        opacity: 0;
+      }
+
+      .scene-content {
+        position: relative;
+        z-index: 4;
+        display: flex;
+        flex-direction: column;
+        width: 100%;
+        height: 100%;
+        padding: 128px 76px 112px;
+        gap: 32px;
+      }
+
+      .decor-layer {
+        position: absolute;
+        inset: 0;
+        z-index: 1;
+        pointer-events: none;
+      }
+
+      .grain {
+        position: absolute;
+        inset: 0;
+        opacity: 0.32;
+        background-image:
+          radial-gradient(circle at 20% 15%, rgba(151, 71, 44, 0.06) 0 2px, rgba(151, 71, 44, 0) 3px),
+          radial-gradient(circle at 80% 70%, rgba(74, 52, 39, 0.045) 0 1.5px, rgba(74, 52, 39, 0) 2.5px);
+        background-size: 38px 38px, 31px 31px;
+      }
+
+      .orb {
+        position: absolute;
+        border-radius: 999px;
+        filter: blur(3px);
+      }
+
+      .orb-coral {
+        width: 540px;
+        height: 540px;
+        top: -210px;
+        right: -210px;
+        background: radial-gradient(circle, rgba(201, 111, 75, 0.25), rgba(201, 111, 75, 0));
+      }
+
+      .orb-brown {
+        width: 610px;
+        height: 610px;
+        left: -320px;
+        bottom: 40px;
+        background: radial-gradient(circle, rgba(74, 52, 39, 0.13), rgba(74, 52, 39, 0));
+      }
+
+      .ghost-word {
+        position: absolute;
+        color: rgba(74, 52, 39, 0.045);
+        font-family: "Manrope", sans-serif;
+        font-size: 214px;
+        font-weight: 900;
+        letter-spacing: -0.07em;
+        line-height: 0.88;
+        white-space: nowrap;
+      }
+
+      .eyebrow {
+        display: flex;
+        align-items: center;
+        gap: 18px;
+        color: #97472c;
+        font-family: "Manrope", sans-serif;
+        font-size: 27px;
+        font-weight: 900;
+        letter-spacing: 0.18em;
+        line-height: 1;
+      }
+
+      .eyebrow-dot {
+        width: 16px;
+        height: 16px;
+        border-radius: 999px;
+        background: #c96f4b;
+        box-shadow: 0 0 0 10px rgba(201, 111, 75, 0.12);
+      }
+
+      .headline {
+        margin: 0;
+        color: #321f13;
+        font-family: "PingFang SC", sans-serif;
+        font-size: 124px;
+        font-weight: 800;
+        letter-spacing: -0.065em;
+        line-height: 1.03;
+      }
+
+      .headline .title-line {
+        display: block;
+      }
+
+      .headline .accent {
+        color: #c96f4b;
+      }
+
+      .subhead {
+        margin: 0;
+        max-width: 860px;
+        color: #4f453f;
+        font-size: 38px;
+        font-weight: 350;
+        letter-spacing: -0.02em;
+        line-height: 1.55;
+      }
+
+      .card {
+        background: #ffffff;
+        border-radius: 46px;
+        box-shadow: 0 28px 76px rgba(74, 52, 39, 0.105);
+      }
+
+      .pill {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        min-height: 82px;
+        padding: 0 34px;
+        border-radius: 999px;
+        color: #4a3427;
+        background: #f0ede9;
+        font-size: 32px;
+        font-weight: 600;
+        white-space: nowrap;
+      }
+
+      .button {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        min-height: 104px;
+        border-radius: 999px;
+        color: #ffffff;
+        background: #321f13;
+        box-shadow: 0 24px 50px rgba(50, 31, 19, 0.2);
+        font-size: 36px;
+        font-weight: 700;
+        letter-spacing: -0.02em;
+      }
+
+      /* Scene 1 */
+      #scene-1 .scene-content {
+        justify-content: space-between;
+      }
+
+      #scene-1 .ghost-word {
+        top: 450px;
+        left: -60px;
+        transform: rotate(-8deg);
+      }
+
+      .s1-copy {
+        display: flex;
+        flex-direction: column;
+        gap: 36px;
+      }
+
+      .s1-choice-row {
+        display: flex;
+        align-items: center;
+        gap: 18px;
+        margin-top: 22px;
+      }
+
+      .choice-pill-coffee {
+        color: #ffffff;
+        background: #4a3427;
+      }
+
+      .choice-pill-tea {
+        color: #772f16;
+        background: #ffdbd0;
+      }
+
+      .choice-or {
+        color: #81756e;
+        font-family: "Manrope", sans-serif;
+        font-size: 24px;
+        font-weight: 900;
+        letter-spacing: 0.12em;
+      }
+
+      .s1-bottom-card {
+        display: grid;
+        grid-template-columns: 116px 1fr;
+        align-items: center;
+        gap: 28px;
+        min-height: 230px;
+        padding: 42px;
+      }
+
+      .question-mark {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        width: 116px;
+        height: 116px;
+        border-radius: 36px;
+        color: #97472c;
+        background: #ffdbd0;
+        font-family: "Manrope", sans-serif;
+        font-size: 74px;
+        font-weight: 900;
+      }
+
+      .s1-bottom-card strong {
+        display: block;
+        margin-bottom: 10px;
+        font-size: 40px;
+        font-weight: 750;
+        line-height: 1.2;
+      }
+
+      .s1-bottom-card span {
+        color: #4f453f;
+        font-size: 29px;
+        font-weight: 350;
+        line-height: 1.5;
+      }
+
+      /* Scene 2 */
+      #scene-2 .scene-content {
+        padding-top: 112px;
+        align-items: stretch;
+      }
+
+      #scene-2 .ghost-word {
+        right: -160px;
+        bottom: 120px;
+        transform: rotate(90deg);
+        transform-origin: center;
+      }
+
+      .s2-title {
+        max-width: 880px;
+        font-size: 92px;
+      }
+
+      .s2-subhead {
+        font-size: 34px;
+      }
+
+      .wheel-card {
+        position: relative;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        width: 100%;
+        min-height: 1020px;
+        margin-top: 12px;
+        padding: 94px 36px 56px;
+        overflow: hidden;
+      }
+
+      .wheel-meta {
+        position: absolute;
+        top: 42px;
+        left: 48px;
+        right: 48px;
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        color: #81756e;
+        font-size: 24px;
+        font-weight: 650;
+      }
+
+      .wheel-count {
+        padding: 13px 22px;
+        border-radius: 999px;
+        color: #772f16;
+        background: #ffdbd0;
+      }
+
+      .wheel-shell {
+        position: relative;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        width: 760px;
+        height: 760px;
+        margin-top: 20px;
+        border-radius: 999px;
+        background: #fcf9f4;
+        box-shadow:
+          0 30px 70px rgba(74, 52, 39, 0.14),
+          inset 0 0 0 22px #ffffff;
+      }
+
+      .wheel {
+        position: relative;
+        width: 680px;
+        height: 680px;
+        border-radius: 999px;
+        background: conic-gradient(
+          #d47a58 0deg 72deg,
+          #e6bd72 72deg 144deg,
+          #7895af 144deg 216deg,
+          #9eae8d 216deg 288deg,
+          #c9957d 288deg 360deg
+        );
+        box-shadow: inset 0 0 0 10px rgba(255, 255, 255, 0.56);
+      }
+
+      .wheel-label {
+        position: absolute;
+        top: 50%;
+        left: 50%;
+        width: 180px;
+        margin-left: -90px;
+        color: #321f13;
+        font-size: 28px;
+        font-weight: 700;
+        text-align: center;
+        transform-origin: 90px 0;
+      }
+
+      .wheel-label.light {
+        color: #ffffff;
+      }
+
+      .wheel-label:nth-child(1) {
+        transform: rotate(36deg) translateY(-250px) rotate(-36deg);
+      }
+
+      .wheel-label:nth-child(2) {
+        transform: rotate(108deg) translateY(-250px) rotate(-108deg);
+      }
+
+      .wheel-label:nth-child(3) {
+        transform: rotate(180deg) translateY(-250px) rotate(-180deg);
+      }
+
+      .wheel-label:nth-child(4) {
+        transform: rotate(252deg) translateY(-250px) rotate(-252deg);
+      }
+
+      .wheel-label:nth-child(5) {
+        transform: rotate(324deg) translateY(-250px) rotate(-324deg);
+      }
+
+      .wheel-hub {
+        position: absolute;
+        top: 50%;
+        left: 50%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        width: 112px;
+        height: 112px;
+        margin: -56px 0 0 -56px;
+        border: 10px solid #321f13;
+        border-radius: 999px;
+        color: #321f13;
+        background: #ffffff;
+        font-family: "Manrope", sans-serif;
+        font-size: 30px;
+        font-weight: 900;
+      }
+
+      .wheel-pointer {
+        position: absolute;
+        top: 79px;
+        left: 50%;
+        z-index: 5;
+        width: 0;
+        height: 0;
+        margin-left: -34px;
+        border-right: 34px solid rgba(0, 0, 0, 0);
+        border-left: 34px solid rgba(0, 0, 0, 0);
+        border-top: 76px solid #321f13;
+        filter: drop-shadow(0 10px 14px rgba(50, 31, 19, 0.2));
+        transform-origin: 50% 0;
+      }
+
+      .s2-result {
+        position: absolute;
+        right: 44px;
+        bottom: 46px;
+        left: 44px;
+        z-index: 8;
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        min-height: 126px;
+        padding: 24px 28px 24px 38px;
+        border-radius: 34px;
+        color: #ffffff;
+        background: #321f13;
+        box-shadow: 0 22px 50px rgba(50, 31, 19, 0.25);
+      }
+
+      .s2-result small {
+        display: block;
+        margin-bottom: 4px;
+        color: #e1c0ae;
+        font-size: 22px;
+        font-weight: 500;
+      }
+
+      .s2-result strong {
+        font-size: 41px;
+        font-weight: 750;
+      }
+
+      .result-check {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        width: 66px;
+        height: 66px;
+        border-radius: 999px;
+        color: #321f13;
+        background: #fe9978;
+        font-family: "Manrope", sans-serif;
+        font-size: 36px;
+        font-weight: 900;
+      }
+
+      /* Scene 3 */
+      #scene-3 .scene-content {
+        padding-top: 118px;
+      }
+
+      #scene-3 .ghost-word {
+        top: 610px;
+        right: -230px;
+        transform: rotate(90deg);
+      }
+
+      .s3-title {
+        font-size: 88px;
+      }
+
+      .record-card {
+        display: flex;
+        flex-direction: column;
+        gap: 28px;
+        margin-top: 10px;
+        padding: 40px;
+      }
+
+      .record-top {
+        display: grid;
+        grid-template-columns: 230px 1fr;
+        align-items: center;
+        gap: 34px;
+      }
+
+      .drink-photo {
+        width: 230px;
+        height: 230px;
+        border-radius: 38px;
+        object-fit: cover;
+        background: #f0ede9;
+      }
+
+      .record-heading small {
+        display: block;
+        margin-bottom: 10px;
+        color: #97472c;
+        font-family: "Manrope", sans-serif;
+        font-size: 22px;
+        font-weight: 900;
+        letter-spacing: 0.12em;
+      }
+
+      .record-heading strong {
+        display: block;
+        font-size: 48px;
+        font-weight: 780;
+        letter-spacing: -0.035em;
+        line-height: 1.28;
+      }
+
+      .record-heading span {
+        display: block;
+        margin-top: 10px;
+        color: #4f453f;
+        font-size: 29px;
+        font-weight: 350;
+      }
+
+      .record-rule {
+        width: 100%;
+        height: 2px;
+        background: #ebe8e3;
+        transform-origin: left center;
+      }
+
+      .tag-row {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 14px;
+      }
+
+      .tag {
+        padding: 17px 25px;
+        border-radius: 999px;
+        color: #4a3427;
+        background: #f6f3ee;
+        font-size: 27px;
+        font-weight: 550;
+      }
+
+      .record-note {
+        min-height: 144px;
+        padding: 28px 30px;
+        border-radius: 30px;
+        color: #4f453f;
+        background: #fcf9f4;
+        font-size: 29px;
+        font-weight: 350;
+        line-height: 1.55;
+      }
+
+      .save-flow {
+        display: grid;
+        grid-template-columns: 1fr 104px;
+        align-items: center;
+        gap: 20px;
+      }
+
+      .flow-arrow {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        width: 104px;
+        height: 104px;
+        border-radius: 999px;
+        color: #772f16;
+        background: #ffdbd0;
+        font-family: "Manrope", sans-serif;
+        font-size: 44px;
+        font-weight: 900;
+      }
+
+      .s3-caption {
+        display: flex;
+        align-items: center;
+        gap: 22px;
+        margin-top: 6px;
+        color: #4f453f;
+        font-size: 31px;
+        font-weight: 400;
+      }
+
+      .caption-line {
+        width: 92px;
+        height: 5px;
+        border-radius: 999px;
+        background: #c96f4b;
+        transform-origin: left center;
+      }
+
+      /* Scene 4 */
+      #scene-4 .scene-content {
+        padding-top: 116px;
+      }
+
+      #scene-4 .ghost-word {
+        left: -85px;
+        bottom: 60px;
+        transform: rotate(-9deg);
+      }
+
+      .s4-title {
+        font-size: 88px;
+      }
+
+      .calendar-card {
+        display: flex;
+        flex-direction: column;
+        gap: 26px;
+        margin-top: 14px;
+        padding: 42px 36px 38px;
+      }
+
+      .calendar-head {
+        display: flex;
+        align-items: flex-end;
+        justify-content: space-between;
+        padding: 0 10px;
+      }
+
+      .calendar-head small {
+        display: block;
+        margin-bottom: 7px;
+        color: #97472c;
+        font-family: "Manrope", sans-serif;
+        font-size: 21px;
+        font-weight: 900;
+        letter-spacing: 0.12em;
+      }
+
+      .calendar-head strong {
+        font-size: 46px;
+        font-weight: 780;
+      }
+
+      .month-nav {
+        display: flex;
+        gap: 12px;
+      }
+
+      .month-nav span {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        width: 58px;
+        height: 58px;
+        border-radius: 999px;
+        color: #4a3427;
+        background: #f6f3ee;
+        font-family: "Manrope", sans-serif;
+        font-size: 26px;
+        font-weight: 800;
+      }
+
+      .week-labels,
+      .calendar-grid {
+        display: grid;
+        grid-template-columns: repeat(7, 1fr);
+        gap: 10px;
+      }
+
+      .week-labels span {
+        color: #7a6e67;
+        font-size: 21px;
+        font-weight: 650;
+        text-align: center;
+      }
+
+      .calendar-grid {
+        row-gap: 16px;
+      }
+
+      .day {
+        position: relative;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        aspect-ratio: 1;
+        border-radius: 28px;
+        color: #4f453f;
+        background: #fcf9f4;
+        font-family: "Manrope", sans-serif;
+        font-size: 25px;
+        font-weight: 700;
+      }
+
+      .day.muted {
+        color: #81756e;
+      }
+
+      .day.today {
+        color: #772f16;
+        background: #ffdbd0;
+        box-shadow: inset 0 0 0 3px rgba(151, 71, 44, 0.1);
+      }
+
+      .day.stamped::after {
+        position: absolute;
+        right: 8px;
+        bottom: 7px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        width: 25px;
+        height: 25px;
+        border-radius: 999px;
+        content: "●";
+        color: #ffffff;
+        background: #c96f4b;
+        font-size: 11px;
+        box-shadow: 0 5px 12px rgba(151, 71, 44, 0.2);
+      }
+
+      .week-summary {
+        display: grid;
+        grid-template-columns: 128px 1fr;
+        align-items: center;
+        gap: 26px;
+        padding: 30px;
+        border-radius: 34px;
+        background: #f6f3ee;
+      }
+
+      .summary-icon {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        width: 128px;
+        height: 128px;
+        border-radius: 36px;
+        color: #97472c;
+        background: #ffdbd0;
+      }
+
+      .summary-icon svg {
+        width: 66px;
+        height: 66px;
+      }
+
+      .summary-copy small {
+        display: block;
+        margin-bottom: 6px;
+        color: #81756e;
+        font-size: 24px;
+      }
+
+      .summary-copy strong {
+        font-family: "Manrope", sans-serif;
+        font-size: 58px;
+        font-weight: 900;
+        font-variant-numeric: tabular-nums;
+      }
+
+      .summary-copy span {
+        margin-left: 10px;
+        color: #4f453f;
+        font-size: 28px;
+      }
+
+      .s4-quote {
+        margin-top: auto;
+        padding: 0 16px;
+        color: #4f453f;
+        font-size: 37px;
+        font-weight: 350;
+        line-height: 1.55;
+      }
+
+      .s4-quote strong {
+        color: #97472c;
+        font-weight: 700;
+      }
+
+      /* Scene 5 */
+      #scene-5 {
+        background-color: #321f13;
+      }
+
+      #scene-5 .scene-content {
+        align-items: center;
+        justify-content: center;
+        padding: 140px 76px;
+        color: #fcf9f4;
+        text-align: center;
+      }
+
+      #scene-5 .grain {
+        opacity: 0.22;
+        background-image:
+          radial-gradient(circle at 25% 20%, rgba(255, 219, 208, 0.18) 0 2px, rgba(255, 219, 208, 0) 3px),
+          radial-gradient(circle at 75% 70%, rgba(255, 255, 255, 0.11) 0 1.5px, rgba(255, 255, 255, 0) 2.5px);
+      }
+
+      #scene-5 .orb-coral {
+        top: -160px;
+        right: -160px;
+        background: radial-gradient(circle, rgba(254, 153, 120, 0.4), rgba(254, 153, 120, 0));
+      }
+
+      #scene-5 .orb-brown {
+        left: -270px;
+        bottom: -130px;
+        background: radial-gradient(circle, rgba(225, 192, 174, 0.2), rgba(225, 192, 174, 0));
+      }
+
+      .brand-mark {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        width: 208px;
+        height: 208px;
+        margin-bottom: 36px;
+        border-radius: 64px;
+        color: #321f13;
+        background: #fe9978;
+        box-shadow:
+          0 28px 70px rgba(0, 0, 0, 0.22),
+          0 0 0 18px rgba(254, 153, 120, 0.1);
+      }
+
+      .brand-mark svg {
+        width: 104px;
+        height: 104px;
+      }
+
+      .brand-name {
+        margin: 0;
+        color: #fcf9f4;
+        font-family: "Manrope", sans-serif;
+        font-size: 126px;
+        font-weight: 900;
+        letter-spacing: -0.065em;
+        line-height: 1;
+      }
+
+      .brand-tagline {
+        max-width: 860px;
+        margin: 0;
+        color: #ffdbd0;
+        font-size: 50px;
+        font-weight: 400;
+        letter-spacing: -0.03em;
+        line-height: 1.45;
+      }
+
+      .feature-pills {
+        display: flex;
+        flex-wrap: wrap;
+        align-items: center;
+        justify-content: center;
+        gap: 16px;
+        margin-top: 26px;
+      }
+
+      .feature-pills .pill {
+        min-height: 70px;
+        color: #f3f0eb;
+        background: rgba(255, 255, 255, 0.1);
+        box-shadow: inset 0 0 0 2px rgba(255, 255, 255, 0.08);
+        font-size: 27px;
+        font-weight: 500;
+      }
+
+      .mini-program-badge {
+        display: inline-flex;
+        align-items: center;
+        gap: 18px;
+        margin-top: 52px;
+        padding: 24px 36px;
+        border-radius: 999px;
+        color: #321f13;
+        background: #fcf9f4;
+        box-shadow: 0 20px 50px rgba(0, 0, 0, 0.18);
+        font-size: 30px;
+        font-weight: 750;
+      }
+
+      .mini-program-dot {
+        width: 18px;
+        height: 18px;
+        border-radius: 999px;
+        background: #c96f4b;
+        box-shadow: 0 0 0 8px rgba(201, 111, 75, 0.13);
+      }
+    </style>
+  </head>
+  <body>
+    <div
+      id="root"
+      data-composition-id="whatsdrink-social"
+      data-start="0"
+      data-duration="16"
+      data-width="1080"
+      data-height="1920"
+    >
+      <section id="scene-1" class="scene" data-layout-allow-overflow>
+        <div class="decor-layer s1-decor" data-layout-ignore>
+          <div class="grain"></div>
+          <div class="orb orb-coral"></div>
+          <div class="orb orb-brown"></div>
+          <div class="ghost-word">CHOICE?</div>
+        </div>
+        <div class="scene-content">
+          <div class="s1-copy">
+            <div class="eyebrow s1-eyebrow">
+              <span class="eyebrow-dot"></span>
+              <span>WHATS DRINK</span>
+            </div>
+            <h1 class="headline s1-headline">
+              <span class="title-line">今天</span>
+              <span class="title-line">喝<span class="accent">什么？</span></span>
+            </h1>
+            <p class="subhead s1-subhead">咖啡、奶茶，还是再想五分钟？</p>
+            <div class="s1-choice-row">
+              <span class="pill choice-pill-coffee">咖啡</span>
+              <span class="choice-or">OR</span>
+              <span class="pill choice-pill-tea">奶茶</span>
+            </div>
+          </div>
+          <div class="card s1-bottom-card">
+            <div class="question-mark">?</div>
+            <div>
+              <strong>选择困难，每天都来一次</strong>
+              <span>不如把纠结交给一个更轻松的答案。</span>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <section id="scene-2" class="scene" data-layout-allow-overflow>
+        <div class="decor-layer s2-decor" data-layout-ignore>
+          <div class="grain"></div>
+          <div class="orb orb-coral"></div>
+          <div class="ghost-word">SPIN</div>
+        </div>
+        <div class="scene-content">
+          <div class="eyebrow s2-eyebrow">
+            <span class="eyebrow-dot"></span>
+            <span>CHOICE ONE</span>
+          </div>
+          <h2 class="headline s2-title">把纠结交给<span class="accent">转盘</span></h2>
+          <p class="subhead s2-subhead">喜欢的都放进去，轻轻一转就有答案。</p>
+          <div class="card wheel-card">
+            <div class="wheel-meta">
+              <span>今天喝什么咖啡</span>
+              <span class="wheel-count">5 个候选</span>
+            </div>
+            <div class="wheel-pointer"></div>
+            <div class="wheel-shell">
+              <div id="choice-wheel" class="wheel">
+                <span class="wheel-label light">瑞幸</span>
+                <span class="wheel-label">星巴克</span>
+                <span class="wheel-label light">Manner</span>
+                <span class="wheel-label">Tims</span>
+                <span class="wheel-label">M Stand</span>
+                <span class="wheel-hub">GO</span>
+              </div>
+            </div>
+            <div id="s2-result" class="s2-result">
+              <div>
+                <small>今天就喝</small>
+                <strong>瑞幸 · 生椰拿铁</strong>
+              </div>
+              <span class="result-check">✓</span>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <section id="scene-3" class="scene" data-layout-allow-overflow>
+        <div class="decor-layer s3-decor" data-layout-ignore>
+          <div class="grain"></div>
+          <div class="orb orb-brown"></div>
+          <div class="ghost-word">RECORD</div>
+        </div>
+        <div class="scene-content">
+          <div class="eyebrow s3-eyebrow">
+            <span class="eyebrow-dot"></span>
+            <span>ONE TAP RECORD</span>
+          </div>
+          <h2 class="headline s3-title">答案直接变成<span class="accent">记录</span></h2>
+          <p class="subhead s3-subhead">选择结果自动带入，补充口味和心情就好。</p>
+          <div class="card record-card">
+            <div class="record-top">
+              <img class="drink-photo" src="assets/coconut-latte.jpg" alt="" />
+              <div class="record-heading">
+                <small>TODAY · 15:20</small>
+                <strong>瑞幸 · 生椰拿铁</strong>
+                <span>咖啡 · 中杯 · 冰</span>
+              </div>
+            </div>
+            <div class="record-rule"></div>
+            <div class="tag-row">
+              <span class="tag">标准甜</span>
+              <span class="tag">约 180 千卡</span>
+              <span class="tag">¥ 18</span>
+              <span class="tag">★ 4.8</span>
+            </div>
+            <div class="record-note">下午的第一口椰香，刚好把困意赶走。</div>
+            <div class="save-flow">
+              <div class="button">保存这一杯</div>
+              <div class="flow-arrow">→</div>
+            </div>
+          </div>
+          <div class="s3-caption">
+            <span class="caption-line"></span>
+            <span>结果不是终点，是下一条饮品记录的起点。</span>
+          </div>
+        </div>
+      </section>
+
+      <section id="scene-4" class="scene" data-layout-allow-overflow>
+        <div class="decor-layer s4-decor" data-layout-ignore>
+          <div class="grain"></div>
+          <div class="orb orb-coral"></div>
+          <div class="ghost-word">MEMORY</div>
+        </div>
+        <div class="scene-content">
+          <div class="eyebrow s4-eyebrow">
+            <span class="eyebrow-dot"></span>
+            <span>DRINK CALENDAR</span>
+          </div>
+          <h2 class="headline s4-title">每一杯，都留在<span class="accent">日历里</span></h2>
+          <p class="subhead s4-subhead">今天、本周、这个月，随时回看自己的口味轨迹。</p>
+          <div class="card calendar-card">
+            <div class="calendar-head">
+              <div>
+                <small>YOUR JULY</small>
+                <strong>2026 年 7 月</strong>
+              </div>
+              <div class="month-nav"><span>‹</span><span>›</span></div>
+            </div>
+            <div class="week-labels">
+              <span>一</span><span>二</span><span>三</span><span>四</span><span>五</span><span>六</span><span>日</span>
+            </div>
+            <div class="calendar-grid">
+              <span class="day muted">29</span><span class="day muted">30</span><span class="day stamped">1</span><span class="day">2</span><span class="day stamped">3</span><span class="day">4</span><span class="day">5</span>
+              <span class="day">6</span><span class="day stamped">7</span><span class="day">8</span><span class="day">9</span><span class="day stamped">10</span><span class="day">11</span><span class="day stamped">12</span>
+              <span class="day stamped">13</span><span class="day">14</span><span class="day stamped">15</span><span class="day">16</span><span class="day">17</span><span class="day stamped">18</span><span class="day">19</span>
+              <span class="day">20</span><span class="day stamped">21</span><span class="day">22</span><span class="day stamped">23</span><span class="day">24</span><span class="day stamped">25</span><span class="day today stamped">26</span>
+              <span class="day">27</span><span class="day">28</span><span class="day">29</span><span class="day">30</span><span class="day">31</span><span class="day muted">1</span><span class="day muted">2</span>
+            </div>
+            <div class="week-summary">
+              <div class="summary-icon">
+                <svg viewBox="0 0 64 64" fill="none" aria-hidden="true">
+                  <path d="M18 15h28l-3 38H21L18 15Z" stroke="currentColor" stroke-width="4" stroke-linejoin="round"/>
+                  <path d="M24 26c7-5 11 6 20 0" stroke="currentColor" stroke-width="4" stroke-linecap="round"/>
+                  <path d="M39 15 47 5" stroke="currentColor" stroke-width="4" stroke-linecap="round"/>
+                </svg>
+              </div>
+              <div class="summary-copy">
+                <small>本周饮品</small>
+                <strong>5</strong><span>杯 · 已知热量 620 千卡</span>
+              </div>
+            </div>
+          </div>
+          <p class="s4-quote">零散的一杯杯，会慢慢连成<strong>属于你的生活轨迹</strong>。</p>
+        </div>
+      </section>
+
+      <section id="scene-5" class="scene">
+        <div class="decor-layer s5-decor" data-layout-ignore>
+          <div class="grain"></div>
+          <div class="orb orb-coral"></div>
+          <div class="orb orb-brown"></div>
+        </div>
+        <div class="scene-content">
+          <div class="brand-mark">
+            <svg viewBox="0 0 96 96" fill="none" aria-hidden="true">
+              <path d="M25 25h46l-5 55H30l-5-55Z" stroke="currentColor" stroke-width="7" stroke-linejoin="round"/>
+              <path d="M34 42c12-8 19 10 34 0" stroke="currentColor" stroke-width="7" stroke-linecap="round"/>
+              <path d="M60 25 73 10" stroke="currentColor" stroke-width="7" stroke-linecap="round"/>
+              <circle cx="28" cy="22" r="7" fill="currentColor"/>
+            </svg>
+          </div>
+          <h2 class="brand-name">WhatsDrink</h2>
+          <p class="brand-tagline">记录每一杯，也轻松决定下一杯。</p>
+          <div class="feature-pills">
+            <span class="pill">饮品记录</span>
+            <span class="pill">Choice One</span>
+            <span class="pill">饮品日历</span>
+          </div>
+          <div class="mini-program-badge">
+            <span class="mini-program-dot"></span>
+            <span>微信小程序 · WhatsDrink</span>
+          </div>
+        </div>
+      </section>
+    </div>
+
+    <script>
+      window.__timelines = window.__timelines || {};
+      var tl = gsap.timeline({ paused: true });
+
+      /* Scene 1 — build */
+      tl.from(".s1-decor", { opacity: 0, scale: 1.08, duration: 0.85, ease: "sine.out" }, 0.18);
+      tl.from(".s1-eyebrow", { x: -54, opacity: 0, duration: 0.48, ease: "expo.out" }, 0.24);
+      tl.from(".s1-headline", { y: 76, opacity: 0, duration: 0.72, ease: "power4.out" }, 0.38);
+      tl.from(".s1-subhead", { x: 52, opacity: 0, duration: 0.5, ease: "back.out(1.3)" }, 0.7);
+      tl.from(".s1-choice-row", { scale: 0.78, opacity: 0, duration: 0.46, ease: "back.out(1.8)" }, 0.9);
+      tl.from(".s1-bottom-card", { y: 96, opacity: 0, rotation: 1.8, duration: 0.66, ease: "power3.out" }, 1.08);
+      tl.to(".s1-choice-row", { y: -10, duration: 0.85, ease: "sine.inOut", yoyo: true, repeat: 1 }, 1.65);
+
+      /* Transition 1 — playful elastic push */
+      tl.to("#scene-1", { x: -1080, duration: 0.52, ease: "power3.in" }, 3.0);
+      tl.fromTo("#scene-2", { x: 1080, opacity: 1 }, { x: 30, duration: 0.42, ease: "power4.out" }, 3.08);
+      tl.to("#scene-2", { x: -14, duration: 0.14, ease: "sine.inOut" }, 3.5);
+      tl.to("#scene-2", { x: 0, duration: 0.1, ease: "sine.out" }, 3.64);
+      tl.set("#scene-1", { opacity: 0, x: 0 }, 3.65);
+
+      /* Scene 2 — build and spin */
+      tl.from(".s2-decor", { opacity: 0, rotation: -2, duration: 0.72, ease: "sine.out" }, 3.18);
+      tl.from(".s2-eyebrow", { x: -44, opacity: 0, duration: 0.34, ease: "expo.out" }, 3.24);
+      tl.from(".s2-title", { y: 58, opacity: 0, duration: 0.54, ease: "power4.out" }, 3.32);
+      tl.from(".s2-subhead", { x: 46, opacity: 0, duration: 0.42, ease: "back.out(1.2)" }, 3.5);
+      tl.from(".wheel-card", { y: 86, opacity: 0, scale: 0.94, duration: 0.62, ease: "power3.out" }, 3.58);
+      tl.from(".wheel-meta", { x: 28, opacity: 0, duration: 0.4, ease: "sine.out" }, 3.86);
+      tl.from(".wheel-pointer", { y: -36, opacity: 0, duration: 0.35, ease: "bounce.out" }, 4.0);
+      tl.from(".wheel-shell", { scale: 0.78, opacity: 0, duration: 0.56, ease: "back.out(1.55)" }, 4.02);
+      tl.from("#s2-result", { y: 44, opacity: 0, scale: 0.94, duration: 0.44, ease: "back.out(1.45)" }, 5.26);
+      tl.to("#choice-wheel", { rotation: 1116, duration: 1.36, ease: "power4.out" }, 4.1);
+      tl.to(".wheel-pointer", { rotation: 8, duration: 0.1, ease: "power2.inOut", yoyo: true, repeat: 7 }, 4.18);
+      tl.from(".result-check", { scale: 0, rotation: -35, duration: 0.36, ease: "back.out(2.1)" }, 5.44);
+
+      /* Transition 2 — related point push */
+      tl.to("#scene-2", { x: -1080, duration: 0.46, ease: "power3.inOut" }, 6.28);
+      tl.fromTo("#scene-3", { x: 1080, opacity: 1 }, { x: 0, duration: 0.46, ease: "power3.inOut" }, 6.28);
+      tl.set("#scene-2", { opacity: 0, x: 0 }, 6.75);
+
+      /* Scene 3 — result becomes a record */
+      tl.from(".s3-decor", { opacity: 0, scale: 0.92, duration: 0.9, ease: "sine.out" }, 6.38);
+      tl.from(".s3-eyebrow", { x: -50, opacity: 0, duration: 0.38, ease: "expo.out" }, 6.45);
+      tl.from(".s3-title", { y: 62, opacity: 0, duration: 0.58, ease: "power4.out" }, 6.52);
+      tl.from(".s3-subhead", { x: 44, opacity: 0, duration: 0.43, ease: "back.out(1.25)" }, 6.72);
+      tl.from(".record-card", { y: 92, opacity: 0, rotation: -1.3, duration: 0.68, ease: "power3.out" }, 6.82);
+      tl.from(".drink-photo", { scale: 0.76, opacity: 0, duration: 0.46, ease: "back.out(1.6)" }, 7.02);
+      tl.from(".record-heading", { x: 42, opacity: 0, duration: 0.42, ease: "expo.out" }, 7.1);
+      tl.from(".record-rule", { scaleX: 0, duration: 0.5, ease: "power2.out" }, 7.2);
+      tl.from(".tag-row", { y: 28, opacity: 0, duration: 0.38, ease: "sine.out" }, 7.3);
+      tl.from(".record-note", { x: -34, opacity: 0, duration: 0.42, ease: "power3.out" }, 7.42);
+      tl.from(".save-flow", { scale: 0.92, opacity: 0, duration: 0.46, ease: "back.out(1.5)" }, 7.55);
+      tl.from(".s3-caption", { y: 34, opacity: 0, duration: 0.44, ease: "power4.out" }, 7.7);
+      tl.from(".caption-line", { scaleX: 0, duration: 0.5, ease: "expo.out" }, 7.84);
+      tl.to(".drink-photo", { scale: 1.035, duration: 1.1, ease: "sine.inOut", yoyo: true, repeat: 1 }, 8.0);
+
+      /* Transition 3 — vertical progress */
+      tl.to("#scene-3", { y: -1920, duration: 0.5, ease: "power3.inOut" }, 9.44);
+      tl.fromTo("#scene-4", { y: 1920, opacity: 1 }, { y: 0, duration: 0.5, ease: "power3.inOut" }, 9.44);
+      tl.set("#scene-3", { opacity: 0, y: 0 }, 9.95);
+
+      /* Scene 4 — calendar memory */
+      tl.from(".s4-decor", { opacity: 0, rotation: 2, duration: 0.84, ease: "sine.out" }, 9.55);
+      tl.from(".s4-eyebrow", { x: -46, opacity: 0, duration: 0.36, ease: "expo.out" }, 9.62);
+      tl.from(".s4-title", { y: 62, opacity: 0, duration: 0.58, ease: "power4.out" }, 9.7);
+      tl.from(".s4-subhead", { x: 44, opacity: 0, duration: 0.42, ease: "back.out(1.25)" }, 9.88);
+      tl.from(".calendar-card", { y: 86, opacity: 0, scale: 0.95, duration: 0.62, ease: "power3.out" }, 9.96);
+      tl.from(".calendar-head", { x: -36, opacity: 0, duration: 0.4, ease: "expo.out" }, 10.14);
+      tl.from(".week-labels", { x: 24, opacity: 0, duration: 0.38, ease: "sine.out" }, 10.24);
+      tl.from(".calendar-grid", { scale: 0.9, opacity: 0, duration: 0.5, ease: "back.out(1.4)" }, 10.3);
+      tl.from(".week-summary", { y: 38, opacity: 0, duration: 0.44, ease: "power4.out" }, 10.5);
+      tl.from(".summary-icon", { rotation: -12, scale: 0.7, opacity: 0, duration: 0.46, ease: "back.out(1.8)" }, 10.62);
+      tl.from(".s4-quote", { x: 50, opacity: 0, duration: 0.48, ease: "expo.out" }, 10.76);
+      tl.to(".day.stamped", { scale: 1.08, duration: 0.28, ease: "sine.inOut", yoyo: true, repeat: 3, stagger: 0.045 }, 11.08);
+
+      /* Transition 4 — calm brand resolve */
+      tl.to("#scene-4", { filter: "blur(20px)", scale: 1.035, opacity: 0, duration: 0.68, ease: "power1.in" }, 12.35);
+      tl.fromTo("#scene-5", { filter: "blur(18px)", scale: 0.97, opacity: 0 }, { filter: "blur(0px)", scale: 1, opacity: 1, duration: 0.78, ease: "power1.out" }, 12.48);
+
+      /* Scene 5 — brand close */
+      tl.from(".s5-decor", { opacity: 0, scale: 1.12, duration: 1.0, ease: "sine.out" }, 12.58);
+      tl.from(".brand-mark", { y: 62, scale: 0.68, opacity: 0, rotation: -8, duration: 0.7, ease: "back.out(1.75)" }, 12.68);
+      tl.from(".brand-name", { y: 54, scaleX: 0.92, opacity: 0, duration: 0.62, ease: "power4.out" }, 12.88);
+      tl.from(".brand-tagline", { x: 54, opacity: 0, duration: 0.5, ease: "expo.out" }, 13.12);
+      tl.from(".feature-pills", { scale: 0.86, opacity: 0, duration: 0.48, ease: "back.out(1.45)" }, 13.34);
+      tl.from(".mini-program-badge", { y: 44, opacity: 0, duration: 0.5, ease: "power3.out" }, 13.56);
+      tl.to(".brand-mark", { y: -12, duration: 0.95, ease: "sine.inOut", yoyo: true, repeat: 1 }, 14.36);
+      tl.to(".mini-program-dot", { scale: 1.3, duration: 0.42, ease: "sine.inOut", yoyo: true, repeat: 2 }, 14.58);
+
+      window.__timelines["whatsdrink-social"] = tl;
+    </script>
+  </body>
+</html>

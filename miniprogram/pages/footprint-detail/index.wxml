@@ -1,0 +1,192 @@
+<view class="page-shell detail-page">
+  <view wx:if="{{loading}}" class="detail-loading">
+    <text class="muted">加载中…</text>
+  </view>
+
+  <empty-state
+    wx:elif="{{!footprint}}"
+    title="足迹不见了"
+    description="它可能已被删除或链接已失效"
+    actionText="返回"
+    bind:action="onViewInMap"
+  />
+
+  <block wx:else>
+    <!-- 多次到访切换 -->
+    <view wx:if="{{totalVisits > 1}}" class="detail-visits">
+      <view class="detail-visits-info">
+        <text class="detail-visits-title">{{footprint.poiName}}</text>
+        <text class="detail-visits-sub">来这里 · {{totalVisits}} 次</text>
+      </view>
+      <scroll-view scroll-x class="detail-visits-scroll" enhanced show-scrollbar="{{false}}">
+        <view class="detail-visits-row">
+          <view
+            wx:for="{{relatedVisits}}"
+            wx:key="id"
+            class="detail-visit-chip {{item.id === footprint.id ? 'is-active' : ''}}"
+            data-id="{{item.id}}"
+            bindtap="selectVisit"
+          >
+            <text class="detail-visit-date">{{item.visitDate}}</text>
+            <text wx:if="{{item.mood}}" class="detail-visit-mood">{{item.mood}}</text>
+          </view>
+        </view>
+      </scroll-view>
+    </view>
+
+    <!-- 照片画廊 -->
+    <view wx:if="{{footprint.photos.length}}" class="detail-gallery">
+      <swiper
+        class="detail-gallery-swiper"
+        indicator-dots="{{footprint.photos.length > 1}}"
+        indicator-color="rgba(176,157,138,0.4)"
+        indicator-active-color="#5B6CFF"
+        current="{{photoIndex}}"
+        bindchange="onPhotoSwiperChange"
+      >
+        <swiper-item
+          wx:for="{{footprint.photos}}"
+          wx:key="*this"
+          class="detail-gallery-item"
+        >
+          <image
+            class="detail-gallery-image"
+            src="{{item}}"
+            mode="aspectFill"
+            data-url="{{item}}"
+            bindtap="previewPhoto"
+          />
+        </swiper-item>
+      </swiper>
+      <view wx:if="{{footprint.photos.length > 1}}" class="detail-gallery-counter">
+        <text>{{photoIndex + 1}} / {{footprint.photos.length}}</text>
+      </view>
+    </view>
+
+    <view wx:elif="{{isVisit}}" class="detail-photo-placeholder">
+      <local-icon name="camera" size="56rpx" />
+      <text class="muted">这次没有照片</text>
+    </view>
+
+    <!-- 主体信息 -->
+    <view class="detail-card">
+      <view class="detail-header">
+        <view class="detail-marker-dot" style="background: {{footprint.markerStyle.color || '#5B6CFF'}};">
+          <text wx:if="{{footprint.markerStyle.emoji}}" class="detail-marker-emoji">{{footprint.markerStyle.emoji}}</text>
+        </view>
+        <view class="detail-header-text">
+          <text class="detail-poi-name">{{footprint.poiName}}</text>
+          <text wx:if="{{locationText}}" class="detail-location">{{locationText}}</text>
+        </view>
+      </view>
+
+      <view wx:if="{{footprint.address}}" class="detail-row">
+        <local-icon name="location" size="28rpx" />
+        <text class="detail-row-text muted">{{footprint.address}}</text>
+      </view>
+
+      <view wx:if="{{isVisit}}" class="detail-row">
+        <local-icon name="calendar" size="28rpx" />
+        <text class="detail-row-text">{{formattedDate}}</text>
+      </view>
+
+      <view wx:if="{{isWishlist}}" class="detail-row detail-row-wishlist">
+        <local-icon name="heart" size="28rpx" />
+        <text class="detail-row-text">想去清单</text>
+      </view>
+      <view wx:if="{{isFulfilled}}" class="detail-row detail-row-wishlist">
+        <local-icon name="heart" size="28rpx" />
+        <text class="detail-row-text">这个愿望已开花 · {{totalVisits}} 次到访</text>
+      </view>
+
+      <view class="detail-meta-grid">
+        <view wx:if="{{moodLabel}}" class="detail-meta-item">
+          <text class="detail-meta-emoji">{{moodEmoji}}</text>
+          <text class="detail-meta-label">心情</text>
+          <text class="detail-meta-value">{{moodLabel}}</text>
+        </view>
+        <view wx:if="{{categoryLabel}}" class="detail-meta-item">
+          <text class="detail-meta-emoji">{{categoryEmoji}}</text>
+          <text class="detail-meta-label">类别</text>
+          <text class="detail-meta-value">{{categoryLabel}}</text>
+        </view>
+      </view>
+
+      <view wx:if="{{footprint.tags.length}}" class="detail-tags">
+        <view
+          wx:for="{{footprint.tags}}"
+          wx:key="*this"
+          class="chip detail-tag"
+        >
+          <text>#{{item}}</text>
+        </view>
+      </view>
+
+      <view wx:if="{{footprint.note}}" class="detail-note">
+        <text class="detail-note-label">短记</text>
+        <text class="detail-note-text">{{footprint.note}}</text>
+      </view>
+    </view>
+
+    <view wx:if="{{relatedVisits.length}}" class="place-ring card">
+      <view class="place-ring-heading">
+        <text class="section-title">地点年轮</text>
+        <text class="muted">来过 {{relatedVisits.length}} 次</text>
+      </view>
+      <text class="place-ring-summary">第一次 {{firstVisit.visitDate}} · 最近一次 {{latestVisit.visitDate}}</text>
+      <view class="place-ring-list">
+        <view wx:for="{{relatedVisits}}" wx:key="id" class="place-ring-entry" data-id="{{item.id}}" bindtap="selectVisit">
+          <view class="place-ring-dot"></view>
+          <image wx:if="{{item.photos.length}}" class="place-ring-photo" src="{{item.photos[0]}}" mode="aspectFill" />
+          <view class="place-ring-entry-body">
+            <text class="place-ring-date">{{item.visitDate}} {{item.isImportant ? '· 很重要的一刻' : ''}}</text>
+            <text wx:if="{{item.note}}" class="place-ring-note">{{item.note}}</text>
+          </view>
+        </view>
+      </view>
+      <button wx:if="{{relatedVisits.length > 1}}" class="secondary-button place-ring-compare" bindtap="onToggleComparison">{{comparisonOpen ? '收起变化' : '看看变化'}}</button>
+      <view wx:if="{{comparisonOpen && relatedVisits.length > 1}}" class="place-ring-comparison">
+        <view class="place-ring-compare-side">
+          <text class="muted">第一次 · {{firstVisit.visitDate}}</text>
+          <image wx:if="{{firstVisit.photos.length}}" src="{{firstVisit.photos[0]}}" mode="aspectFill" />
+          <text>{{firstVisit.note || '那时没有写下短记'}}</text>
+        </view>
+        <view class="place-ring-compare-side">
+          <text class="muted">最近一次 · {{latestVisit.visitDate}}</text>
+          <image wx:if="{{latestVisit.photos.length}}" src="{{latestVisit.photos[0]}}" mode="aspectFill" />
+          <text>{{latestVisit.note || '这次没有写下短记'}}</text>
+        </view>
+      </view>
+    </view>
+
+    <!-- 底部操作栏 -->
+    <button wx:if="{{isWishlist}}" class="amber-button detail-convert-button" bindtap="onConvertWishlist">
+      我去过了 · 补充这次回忆
+    </button>
+    <view wx:if="{{isVisit || isFulfilled}}" class="place-ring-actions">
+      <button class="amber-button" bindtap="onAddAnotherVisit">新增这一次</button>
+      <button wx:if="{{isVisit}}" class="secondary-button" bindtap="onMarkImportant">{{footprint.isImportant ? '取消重要标记' : '标记重要一刻'}}</button>
+      <button wx:if="{{isVisit}}" class="secondary-button" bindtap="onAddWishlistAgain">加入想再去</button>
+      <button class="secondary-button" bindtap="onCreateCapsule">埋一个胶囊</button>
+    </view>
+    <view class="detail-actions">
+      <view class="detail-action" bindtap="onViewInMap">
+        <local-icon name="map" size="36rpx" />
+        <text class="detail-action-label">在地图中查看</text>
+      </view>
+      <view class="detail-action" bindtap="onEdit">
+        <local-icon name="edit" size="36rpx" />
+        <text class="detail-action-label">编辑</text>
+      </view>
+      <view class="detail-action" bindtap="onShare">
+        <local-icon name="share" size="36rpx" />
+        <text class="detail-action-label">分享</text>
+      </view>
+      <view class="detail-action detail-action-danger" bindtap="onDelete">
+        <local-icon name="delete" size="36rpx" />
+        <text class="detail-action-label">删除</text>
+      </view>
+    </view>
+    <view class="safe-bottom"></view>
+  </block>
+</view>

@@ -1,0 +1,119 @@
+.settings-page {
+  padding-bottom: 80rpx;
+}
+
+.settings-section {
+  margin-top: 28rpx;
+  padding: 30rpx;
+}
+
+.settings-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 16rpx;
+  margin-top: 24rpx;
+}
+
+.settings-option {
+  display: flex;
+  align-items: center;
+  flex-direction: column;
+  padding: 24rpx 12rpx;
+  border: 2rpx solid transparent;
+  border-radius: var(--radius-md);
+  background: var(--surface-soft);
+  text-align: center;
+}
+
+.settings-option.is-active,
+.theme-row.is-active {
+  border-color: var(--brand-primary);
+  background: var(--brand-surface-tint);
+}
+
+.marker-sample {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 60rpx;
+  height: 60rpx;
+  margin-bottom: 12rpx;
+  padding: 0 14rpx;
+  border-radius: 30rpx;
+  background: var(--moss);
+  color: #fff;
+  font-size: 23rpx;
+  font-weight: 700;
+}
+
+.marker-sample-dot {
+  min-width: 28rpx;
+  width: 28rpx;
+  height: 28rpx;
+  padding: 0;
+  font-size: 0;
+}
+
+.settings-option-title,
+.settings-option-hint {
+  display: block;
+}
+
+.settings-option-title {
+  color: var(--ink);
+  font-size: 27rpx;
+  font-weight: 650;
+}
+
+.settings-option-hint {
+  margin-top: 5rpx;
+  color: var(--muted);
+  font-size: 21rpx;
+}
+
+.theme-list {
+  margin-top: 18rpx;
+}
+
+.theme-row {
+  display: flex;
+  align-items: center;
+  gap: 18rpx;
+  margin-top: 12rpx;
+  padding: 18rpx;
+  border: 2rpx solid transparent;
+  border-radius: var(--radius-md);
+}
+
+.theme-swatch {
+  flex: none;
+  width: 82rpx;
+  height: 58rpx;
+  border: 1rpx solid var(--line);
+  border-radius: 14rpx;
+}
+
+.theme-clean { background: linear-gradient(145deg, #E9EBFF, #FFFFFF); }
+.theme-journal { background: linear-gradient(145deg, #fff9ee, #f1b94c); }
+.theme-night { background: linear-gradient(145deg, #2d3540, #759176); }
+
+.theme-copy {
+  flex: 1;
+}
+
+.theme-check {
+  color: var(--brand-primary-deep);
+  font-size: 32rpx;
+  font-weight: 700;
+}
+
+.settings-switch {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 28rpx;
+}
+
+.settings-switch > view {
+  flex: 1;
+}

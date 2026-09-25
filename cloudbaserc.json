@@ -1,6 +1,6 @@
 {
   "$schema": "https://static.cloudbase.net/cli/cloudbaserc.schema.json",
-  "envId": "ethan-workspace-d7f7-d2a96457337",
+  "envId": "ethan-workspace-d7f7k5ma0befbf77",
   "functionRoot": "cloudfunctions",
   "functions": [
     {
@@ -11,14 +11,14 @@
       "memorySize": 256
     },
     {
-      "name": "recordMutation",
+      "name": "footprintMutation",
       "runtime": "Nodejs20.19",
       "handler": "index.main",
       "timeout": 10,
       "memorySize": 256
     },
     {
-      "name": "wheelMutation",
+      "name": "aiAssistant",
       "runtime": "Nodejs20.19",
       "handler": "index.main",
       "timeout": 10,
@@ -33,28 +33,28 @@
       "installDependency": true
     },
     {
-      "name": "seedCatalog",
-      "runtime": "Nodejs20.19",
-      "handler": "index.main",
-      "timeout": 60,
-      "memorySize": 256
-    },
-    {
-      "name": "subscriptionMutation",
+      "name": "travelPlanMutation",
       "runtime": "Nodejs20.19",
       "handler": "index.main",
       "timeout": 10,
-      "memorySize": 256,
-      "installDependency": true,
-      "envVariables": {
-        "SUBSCRIBE_TEMPLATE_ID": "hieR96ze7icSJ8tuvN7ZcjJUiaznG155yMEkbT-mHGA",
-        "SUBSCRIBE_TEMPLATE_VERSION": "1.0.0",
-        "SUBSCRIBE_TEMPLATE_CONTENT": "今晚喝了什么？记得来记录一下",
-        "SUBSCRIBE_PAGE": "pages/home/index"
-      }
+      "memorySize": 256
     },
     {
-      "name": "sendDrinkReminder",
+      "name": "timeCapsuleMutation",
+      "runtime": "Nodejs20.19",
+      "handler": "index.main",
+      "timeout": 10,
+      "memorySize": 256
+    },
+    {
+      "name": "shareCode",
+      "runtime": "Nodejs20.19",
+      "handler": "index.main",
+      "timeout": 10,
+      "memorySize": 256
+    },
+    {
+      "name": "sendCapsuleReminder",
       "runtime": "Nodejs20.19",
       "handler": "index.main",
       "timeout": 60,
@@ -62,9 +62,9 @@
       "installDependency": true,
       "triggers": [
         {
-          "name": "dailyDrinkReminder",
+          "name": "dailyCapsuleReminder",
           "type": "timer",
-          "config": "0 0 20 * * * *"
+          "config": "0 0 9 * * * *"
         }
       ]
     }

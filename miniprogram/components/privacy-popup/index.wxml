@@ -7,7 +7,7 @@
   >
     <text id="privacy-dialog-title" class="dialog-title">继续前请确认隐私授权</text>
     <text class="dialog-copy">
-      WhatsDrink 仅在你主动操作时使用头像昵称、相册或相机，用于完善个人资料和保存饮品照片。
+      拾光迹仅在你主动操作时使用头像昵称、位置、相册或相机，用于完善资料、选择地点和保存足迹照片。
     </text>
     <button class="privacy-link" bindtap="openPrivacy">查看数据与隐私说明</button>
     <button

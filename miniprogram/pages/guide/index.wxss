@@ -1,0 +1,187 @@
+.guide-page {
+  padding-bottom: calc(220rpx + env(safe-area-inset-bottom));
+}
+
+.guide-header {
+  display: flex;
+  flex-direction: column;
+  gap: 8rpx;
+  margin-bottom: 40rpx;
+}
+
+.guide-title-row {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+}
+
+.guide-plan-button {
+  display: inline-flex;
+  align-items: center;
+  gap: 6rpx;
+  margin: 0;
+  padding: 12rpx 24rpx;
+  border: 0;
+  border-radius: 99rpx;
+  background: var(--brand-gradient);
+  box-shadow: 0 10rpx 24rpx rgba(91, 108, 255, 0.24);
+  color: #fff;
+  font-size: 24rpx;
+  font-weight: 600;
+  line-height: 1.2;
+}
+
+.guide-plan-button::after {
+  border: 0;
+}
+
+.guide-intro {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 28rpx 32rpx;
+  background: linear-gradient(135deg, #FFFFFF 0%, #E9EBFF 100%);
+}
+
+.guide-intro-title,
+.guide-intro-copy {
+  display: block;
+}
+
+.guide-intro-title {
+  color: var(--ink);
+  font-size: 28rpx;
+  font-weight: 700;
+}
+
+.guide-intro-copy {
+  margin-top: 4rpx;
+  color: var(--muted);
+  font-size: 22rpx;
+}
+
+.guide-intro-count {
+  color: var(--brand-primary-deep);
+  font-size: 52rpx;
+  font-weight: 700;
+}
+
+.section {
+  margin-top: 32rpx;
+}
+
+.section-header {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  margin-bottom: 24rpx;
+}
+
+.section-loading {
+  padding: 40rpx 0;
+  text-align: center;
+}
+
+/* Wishlist */
+.wishlist-list {
+  display: flex;
+  flex-direction: column;
+  gap: 28rpx;
+}
+
+.wishlist-item {
+  display: flex;
+  flex-direction: column;
+  gap: 16rpx;
+}
+
+.wishlist-convert-button {
+  align-self: flex-end;
+  margin: 0;
+  padding: 14rpx 32rpx;
+  border: 1rpx solid var(--amber);
+  border-radius: 99rpx;
+  background: var(--amber-soft);
+  color: var(--amber-deep);
+  font-size: 24rpx;
+  font-weight: 600;
+  letter-spacing: 1rpx;
+  line-height: 1.4;
+}
+
+.wishlist-convert-button::after {
+  border: 0;
+}
+
+.wishlist-convert-button.is-loading,
+.wishlist-convert-button[disabled] {
+  opacity: 0.6;
+}
+
+/* Travel plans */
+.plans-list {
+  display: flex;
+  flex-direction: column;
+  gap: 24rpx;
+}
+
+.plan-card {
+  padding: 32rpx;
+}
+
+.plan-card-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 16rpx;
+}
+
+.plan-card-title {
+  color: var(--ink);
+  font-size: 32rpx;
+  font-weight: 700;
+  letter-spacing: -0.5rpx;
+}
+
+.plan-card-status {
+  padding: 6rpx 16rpx;
+  border-radius: 99rpx;
+  font-size: 20rpx;
+  font-weight: 600;
+}
+
+.plan-status-planning {
+  background: var(--amber-soft);
+  color: var(--amber-deep);
+}
+
+.plan-status-ongoing {
+  background: var(--brand-surface-tint);
+  color: var(--brand-primary-deep);
+}
+
+.plan-status-completed {
+  background: var(--surface-highest);
+  color: var(--muted);
+}
+
+.plan-card-meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12rpx;
+}
+
+.plan-card-tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12rpx;
+  margin-top: 16rpx;
+}
+
+.plan-tag {
+  padding: 6rpx 16rpx;
+  border-radius: 99rpx;
+  background: var(--surface-highest);
+  color: var(--muted);
+  font-size: 22rpx;
+}

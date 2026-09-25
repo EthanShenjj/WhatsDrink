@@ -1,0 +1,8 @@
+<view class="ip-feedback type-{{type}} {{compact ? 'is-compact' : ''}}">
+  <ip-mascot state="{{state}}" expression="{{expression}}" size="{{compact ? '112rpx' : '176rpx'}}" motion="pop" label="小拾，{{title}}" />
+  <view class="feedback-copy">
+    <text class="feedback-title">{{title}}</text>
+    <text wx:if="{{description}}" class="feedback-description">{{description}}</text>
+  </view>
+  <button wx:if="{{actionText}}" class="feedback-action" bindtap="onAction">{{actionText}}</button>
+</view>

@@ -1,0 +1,26 @@
+.ai-page { padding-bottom: 80rpx; }
+.ai-hero { display: flex; min-height: 190rpx; align-items: center; justify-content: space-between; gap: 12rpx; padding: 18rpx 10rpx 18rpx 0; }
+.ai-hero-copy { display: flex; min-width: 0; flex: 1; flex-direction: column; gap: 8rpx; }
+.ai-hero .display-title { font-size: 34rpx; line-height: 1.28; }
+.ai-privacy-note { display: flex; align-items: flex-start; gap: 14rpx; margin: 26rpx 0; padding: 22rpx; border-radius: var(--radius-md); background: #E9EBFF; color: var(--brand-primary-deep); font-size: 23rpx; line-height: 1.65; }
+.ai-privacy-note text { flex: 1; }
+.ai-input-card,
+.ai-draft { padding: 30rpx; }
+.ai-input-card textarea,
+.ai-draft textarea { width: 100%; min-height: 190rpx; padding: 22rpx; border: 1rpx solid var(--line); border-radius: var(--radius-md); background: var(--surface-soft); font-size: 28rpx; line-height: 1.65; }
+.ai-photo-area { margin-top: 26rpx; }
+.field-label { display: block; margin-bottom: 12rpx; color: var(--ink); font-size: 26rpx; font-weight: 650; }
+.ai-primary { width: 100%; min-width: 100%; box-sizing: border-box; gap: 12rpx; margin-top: 26rpx; white-space: nowrap; }
+.ai-preview-head { display: flex; align-items: center; justify-content: space-between; margin: 28rpx 0 18rpx; }
+.ai-confidence { display: block; color: var(--muted); font-size: 21rpx; }
+.field-block { margin-top: 30rpx; }
+.field-block:first-child { margin-top: 0; }
+.field-block input,
+.field-input { height: var(--control-height); padding: 0 22rpx; border: 1rpx solid var(--line); border-radius: var(--radius-sm); background: var(--surface-soft); line-height: var(--control-height); }
+.field-warning { display: block; margin-top: 10rpx; color: var(--amber-deep); font-size: 22rpx; }
+.field-confirmed { color: var(--brand-primary-deep); font-size: 24rpx; }
+.poi-actions { display: flex; align-items: center; gap: 12rpx; margin-top: 14rpx; }
+.poi-actions .secondary-button { min-height: 72rpx; font-size: 24rpx; }
+.category-scroll { width: 100%; white-space: nowrap; }
+.category-row { display: inline-flex; gap: 12rpx; padding-bottom: 4rpx; }
+.category-row .chip { flex: none; }

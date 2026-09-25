@@ -1,0 +1,8 @@
+<view
+  class="brand-card variant-{{variant}} {{interactive ? 'is-interactive' : ''}}"
+  bindtap="onTap"
+  role="{{interactive ? 'button' : 'group'}}"
+  aria-label="{{ariaLabel}}"
+>
+  <slot />
+</view>

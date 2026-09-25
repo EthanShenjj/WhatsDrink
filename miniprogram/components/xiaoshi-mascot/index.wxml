@@ -1,0 +1,7 @@
+<view class="mascot-crop" style="{{cropStyle}}">
+  <image
+    class="mascot-sheet"
+    src="{{imageSrc}}"
+    mode="aspectFill"
+  />
+</view>

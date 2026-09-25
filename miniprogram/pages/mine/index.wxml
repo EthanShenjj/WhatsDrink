@@ -1,0 +1,86 @@
+<view class="page-shell mine-page">
+  <text class="eyebrow">SHIGUANGJI · LIFEMAP</text>
+  <text class="display-title">我的拾光</text>
+
+  <brand-card variant="gradient" interactive ariaLabel="编辑个人资料" bind:tap="onLoginTap">
+    <view class="profile-hero">
+      <image wx:if="{{profile.avatarUrl}}" class="profile-avatar" src="{{profile.avatarUrl}}" mode="aspectFill" />
+      <view wx:else class="profile-avatar profile-avatar-empty">拾</view>
+      <view class="profile-copy">
+        <text class="profile-name">{{profile.nickname || '拾光者'}}</text>
+        <text class="profile-hint">{{isLoggedIn ? '编辑个人资料' : '完善资料，让回忆随你同行'}}</text>
+      </view>
+      <text class="profile-arrow">›</text>
+    </view>
+  </brand-card>
+
+  <view wx:if="{{growth}}" class="growth-card growth-{{growth.activeColorId}}" bindtap="onGrowthTap" role="button" aria-label="查看小拾成长计划">
+    <view class="growth-card-copy">
+      <view class="growth-label-row">
+        <text class="growth-label">小拾成长计划</text>
+        <text wx:if="{{growth.isPlus}}" class="growth-plus">拾光+</text>
+      </view>
+      <text class="growth-title">{{growth.weeklyTitle}}</text>
+      <text class="growth-message">{{growth.weeklyMessage}}</text>
+      <view class="growth-goal">
+        <text>{{growth.nextGoalText}}</text>
+        <text class="growth-goal-arrow">查看成长 ›</text>
+      </view>
+    </view>
+    <ip-mascot state="{{growth.activeColorId}}" expression="companion" size="190rpx" motion="float" label="当前状态的小拾" />
+  </view>
+
+  <view class="stats-card card">
+    <view class="stats-heading">
+      <view><text class="section-title">我的足迹版图</text><text class="stats-subtitle">生活正在地图上慢慢生长</text></view>
+      <text class="stats-hint">{{stats.visitedCount || 0}} 次到访</text>
+    </view>
+    <view class="stats-grid">
+      <view class="stat-item"><text class="stat-number">{{stats.places || 0}}</text><text class="stat-label">足迹地点</text></view>
+      <view class="stat-item"><text class="stat-number">{{stats.cities || 0}}</text><text class="stat-label">点亮城市</text></view>
+      <view class="stat-item"><text class="stat-number">{{stats.wishlistCount || 0}}</text><text class="stat-label">想去清单</text></view>
+    </view>
+    <view class="stats-secondary">
+      <text>{{stats.photoCount || 0}} 张照片</text>
+      <text>{{stats.provinces || 0}} 个省/州</text>
+      <text>{{stats.fulfilledWishCount || 0}} 个愿望实现</text>
+    </view>
+  </view>
+
+  <brand-card variant="tint" interactive ariaLabel="查看年度回顾" bind:tap="onAnnualReview">
+    <view class="annual-card">
+      <view class="annual-icon"><local-icon name="sparkles" size="38rpx" /></view>
+      <view class="annual-copy-wrap"><text class="annual-title">年度回顾</text><text class="annual-copy">回看这一年的光与路</text></view>
+      <text class="annual-arrow">›</text>
+    </view>
+  </brand-card>
+
+  <view class="menu-card card">
+    <view wx:for="{{menu}}" wx:key="key" class="menu-row" data-key="{{item.key}}" bindtap="onMenuTap">
+      <view class="menu-icon"><local-icon name="{{item.icon}}" size="34rpx" /></view>
+      <text class="menu-label">{{item.label}}</text>
+      <text wx:if="{{item.hint}}" class="menu-hint">{{item.hint}}</text>
+      <text class="menu-arrow">›</text>
+    </view>
+  </view>
+
+  <view class="data-actions card">
+    <view
+      class="data-action-row {{clearing ? 'is-disabled' : ''}}"
+      bindtap="onClearAll"
+      role="button"
+      aria-label="清除所有记录"
+      aria-disabled="{{clearing}}"
+    >
+      <view class="data-action-icon"><local-icon name="delete" size="34rpx" /></view>
+      <view class="data-action-copy">
+        <text class="data-action-title">{{clearing ? '正在清除…' : '清除所有记录'}}</text>
+        <text class="data-action-hint">删除足迹、照片、计划与胶囊</text>
+      </view>
+      <text class="menu-arrow">›</text>
+    </view>
+  </view>
+  <text class="version-label">拾光迹 · LifeMap v{{version}}</text>
+  <wechat-login-sheet visible="{{loginSheetVisible}}" bind:success="onLoginSuccess" bind:cancel="onLoginCancel" />
+  <privacy-popup />
+</view>

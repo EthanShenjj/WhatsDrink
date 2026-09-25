@@ -1,0 +1,116 @@
+<view class="page-shell guide-page">
+  <view class="guide-header">
+    <text class="eyebrow">WISHLIST &amp; PLANS</text>
+    <view class="guide-title-row">
+      <text class="display-title">攻略</text>
+      <button class="guide-plan-button" bindtap="onGeneratePlan">
+        <local-icon name="add-white" size="28rpx" />
+        <text>生成攻略</text>
+      </button>
+    </view>
+  </view>
+
+  <view class="guide-intro card">
+    <view>
+      <text class="guide-intro-title">从自己的心愿出发</text>
+      <text class="guide-intro-copy">收藏想去地点，再把它们编排成轻量行程</text>
+    </view>
+    <text class="guide-intro-count">{{wishlist.length}}</text>
+  </view>
+
+  <!-- 想去清单 -->
+  <view class="section">
+    <view class="section-header">
+      <text class="section-title hand-underline">想去清单</text>
+      <text class="muted" wx:if="{{wishlist.length}}">{{wishlist.length}}</text>
+    </view>
+
+    <view wx:if="{{wishlist.length}}" class="wishlist-list">
+      <view wx:for="{{wishlist}}" wx:key="id" class="wishlist-item">
+        <footprint-card
+          footprint="{{item}}"
+          bind:tap="onWishlistTap"
+          data-id="{{item.id}}"
+        ></footprint-card>
+        <button
+          class="wishlist-convert-button"
+          data-id="{{item.id}}"
+          bindtap="onConvertVisited"
+        >
+          我去过了
+        </button>
+      </view>
+    </view>
+
+    <empty-state
+      wx:elif="{{!loading}}"
+      title="心愿地图还是空的"
+      description="在地图上把想去的地方加进来，组成你的旅行清单"
+      state="discover"
+      expression="explore"
+      actionText="去地图添加"
+      bind:action="onAddWishlist"
+    ></empty-state>
+
+    <view wx:else class="section-loading">
+      <text class="muted">加载中…</text>
+    </view>
+  </view>
+
+  <view wx:if="{{fulfilledWishes.length}}" class="section">
+    <view class="section-header">
+      <text class="section-title hand-underline">已经实现的愿望</text>
+      <text class="muted">{{fulfilledWishes.length}}</text>
+    </view>
+    <view class="wishlist-list">
+      <footprint-card wx:for="{{fulfilledWishes}}" wx:key="id" footprint="{{item}}" bind:tap="onWishlistTap" />
+    </view>
+  </view>
+
+  <!-- 旅行计划 -->
+  <view class="section">
+    <view class="section-header">
+      <text class="section-title hand-underline">旅行计划</text>
+      <text class="muted" wx:if="{{travelPlans.length}}">{{travelPlans.length}}</text>
+    </view>
+
+    <view wx:if="{{travelPlans.length}}" class="plans-list">
+      <view
+        wx:for="{{travelPlans}}"
+        wx:key="id"
+        class="plan-card card"
+        data-id="{{item.id}}"
+        bindtap="onTravelPlanTap"
+      >
+        <view class="plan-card-header">
+          <text class="plan-card-title">{{item.title}}</text>
+          <text class="plan-card-status plan-status-{{item.status}}">{{item.status === 'planning' ? '规划中' : item.status === 'ongoing' ? '进行中' : '已完成'}}</text>
+        </view>
+        <view class="plan-card-meta">
+          <text class="chip">{{item.city}}</text>
+          <text class="chip">{{item.days}} 天</text>
+          <text class="chip">{{item.poiIds.length}} 个地点</text>
+        </view>
+        <view wx:if="{{item.preferences.length}}" class="plan-card-tags">
+          <text wx:for="{{item.preferences}}" wx:for-item="pref" wx:key="*this" class="plan-tag">{{pref}}</text>
+        </view>
+      </view>
+    </view>
+
+    <empty-state
+      wx:elif="{{!loading}}"
+      title="还没有旅行计划"
+      description="从自己的想去清单挑选地点，排成一份轻行程"
+      state="journey"
+      expression="depart"
+      actionText="生成攻略"
+      bind:action="onGeneratePlan"
+    ></empty-state>
+
+    <view wx:else class="section-loading">
+      <text class="muted">加载中…</text>
+    </view>
+  </view>
+
+  <privacy-popup></privacy-popup>
+</view>

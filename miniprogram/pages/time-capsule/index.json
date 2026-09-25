@@ -1,0 +1,8 @@
+{
+  "navigationBarTitleText": "时光胶囊",
+  "usingComponents": {
+    "empty-state": "/components/empty-state/index",
+    "photo-uploader": "/components/photo-uploader/index",
+    "local-icon": "/components/local-icon/index"
+  }
+}

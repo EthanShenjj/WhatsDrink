@@ -1,0 +1,42 @@
+<view class="page-shell plan-page">
+  <text class="eyebrow">WISHLIST ROUTE</text>
+  <text class="display-title">{{isEditing ? '编辑旅行计划' : '从想去清单出发'}}</text>
+  <text class="plan-intro">选择你收藏的地点，把期待排成一段轻行程。</text>
+
+  <view class="plan-form card">
+    <text class="field-label">计划名称</text>
+    <input class="field-input" value="{{title}}" placeholder="例如 成都周末散步" maxlength="60" bindinput="onTitleInput" />
+    <text class="field-label">城市</text>
+    <input class="field-input" value="{{city}}" placeholder="例如 成都" maxlength="40" bindinput="onCityInput" />
+    <text class="field-label">天数</text>
+    <input class="field-input" value="{{days}}" type="number" maxlength="2" bindinput="onDaysInput" />
+    <text class="field-label">偏好（选填）</text>
+    <input class="field-input" value="{{preferencesInput}}" placeholder="例如 美食，散步，展览" maxlength="100" bindinput="onPreferencesInput" />
+    <picker wx:if="{{isEditing}}" mode="selector" range="{{['规划中', '进行中', '已完成']}}" bindchange="onStatusChange">
+      <view class="status-picker">状态：{{status === 'planning' ? '规划中' : status === 'ongoing' ? '进行中' : '已完成'}} ›</view>
+    </picker>
+  </view>
+
+  <view class="plan-section">
+    <text class="section-title">选择想去地点</text>
+    <text class="section-sub">{{city ? '显示这个城市的心愿地点' : '先填写城市或从全部心愿中挑选'}}</text>
+    <view wx:if="{{visibleWishlist.length}}" class="poi-list">
+      <view wx:for="{{visibleWishlist}}" wx:key="id" class="poi-row card" data-id="{{item.id}}" bindtap="onTogglePoi">
+        <view class="poi-check {{item.selected ? 'selected' : ''}}">{{item.selected ? '✓' : ''}}</view>
+        <view class="poi-copy"><text class="poi-title">{{item.poiName}}</text><text class="poi-meta">{{item.city || item.province || '未标注地区'}}</text></view>
+      </view>
+    </view>
+    <empty-state wx:else title="还没有可选地点" description="先在地图上收藏想去的地方，再回来规划。" state="discover" expression="explore" />
+  </view>
+
+  <button class="secondary-button plan-generate" bindtap="onGenerate" disabled="{{!selectedIds.length}}">按天安排地点</button>
+  <view wx:if="{{dayViews.length}}" class="plan-section day-list">
+    <view wx:for="{{dayViews}}" wx:key="day" class="day-card card">
+      <text class="day-title">第 {{item.day}} 天</text>
+      <text wx:for="{{item.places}}" wx:for-item="place" wx:key="*this" class="day-place">{{place}}</text>
+      <text wx:if="{{!item.places.length}}" class="day-place muted">留给自由探索</text>
+    </view>
+  </view>
+  <button class="primary-button plan-save" loading="{{saving}}" disabled="{{saving}}" bindtap="onSave">保存计划</button>
+  <button wx:if="{{isEditing}}" class="plan-delete" bindtap="onDelete">删除计划</button>
+</view>

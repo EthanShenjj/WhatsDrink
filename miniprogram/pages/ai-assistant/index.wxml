@@ -1,0 +1,78 @@
+<view class="page-shell ai-page">
+  <view class="ai-hero">
+    <view class="ai-hero-copy">
+      <text class="eyebrow">MEMORY DRAFT</text>
+      <text class="display-title">告诉小拾，今天发生了什么</text>
+    </view>
+    <ip-mascot state="journey" expression="record" size="132rpx" motion="float" label="正在帮你整理回忆的小拾" />
+  </view>
+
+  <view class="ai-privacy-note">
+    <local-icon name="lock" size="30rpx" />
+    <text>将根据你主动提供的文本整理可编辑草稿；照片目前仅作为附件，不参与识别。未经确认不会写入正式足迹。</text>
+  </view>
+
+  <block wx:if="{{stage === 'input'}}">
+    <view class="ai-input-card card">
+      <textarea value="{{text}}" maxlength="500" auto-height placeholder="例如：今天去了成都双子塔，心情特别棒…" bindinput="onTextInput" />
+      <view class="ai-photo-area">
+        <text class="field-label">照片（可选，最多 3 张）</text>
+        <photo-uploader photos="{{photos}}" max="{{3}}" bind:add="onPhotoAdd" bind:remove="onPhotoRemove" />
+      </view>
+    </view>
+    <button class="primary-button ai-primary" loading="{{generating}}" disabled="{{generating}}" bindtap="onGenerateDraft">
+      <local-icon name="sparkles" size="34rpx" />
+      <text>{{generating ? '正在整理…' : '生成可编辑草稿'}}</text>
+    </button>
+  </block>
+
+  <block wx:else>
+    <view class="ai-preview-head">
+      <view>
+        <text class="section-title">请确认每一项</text>
+        <text class="ai-confidence">文本规则草稿，请核对地点和日期</text>
+      </view>
+      <button class="text-button" bindtap="backToInput">重新描述</button>
+    </view>
+
+    <view class="ai-draft card">
+      <view class="field-block">
+        <text class="field-label">地点 *</text>
+        <input value="{{poiName}}" maxlength="40" placeholder="请填写地点" bindinput="onPoiInput" />
+        <text wx:if="{{needsPoiConfirmation && !poiConfirmed}}" class="field-warning">地点可能有歧义，请选择 POI 或明确确认</text>
+        <view class="poi-actions">
+          <button class="secondary-button" bindtap="choosePoi">选择地图 POI</button>
+          <button wx:if="{{!poiConfirmed}}" class="text-button" bindtap="confirmPoi">此地点无误</button>
+          <text wx:else class="field-confirmed">✓ 地点已确认</text>
+        </view>
+      </view>
+
+      <view class="field-block">
+        <text class="field-label">日期</text>
+        <picker mode="date" value="{{visitDate}}" bindchange="onDateChange"><view class="field-input">{{visitDate}}</view></picker>
+        <text wx:if="{{dateWasDefaulted}}" class="field-warning">未识别到明确日期，已默认今天，请确认</text>
+      </view>
+
+      <view class="field-block">
+        <text class="field-label">心情</text>
+        <mood-picker value="{{mood}}" bind:change="onMoodChange" />
+      </view>
+
+      <view class="field-block">
+        <text class="field-label">类别</text>
+        <scroll-view scroll-x class="category-scroll">
+          <view class="category-row">
+            <view wx:for="{{categoryOptions}}" wx:key="value" class="chip {{category === item.value ? 'is-active' : ''}}" data-value="{{item.value}}" bindtap="selectCategory">{{item.emoji}} {{item.label}}</view>
+          </view>
+        </scroll-view>
+      </view>
+
+      <view class="field-block">
+        <text class="field-label">短记</text>
+        <textarea value="{{note}}" maxlength="500" auto-height bindinput="onNoteInput" />
+      </view>
+    </view>
+
+    <button class="primary-button ai-primary" loading="{{saving}}" disabled="{{saving || (needsPoiConfirmation && !poiConfirmed)}}" bindtap="onConfirmSave">确认后保存足迹</button>
+  </block>
+</view>

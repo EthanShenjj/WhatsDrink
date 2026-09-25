@@ -1,46 +1,28 @@
-import { BRANDS } from '../data/catalog'
 import type {
-  DrinkRecord,
-  DrinkRecordDraft,
+  Footprint,
+  FootprintDraft,
   UserProfile,
-  Wheel,
-  WheelItem,
+  TravelPlan,
+  TravelPlanDraft,
+  TimeCapsule,
+  TimeCapsuleDraft,
+  ShareSnapshot,
+  MapSettings,
+  GrowthPreferences,
 } from '../domain/types'
 import { createId } from '../utils/id'
-import { brandToWheelItem, normalizeWheelItemsToBrands } from '../utils/wheel'
 import { CLOUD_ENV_ID, STORAGE_KEYS, USE_CLOUD } from './config'
+import { DEFAULT_MAP_SETTINGS } from '../data/options'
+import { todayKey } from '../utils/date'
+import { placeKey } from '../utils/footprint'
 
-let recordSessionReady = false
-let cloudSessionReady = false
-let cloudLoginPromise: Promise<UserProfile> | null = null
-
-const CLOUD_RECORD_PAGE_SIZE = 20
-
-const defaultWheelItems = (): WheelItem[] =>
-  BRANDS.filter((brand) =>
-    ['starbucks', 'luckin', 'manner', 'tims', 'mstand'].includes(brand.id),
-  ).map((brand) => brandToWheelItem(brand, createId('item')))
-
-const normalizeWheel = (wheel: Wheel): Wheel => ({
-  ...wheel,
-  items: normalizeWheelItemsToBrands(wheel.items || []),
-})
-
-const defaultWheel = (): Wheel => {
-  const now = Date.now()
-  return {
-    id: createId('wheel'),
-    name: '今天喝什么咖啡',
-    items: defaultWheelItems(),
-    createdAt: now,
-    updatedAt: now,
-  }
-}
+let sessionReady = false
+let cloudReady = false
+let loginPromise: Promise<UserProfile> | null = null
 
 const getStored = <T>(key: string, fallback: T): T => {
   try {
-    const value = wx.getStorageSync<T>(key)
-    return value || fallback
+    return wx.getStorageSync<T>(key) || fallback
   } catch {
     return fallback
   }
@@ -50,37 +32,39 @@ const setStored = <T>(key: string, value: T): void => {
   wx.setStorageSync(key, value)
 }
 
+const syncFootprintCache = (list: Footprint[]): void => {
+  setStored(STORAGE_KEYS.footprints, list)
+  try {
+    const app = getApp<IAppOption>()
+    app.globalData.footprints = list
+    app.globalData.footprintsCachedAt = Date.now()
+  } catch {
+    // Unit contexts can use the repository without an initialized App.
+  }
+}
+
+const migrateLegacyDefaultProfile = (profile: UserProfile): UserProfile =>
+  profile.nickname === '饮品记录者' && !profile.avatarUrl
+    ? { ...profile, nickname: '拾光者' }
+    : profile
+
 const ensureLocalProfile = (): UserProfile => {
   const existing = getStored<UserProfile | null>(STORAGE_KEYS.profile, null)
-  if (existing) return existing
+  if (existing) {
+    const profile = migrateLegacyDefaultProfile(existing)
+    if (profile !== existing) setStored(STORAGE_KEYS.profile, profile)
+    return profile
+  }
   const now = Date.now()
   const profile: UserProfile = {
     id: 'local-user',
-    nickname: '饮品记录者',
+    nickname: '拾光者',
     avatarUrl: '',
     createdAt: now,
     updatedAt: now,
   }
   setStored(STORAGE_KEYS.profile, profile)
   return profile
-}
-
-const deleteLocalFiles = async (paths: Array<string | undefined>): Promise<void> => {
-  const fileSystem = wx.getFileSystemManager()
-  await Promise.all(
-    paths
-      .filter((path): path is string => Boolean(path && path.startsWith('wxfile://')))
-      .map(
-        (filePath) =>
-          new Promise<void>((resolve) => {
-            fileSystem.unlink({
-              filePath,
-              success: () => resolve(),
-              fail: () => resolve(),
-            })
-          }),
-      ),
-  )
 }
 
 const callCloud = async <T>(name: string, data: object): Promise<T> => {
@@ -90,158 +74,70 @@ const callCloud = async <T>(name: string, data: object): Promise<T> => {
   return result.data as T
 }
 
-const uploadLocalFileToCloud = async (
-  localPath: string,
-  cloudPath: string,
-): Promise<string> => {
-  const result = await wx.cloud.uploadFile({ cloudPath, filePath: localPath })
-  return result.fileID
-}
-
-const wheelSignature = (wheel: Wheel): string =>
-  JSON.stringify({
-    name: wheel.name.trim(),
-    items: normalizeWheel(wheel).items.map((item) => item.label.trim()),
-  })
-
-const listCloudWheels = async (): Promise<Wheel[]> => {
-  const db = wx.cloud.database()
-  const wheels: Wheel[] = []
-  let offset = 0
-  while (true) {
-    const response = await db
-      .collection('wheels')
-      .where({ _openid: '{openid}' })
-      .orderBy('updatedAt', 'desc')
-      .skip(offset)
-      .limit(CLOUD_RECORD_PAGE_SIZE)
-      .get()
-    const page = (response.data as Array<Record<string, unknown>>).map((item) =>
-      normalizeWheel({
-        ...(item as unknown as Wheel),
-        id: String(item.id || item._id),
-      }),
-    )
-    wheels.push(...page)
-    if (page.length < CLOUD_RECORD_PAGE_SIZE) break
-    offset += CLOUD_RECORD_PAGE_SIZE
-  }
-  return wheels
-}
-
-const migrateLocalDataToCloud = async (cloudProfile: UserProfile): Promise<UserProfile> => {
-  const localProfile = getStored<UserProfile | null>(STORAGE_KEYS.profile, null)
-  const localRecords = getStored<DrinkRecord[]>(STORAGE_KEYS.records, [])
-  const localWheels = getStored<Wheel[]>(STORAGE_KEYS.wheels, [])
-  let migratedProfile = cloudProfile
-
-  if (
-    localProfile &&
-    localProfile.id === 'local-user' &&
-    (localProfile.nickname !== '饮品记录者' || Boolean(localProfile.avatarUrl))
-  ) {
-    let avatarUrl = localProfile.avatarUrl
-    if (avatarUrl && !avatarUrl.startsWith('cloud://')) {
-      avatarUrl = await uploadLocalFileToCloud(
-        avatarUrl,
-        `profile-photos/${cloudProfile.id}/avatar.jpg`,
-      )
-    }
-    migratedProfile = await callCloud<UserProfile>('accountMutation', {
-      action: 'saveProfile',
-      patch: {
-        nickname: localProfile.nickname,
-        avatarUrl,
-      },
-    })
-  }
-
-  for (const storedRecord of localRecords) {
-    const record = {
-      ...storedRecord,
-      clientRequestId: storedRecord.clientRequestId || `migration:${storedRecord.id}`,
-    }
-    if (record.photoPath && !record.photoPath.startsWith('cloud://')) {
-      record.photoPath = await uploadLocalFileToCloud(
-        record.photoPath,
-        `record-photos/${cloudProfile.id}/legacy-${record.id}.jpg`,
-      )
-    }
-    await callCloud<DrinkRecord>('recordMutation', {
-      action: 'create',
-      record,
-    })
-  }
-
-  if (localWheels.length) {
-    const cloudSignatures = new Set((await listCloudWheels()).map(wheelSignature))
-
-    for (const wheel of localWheels.map(normalizeWheel)) {
-      if (cloudSignatures.has(wheelSignature(wheel))) continue
-      await callCloud<Wheel>('wheelMutation', {
-        action: 'save',
-        wheel,
-      })
-    }
-  }
-
-  if (localRecords.length) wx.removeStorageSync(STORAGE_KEYS.records)
-  if (localWheels.length) wx.removeStorageSync(STORAGE_KEYS.wheels)
-  setStored(STORAGE_KEYS.profile, migratedProfile)
-  return migratedProfile
-}
-
-const establishCloudSession = async (migrateLocal = true): Promise<UserProfile> => {
-  if (!recordSessionReady) {
-    recordSessionReady = true
-  }
-  if (!USE_CLOUD) return ensureLocalProfile()
-  if (cloudSessionReady) return ensureLocalProfile()
-  if (cloudLoginPromise) return cloudLoginPromise
-
-  cloudLoginPromise = (async () => {
-    const profile = await callCloud<UserProfile>('login', {})
-    const readyProfile = migrateLocal ? await migrateLocalDataToCloud(profile) : profile
-    cloudSessionReady = true
-    setStored(STORAGE_KEYS.profile, readyProfile)
-    return readyProfile
-  })()
-
-  try {
-    return await cloudLoginPromise
-  } finally {
-    cloudLoginPromise = null
-  }
+const deleteLocalFiles = async (paths: Array<string | undefined>): Promise<void> => {
+  const fm = wx.getFileSystemManager()
+  await Promise.all(
+    paths
+      .filter((p): p is string => Boolean(p && p.startsWith('wxfile://')))
+      .map(
+        (path) =>
+          new Promise<void>((resolve) => {
+            fm.unlink({ filePath: path, success: () => resolve(), fail: () => resolve() })
+          }),
+      ),
+  )
 }
 
 export const initializeCloud = (): boolean => {
   if (!USE_CLOUD || !wx.cloud) return false
-  wx.cloud.init({ env: CLOUD_ENV_ID, traceUser: true })
-  return true
+  try {
+    wx.cloud.init({ env: CLOUD_ENV_ID, traceUser: true })
+    return true
+  } catch {
+    return false
+  }
 }
 
 export const ensureProfile = async (): Promise<UserProfile> => {
-  if (USE_CLOUD && cloudSessionReady) {
-    return ensureLocalProfile()
-  }
+  if (USE_CLOUD && !sessionReady) return loginForAccess()
   return ensureLocalProfile()
 }
 
-export const hasRecordAccess = (): boolean => recordSessionReady
+export const hasSessionAccess = (): boolean => sessionReady
 
-export const loginForRecordAccess = async (): Promise<UserProfile> => {
-  if (!USE_CLOUD && recordSessionReady) return ensureLocalProfile()
-  try {
-    return await establishCloudSession()
-  } catch {
+export const loginForAccess = async (): Promise<UserProfile> => {
+  if (!USE_CLOUD && sessionReady) return ensureLocalProfile()
+  if (!USE_CLOUD) {
+    sessionReady = true
     return ensureLocalProfile()
+  }
+  if (cloudReady) return ensureLocalProfile()
+  if (loginPromise) return loginPromise
+
+  loginPromise = (async () => {
+    try {
+      const profile = migrateLegacyDefaultProfile(await callCloud<UserProfile>('login', {}))
+      cloudReady = true
+      sessionReady = true
+      setStored(STORAGE_KEYS.profile, profile)
+      return profile
+    } catch {
+      sessionReady = true
+      return ensureLocalProfile()
+    }
+  })()
+
+  try {
+    return await loginPromise
+  } finally {
+    loginPromise = null
   }
 }
 
 export const saveProfile = async (
   patch: Pick<UserProfile, 'nickname' | 'avatarUrl'>,
 ): Promise<UserProfile> => {
-  if (USE_CLOUD && cloudSessionReady) {
+  if (USE_CLOUD && cloudReady) {
     const profile = await callCloud<UserProfile>('accountMutation', {
       action: 'saveProfile',
       patch,
@@ -258,170 +154,464 @@ export const saveProfile = async (
   return next
 }
 
-export const listRecords = async (): Promise<DrinkRecord[]> => {
-  if (USE_CLOUD && cloudSessionReady) {
-    const db = wx.cloud.database()
-    const records: Array<Record<string, unknown>> = []
-    let offset = 0
-    while (true) {
-      const response = await db
-        .collection('drink_records')
-        .where({ _openid: '{openid}' })
-        .orderBy('consumedAt', 'desc')
-        .skip(offset)
-        .limit(CLOUD_RECORD_PAGE_SIZE)
-        .get()
-      const page = response.data as Array<Record<string, unknown>>
-      records.push(...page)
-      if (page.length < CLOUD_RECORD_PAGE_SIZE) break
-      offset += CLOUD_RECORD_PAGE_SIZE
-    }
-    return records.map((item) => ({
-      ...(item as unknown as DrinkRecord),
-      id: String(item.id || item._id),
-    }))
-  }
-  return getStored<DrinkRecord[]>(STORAGE_KEYS.records, []).sort(
-    (a, b) => b.consumedAt - a.consumedAt,
-  )
-}
-
-export const getRecord = async (id: string): Promise<DrinkRecord | undefined> =>
-  (await listRecords()).find((record) => record.id === id)
-
-export const saveRecord = async (draft: DrinkRecordDraft): Promise<DrinkRecord> => {
-  const now = Date.now()
-  const record: DrinkRecord = {
-    ...draft,
-    id: draft.id || createId('record'),
-    clientRequestId: createId('request'),
-    createdAt: now,
-    updatedAt: now,
-  }
-  if (USE_CLOUD && cloudSessionReady) {
-    return callCloud<DrinkRecord>('recordMutation', {
-      action: draft.id ? 'update' : 'create',
-      record,
+export const saveGrowthPreferences = async (
+  patch: Partial<Pick<GrowthPreferences, 'lockedColorId' | 'iconColorId' | 'viewedMonthlyReports'>>,
+): Promise<UserProfile> => {
+  if (USE_CLOUD && cloudReady) {
+    const profile = await callCloud<UserProfile>('accountMutation', {
+      action: 'saveGrowthPreferences',
+      patch,
     })
+    setStored(STORAGE_KEYS.profile, profile)
+    return profile
   }
-  const records = await listRecords()
-  const index = records.findIndex((item) => item.id === record.id)
-  if (index >= 0) {
-    if (records[index].photoPath && records[index].photoPath !== record.photoPath) {
-      await deleteLocalFiles([records[index].photoPath])
-    }
-    record.createdAt = records[index].createdAt
-    records[index] = record
-  } else {
-    records.unshift(record)
+  const current = await ensureProfile()
+  const next: UserProfile = {
+    ...current,
+    growth: { ...current.growth, ...patch },
+    updatedAt: Date.now(),
   }
-  setStored(STORAGE_KEYS.records, records)
-  return record
-}
-
-export const deleteRecord = async (id: string): Promise<void> => {
-  if (USE_CLOUD && cloudSessionReady) {
-    await callCloud('recordMutation', { action: 'delete', id })
-    return
-  }
-  const records = await listRecords()
-  const target = records.find((record) => record.id === id)
-  await deleteLocalFiles([target?.photoPath])
-  setStored(STORAGE_KEYS.records, records.filter((record) => record.id !== id))
-}
-
-export const listWheels = async (): Promise<Wheel[]> => {
-  if (USE_CLOUD && cloudSessionReady) {
-    try {
-      const wheels = await listCloudWheels()
-      if (wheels.length) return wheels
-    } catch {
-      // Preview and offline environments fall back to the local/default wheel below.
-    }
-  }
-  const wheels = getStored<Wheel[]>(STORAGE_KEYS.wheels, [])
-  if (wheels.length) {
-    const normalized = wheels.map(normalizeWheel)
-    setStored(STORAGE_KEYS.wheels, normalized)
-    return normalized
-  }
-  const initial = [defaultWheel()]
-  setStored(STORAGE_KEYS.wheels, initial)
-  return initial
-}
-
-export const saveWheel = async (wheel: Wheel): Promise<Wheel> => {
-  const normalizedWheel = normalizeWheel(wheel)
-  if (USE_CLOUD && cloudSessionReady) {
-    return callCloud<Wheel>('wheelMutation', { action: 'save', wheel: normalizedWheel })
-  }
-  const wheels = await listWheels()
-  const next = { ...normalizedWheel, updatedAt: Date.now() }
-  const index = wheels.findIndex((item) => item.id === next.id)
-  if (index >= 0) wheels[index] = next
-  else wheels.unshift(next)
-  setStored(STORAGE_KEYS.wheels, wheels)
+  setStored(STORAGE_KEYS.profile, next)
   return next
 }
 
-export const createWheel = async (name: string, items = defaultWheelItems()): Promise<Wheel> => {
+export const startGrowthTrial = async (): Promise<UserProfile> => {
+  if (USE_CLOUD && cloudReady) {
+    const profile = await callCloud<UserProfile>('accountMutation', { action: 'startGrowthTrial' })
+    setStored(STORAGE_KEYS.profile, profile)
+    return profile
+  }
+  const current = await ensureProfile()
+  if (current.growth?.trialStartedAt) return current
   const now = Date.now()
-  return saveWheel({ id: createId('wheel'), name, items, createdAt: now, updatedAt: now })
+  const next: UserProfile = {
+    ...current,
+    growth: {
+      ...current.growth,
+      trialStartedAt: now,
+      plusUntil: now + 7 * 86_400_000,
+    },
+    updatedAt: now,
+  }
+  setStored(STORAGE_KEYS.profile, next)
+  return next
 }
 
-export const copyWheel = async (source: Wheel): Promise<Wheel> =>
-  createWheel(
-    `${source.name} 副本`,
-    source.items.map((item) => ({ ...item, id: createId('item') })),
-  )
+const listCloudFootprints = (): Promise<Footprint[]> =>
+  callCloud<Footprint[]>('footprintMutation', { action: 'list' })
 
-export const deleteWheel = async (id: string): Promise<void> => {
-  if (USE_CLOUD && cloudSessionReady) {
-    await callCloud('wheelMutation', { action: 'delete', id })
+export const listFootprints = async (): Promise<Footprint[]> => {
+  if (USE_CLOUD && cloudReady) {
+    try {
+      const cloud = await listCloudFootprints()
+      syncFootprintCache(cloud)
+      return cloud
+    } catch {
+      // fall back to local
+    }
+  }
+  return getStored<Footprint[]>(STORAGE_KEYS.footprints, [])
+}
+
+export const getFootprint = async (id: string): Promise<Footprint | undefined> =>
+  (await listFootprints()).find((fp) => fp.id === id)
+
+export const saveFootprint = async (draft: FootprintDraft): Promise<Footprint> => {
+  const now = Date.now()
+  const profile = await ensureProfile()
+  const footprint: Footprint = {
+    ...draft,
+    placeId: draft.placeId || placeKey(draft),
+    id: draft.id || createId('fp'),
+    userId: profile.id,
+    clientRequestId: createId('req'),
+    createdAt: draft.id ? now : now,
+    updatedAt: now,
+  }
+  if (draft.id) {
+    const existing = await getFootprint(draft.id)
+    if (existing) footprint.createdAt = existing.createdAt
+  }
+
+  if (USE_CLOUD && cloudReady) {
+    const saved = await callCloud<Footprint>('footprintMutation', {
+      action: draft.id ? 'update' : 'create',
+      footprint,
+    })
+    const cached = getStored<Footprint[]>(STORAGE_KEYS.footprints, [])
+    const idx = cached.findIndex((fp) => fp.id === saved.id)
+    if (idx >= 0) cached[idx] = saved
+    else cached.unshift(saved)
+    syncFootprintCache(cached)
+    return saved
+  }
+
+  const list = await listFootprints()
+  const idx = list.findIndex((fp) => fp.id === footprint.id)
+  if (idx >= 0) list[idx] = footprint
+  else list.unshift(footprint)
+  syncFootprintCache(list)
+  return footprint
+}
+
+export const deleteFootprint = async (id: string): Promise<void> => {
+  const updateAfterDelete = (list: Footprint[]): Footprint[] => {
+    const deleted = list.find((fp) => fp.id === id)
+    return list.filter((fp) => fp.id !== id).map((fp) => {
+      if (deleted?.wishId === fp.id && fp.fulfilledVisitId === id) {
+        return { ...fp, status: 'wishlist' as const, fulfilledAt: undefined, fulfilledVisitId: undefined }
+      }
+      if (deleted?.fulfilledVisitId === fp.id && fp.wishId === id) {
+        return { ...fp, wishId: undefined, wishlistCreatedAt: undefined, convertedFromWishlist: false }
+      }
+      return fp
+    })
+  }
+  if (USE_CLOUD && cloudReady) {
+    await callCloud('footprintMutation', { action: 'delete', id })
+    const cached = getStored<Footprint[]>(STORAGE_KEYS.footprints, [])
+    syncFootprintCache(updateAfterDelete(cached))
     return
   }
-  const wheels = (await listWheels()).filter((wheel) => wheel.id !== id)
-  setStored(STORAGE_KEYS.wheels, wheels.length ? wheels : [defaultWheel()])
+  syncFootprintCache(updateAfterDelete(await listFootprints()))
 }
 
-export const clearAllRecords = async (): Promise<void> => {
-  if (USE_CLOUD) {
-    await establishCloudSession()
-    await callCloud('accountMutation', { action: 'clearRecords' })
-    wx.removeStorageSync(STORAGE_KEYS.records)
-    wx.removeStorageSync(STORAGE_KEYS.recordDraft)
-    return
+export const fulfillWishlistFootprint = async (
+  wishId: string,
+  draft: FootprintDraft,
+): Promise<{ wish: Footprint; visit: Footprint }> => {
+  const wish = await getFootprint(wishId)
+  if (!wish || wish.status !== 'wishlist') throw new Error('愿望不存在或已实现')
+  const visitDraft: FootprintDraft = {
+    ...draft,
+    id: undefined,
+    status: 'visited',
+    poiName: wish.poiName,
+    placeId: wish.placeId || placeKey(wish),
+    wishId,
+    wishlistCreatedAt: wish.wishlistCreatedAt || wish.createdAt,
+    convertedFromWishlist: true,
   }
-  await deleteLocalFiles((await listRecords()).map((record) => record.photoPath))
-  setStored(STORAGE_KEYS.records, [])
-}
-
-export const deleteAccount = async (): Promise<void> => {
-  const profile = getStored<UserProfile | null>(STORAGE_KEYS.profile, null)
-  const records = getStored<DrinkRecord[]>(STORAGE_KEYS.records, [])
-  if (USE_CLOUD) {
-    await establishCloudSession(false)
-    await callCloud('accountMutation', { action: 'deleteAccount' })
+  if (USE_CLOUD && cloudReady) {
+    const result = await callCloud<{ wish: Footprint; visit: Footprint }>('footprintMutation', {
+      action: 'fulfillWishlist',
+      id: wishId,
+      visit: visitDraft,
+    })
+    const cached = getStored<Footprint[]>(STORAGE_KEYS.footprints, [])
+    syncFootprintCache([result.visit, ...cached.map((item) => item.id === wishId ? result.wish : item)])
+    return result
   }
-  await deleteLocalFiles([profile?.avatarUrl, ...records.map((record) => record.photoPath)])
-  Object.values(STORAGE_KEYS).forEach((key) => wx.removeStorageSync(key))
-  recordSessionReady = false
-  cloudSessionReady = false
-  cloudLoginPromise = null
+  const now = Date.now()
+  const visit: Footprint = {
+    ...visitDraft,
+    id: createId('fp'),
+    userId: wish.userId,
+    clientRequestId: createId('req'),
+    createdAt: now,
+    updatedAt: now,
+  }
+  const fulfilledWish: Footprint = {
+    ...wish,
+    status: 'fulfilled',
+    fulfilledAt: now,
+    fulfilledVisitId: visit.id,
+    updatedAt: now,
+  }
+  const list = await listFootprints()
+  syncFootprintCache([visit, ...list.map((item) => item.id === wishId ? fulfilledWish : item)])
+  return { wish: fulfilledWish, visit }
 }
 
-export const uploadRecordPhoto = async (tempFilePath: string): Promise<string> => {
-  if (!USE_CLOUD || !cloudSessionReady) {
+export const uploadPhoto = async (tempFilePath: string): Promise<string> => {
+  if (!USE_CLOUD || !cloudReady) {
     return new Promise<string>((resolve, reject) => {
       wx.getFileSystemManager().saveFile({
         tempFilePath,
-        success: (result) => resolve(result.savedFilePath),
+        success: (res) => resolve(res.savedFilePath),
         fail: reject,
       })
     })
   }
   const profile = await ensureProfile()
-  const cloudPath = `record-photos/${profile.id}/${Date.now()}-${Math.random().toString(36).slice(2)}.jpg`
-  const result = await wx.cloud.uploadFile({ cloudPath, filePath: tempFilePath })
-  return result.fileID
+  const cloudPath = `footprint-photos/${profile.id}/${Date.now()}-${Math.random().toString(36).slice(2)}.jpg`
+  const res = await wx.cloud.uploadFile({ cloudPath, filePath: tempFilePath })
+  return res.fileID
+}
+
+export const uploadPhotos = async (tempPaths: string[]): Promise<string[]> =>
+  Promise.all(tempPaths.map((p) => uploadPhoto(p)))
+
+export const deletePhotos = async (paths: string[]): Promise<void> => {
+  if (USE_CLOUD && cloudReady) {
+    const cloudPaths = paths.filter((p) => p.startsWith('cloud://'))
+    if (cloudPaths.length) {
+      await wx.cloud.deleteFile({ fileList: cloudPaths }).catch(() => undefined)
+    }
+  }
+  await deleteLocalFiles(paths)
+}
+
+// ─── Map Settings ───
+
+export const getMapSettings = (): MapSettings =>
+  getStored<MapSettings>(STORAGE_KEYS.mapSettings, DEFAULT_MAP_SETTINGS)
+
+export const saveMapSettings = (settings: MapSettings): void => {
+  setStored(STORAGE_KEYS.mapSettings, settings)
+}
+
+// ─── Travel Plans ───
+
+export const listTravelPlans = async (): Promise<TravelPlan[]> => {
+  if (USE_CLOUD && cloudReady) {
+    try {
+      const plans = await callCloud<TravelPlan[]>('travelPlanMutation', { action: 'list' })
+      setStored(STORAGE_KEYS.travelPlans, plans)
+      return plans
+    } catch {
+      // fall back
+    }
+  }
+  return getStored<TravelPlan[]>(STORAGE_KEYS.travelPlans, [])
+}
+
+export const saveTravelPlan = async (draft: TravelPlanDraft): Promise<TravelPlan> => {
+  const now = Date.now()
+  const profile = await ensureProfile()
+  const existing = draft.id
+    ? getStored<TravelPlan[]>(STORAGE_KEYS.travelPlans, []).find((item) => item.id === draft.id)
+    : undefined
+  const plan: TravelPlan = {
+    ...draft,
+    id: draft.id || createId('plan'),
+    userId: profile.id,
+    createdAt: existing?.createdAt || now,
+    updatedAt: now,
+  } as TravelPlan
+
+  if (USE_CLOUD && cloudReady) {
+    const saved = await callCloud<TravelPlan>('travelPlanMutation', {
+      action: draft.id ? 'update' : 'create',
+      plan,
+    })
+    const cached = getStored<TravelPlan[]>(STORAGE_KEYS.travelPlans, [])
+    const idx = cached.findIndex((item) => item.id === saved.id)
+    if (idx >= 0) cached[idx] = saved
+    else cached.unshift(saved)
+    setStored(STORAGE_KEYS.travelPlans, cached)
+    return saved
+  }
+
+  const list = await listTravelPlans()
+  const idx = list.findIndex((p) => p.id === plan.id)
+  if (idx >= 0) list[idx] = plan
+  else list.unshift(plan)
+  setStored(STORAGE_KEYS.travelPlans, list)
+  return plan
+}
+
+export const deleteTravelPlan = async (id: string): Promise<void> => {
+  if (USE_CLOUD && cloudReady) {
+    await callCloud('travelPlanMutation', { action: 'delete', id })
+    const cached = getStored<TravelPlan[]>(STORAGE_KEYS.travelPlans, [])
+    setStored(STORAGE_KEYS.travelPlans, cached.filter((plan) => plan.id !== id))
+    return
+  }
+  const list = (await listTravelPlans()).filter((p) => p.id !== id)
+  setStored(STORAGE_KEYS.travelPlans, list)
+}
+
+// ─── Time Capsules ───
+
+export const listTimeCapsules = async (): Promise<TimeCapsule[]> => {
+  if (USE_CLOUD && cloudReady) {
+    try {
+      const capsules = await callCloud<TimeCapsule[]>('timeCapsuleMutation', { action: 'list' })
+      setStored(STORAGE_KEYS.timeCapsules, capsules)
+      return capsules
+    } catch {
+      // fall back
+    }
+  }
+  return getStored<TimeCapsule[]>(STORAGE_KEYS.timeCapsules, [])
+}
+
+export const saveTimeCapsule = async (draft: TimeCapsuleDraft): Promise<TimeCapsule> => {
+  const now = Date.now()
+  const profile = await ensureProfile()
+  const existing = draft.id
+    ? getStored<TimeCapsule[]>(STORAGE_KEYS.timeCapsules, []).find(
+        (item) => item.id === draft.id,
+      )
+    : undefined
+  const capsule: TimeCapsule = {
+    ...draft,
+    id: draft.id || createId('capsule'),
+    userId: profile.id,
+    createdAt: existing?.createdAt || now,
+    updatedAt: now,
+  } as TimeCapsule
+
+  if (USE_CLOUD && cloudReady) {
+    const saved = await callCloud<TimeCapsule>('timeCapsuleMutation', {
+      action: draft.id ? 'update' : 'create',
+      capsule,
+    })
+    const cached = getStored<TimeCapsule[]>(STORAGE_KEYS.timeCapsules, [])
+    const idx = cached.findIndex((item) => item.id === saved.id)
+    if (idx >= 0) cached[idx] = saved
+    else cached.push(saved)
+    setStored(STORAGE_KEYS.timeCapsules, cached)
+    return saved
+  }
+
+  const list = await listTimeCapsules()
+  const idx = list.findIndex((c) => c.id === capsule.id)
+  if (idx >= 0) list[idx] = capsule
+  else list.push(capsule)
+  setStored(STORAGE_KEYS.timeCapsules, list)
+  return capsule
+}
+
+export const deleteTimeCapsule = async (id: string): Promise<void> => {
+  if (USE_CLOUD && cloudReady) {
+    await callCloud('timeCapsuleMutation', { action: 'delete', id })
+    const cached = getStored<TimeCapsule[]>(STORAGE_KEYS.timeCapsules, [])
+    setStored(STORAGE_KEYS.timeCapsules, cached.filter((capsule) => capsule.id !== id))
+    return
+  }
+  const list = (await listTimeCapsules()).filter((c) => c.id !== id)
+  setStored(STORAGE_KEYS.timeCapsules, list)
+}
+
+export const unlockTimeCapsule = async (id: string): Promise<TimeCapsule> => {
+  if (USE_CLOUD && cloudReady) {
+    const unlocked = await callCloud<TimeCapsule>('timeCapsuleMutation', {
+      action: 'unlock',
+      id,
+    })
+    const cached = getStored<TimeCapsule[]>(STORAGE_KEYS.timeCapsules, [])
+    setStored(
+      STORAGE_KEYS.timeCapsules,
+      cached.map((item) => (item.id === id ? unlocked : item)),
+    )
+    return unlocked
+  }
+  const cached = getStored<TimeCapsule[]>(STORAGE_KEYS.timeCapsules, [])
+  const index = cached.findIndex((item) => item.id === id)
+  if (index < 0) throw new Error('胶囊不存在')
+  const capsule = cached[index]
+  if (capsule.unlockDate > todayKey()) {
+    throw new Error('尚未到解锁日期')
+  }
+  const unlocked = { ...capsule, status: 'unlocked' as const, unlockedAt: Date.now() }
+  cached[index] = unlocked
+  setStored(STORAGE_KEYS.timeCapsules, cached)
+  return unlocked
+}
+
+// ─── Share Snapshots ───
+
+export const listShareSnapshots = async (): Promise<ShareSnapshot[]> => {
+  return getStored<ShareSnapshot[]>(STORAGE_KEYS.shareSnapshots, [])
+}
+
+export const saveShareSnapshot = async (snapshot: ShareSnapshot): Promise<void> => {
+  const list = await listShareSnapshots()
+  list.unshift(snapshot)
+  setStored(STORAGE_KEYS.shareSnapshots, list.slice(0, 20))
+}
+
+export const getShareCodePath = async (): Promise<string | undefined> => {
+  if (!USE_CLOUD || !cloudReady) return undefined
+  try {
+    const response = await callCloud<{ base64: string }>('shareCode', {})
+    if (!response.base64) return undefined
+    const filePath = `${wx.env.USER_DATA_PATH}/shiguangji-share-code.png`
+    return await new Promise<string | undefined>((resolve) => {
+      wx.getFileSystemManager().writeFile({
+        filePath,
+        data: response.base64,
+        encoding: 'base64',
+        success: () => resolve(filePath),
+        fail: () => resolve(undefined),
+      })
+    })
+  } catch {
+    return undefined
+  }
+}
+
+// ─── AI Assistant ───
+
+export const generateAIDraft = async (
+  text: string,
+  photoIds: string[] = [],
+): Promise<import('../domain/types').FootprintDraftAI> => {
+  if (USE_CLOUD && cloudReady) {
+    return callCloud('aiAssistant', { action: 'draft', text, photoIds })
+  }
+  // Local fallback: simple heuristic extraction
+  return {
+    poiName: text.slice(0, 20),
+    visitDate: todayKey(),
+    note: text,
+    confidence: 0.3,
+    needsPoiConfirmation: true,
+    dateWasDefaulted: true,
+  }
+}
+
+// ─── Account ───
+
+export const clearAllData = async (): Promise<void> => {
+  const allFootprints = getStored<Footprint[]>(STORAGE_KEYS.footprints, [])
+  const allSnapshots = getStored<ShareSnapshot[]>(STORAGE_KEYS.shareSnapshots, [])
+  if (USE_CLOUD && cloudReady) {
+    await callCloud('accountMutation', { action: 'clearAll' })
+  }
+  await deletePhotos(allFootprints.flatMap((fp) => fp.photos))
+  await deleteLocalFiles(allSnapshots.map((snapshot) => snapshot.imageUrl))
+  Object.values(STORAGE_KEYS).forEach((key) => {
+    if (key !== STORAGE_KEYS.profile) wx.removeStorageSync(key)
+  })
+  try {
+    const app = getApp<IAppOption>()
+    app.globalData.footprints = []
+    app.globalData.footprintsCachedAt = Date.now()
+  } catch {
+    // App is not available in isolated repository use.
+  }
+}
+
+export const deleteAccount = async (): Promise<void> => {
+  const profile = getStored<UserProfile | null>(STORAGE_KEYS.profile, null)
+  const footprints = getStored<Footprint[]>(STORAGE_KEYS.footprints, [])
+  const snapshots = getStored<ShareSnapshot[]>(STORAGE_KEYS.shareSnapshots, [])
+  if (USE_CLOUD && cloudReady) {
+    await callCloud('accountMutation', { action: 'deleteAccount' })
+  }
+  await deleteLocalFiles([
+    profile?.avatarUrl,
+    ...footprints.flatMap((fp) => fp.photos),
+    ...snapshots.map((snapshot) => snapshot.imageUrl),
+  ])
+  Object.values(STORAGE_KEYS).forEach((key) => wx.removeStorageSync(key))
+  sessionReady = false
+  cloudReady = false
+  loginPromise = null
+}
+
+// ─── Draft persistence ───
+
+export const saveDraft = (draft: Partial<FootprintDraft>): void => {
+  setStored(STORAGE_KEYS.draft, draft)
+}
+
+export const loadDraft = (): Partial<FootprintDraft> | null =>
+  getStored<Partial<FootprintDraft> | null>(STORAGE_KEYS.draft, null)
+
+export const clearDraft = (): void => {
+  wx.removeStorageSync(STORAGE_KEYS.draft)
 }

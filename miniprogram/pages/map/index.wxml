@@ -1,0 +1,214 @@
+<view class="map-page theme-{{settings.theme}}" style="--status-bar: {{statusBarHeight}}px;">
+  <!-- Full screen map -->
+  <map
+    id="sgjMap"
+    class="map-canvas"
+    longitude="{{center.longitude}}"
+    latitude="{{center.latitude}}"
+    scale="{{scale}}"
+    subkey="{{mapStyleSubkey}}"
+    layer-style="{{mapLayerStyle}}"
+    markers="{{markers}}"
+    circles="{{growthCircles}}"
+    show-location="{{hasLocationAuth}}"
+    enable-rotate="{{false}}"
+    enable-overlooking="{{true}}"
+    enable-3D="{{false}}"
+    show-compass="{{false}}"
+    enable-zoom="{{true}}"
+    enable-scroll="{{true}}"
+    bindtap="onMapTap"
+    bindmarkertap="onMarkerTap"
+    bindregionchange="onRegionChange"
+  ></map>
+
+  <!-- Top safe area + mode switcher -->
+  <view class="map-topbar">
+    <view class="map-status-spacer"></view>
+    <view class="map-topbar-row">
+      <view class="mode-switcher">
+        <view
+          class="mode-pill {{mode === 'visited' ? 'is-active visited' : ''}}"
+          data-mode="visited"
+          bindtap="onModeTap"
+          role="button"
+          aria-label="足迹"
+        >
+          <local-icon name="location" size="28rpx" />
+          <text class="mode-pill-label">足迹</text>
+        </view>
+        <view
+          class="mode-pill {{mode === 'wishlist' ? 'is-active wishlist' : ''}}"
+          data-mode="wishlist"
+          bindtap="onModeTap"
+          role="button"
+          aria-label="想去"
+        >
+          <local-icon name="heart" size="28rpx" />
+          <text class="mode-pill-label">想去</text>
+        </view>
+      </view>
+      <view
+        class="lighting-shortcut {{mode === 'lighting' ? 'is-active' : ''}}"
+        data-mode="lighting"
+        bindtap="onModeTap"
+        role="button"
+        aria-label="查看点亮地图"
+      >
+        <local-icon name="sparkles" size="34rpx" />
+      </view>
+    </view>
+    <growth-state-chip
+      wx:if="{{growth}}"
+      state="{{growth.activeColorId}}"
+      label="{{growth.weeklyTitle}}"
+      timeframe="查看成长"
+      bind:tap="onGrowthTap"
+    />
+  </view>
+
+  <view wx:if="{{mode === 'visited' && (nearbyMemory || todayDrop)}}" class="map-memory-cue" bindtap="onMemoryCueTap">
+    <text class="map-memory-cue-eyebrow">{{nearbyMemory ? '附近的旧记忆' : '今日掉落'}}</text>
+    <text class="map-memory-cue-title">{{nearbyMemory ? '距离 ' + nearbyMemory.poiName + ' 约 ' + nearbyDistance + ' 米' : todayDrop.title}}</text>
+  </view>
+
+  <scroll-view
+    wx:if="{{activeFilterCount > 0}}"
+    class="active-filter-bar"
+    scroll-x
+    enhanced
+    show-scrollbar="{{false}}"
+  >
+    <view class="active-filter-list">
+      <view
+        wx:for="{{activeFilterChips}}"
+        wx:key="key"
+        class="active-filter-chip"
+        data-key="{{item.key}}"
+        bindtap="onFilterChipRemove"
+        role="button"
+        aria-label="移除筛选 {{item.label}}"
+      >
+        <text>{{item.label}}</text>
+        <text class="active-filter-close">×</text>
+      </view>
+    </view>
+  </scroll-view>
+
+  <!-- Lighting stats panel -->
+  <view wx:if="{{mode === 'lighting' && lighting}}" class="lighting-panel">
+    <view class="lighting-header">
+      <text class="eyebrow">LIGHTING MAP</text>
+      <text class="lighting-title">已点亮地图</text>
+    </view>
+    <view class="lighting-stats">
+      <view class="lighting-stat">
+        <text class="lighting-stat-value">{{lighting.places}}</text>
+        <text class="lighting-stat-label">地点</text>
+      </view>
+      <view class="lighting-stat">
+        <text class="lighting-stat-value">{{lighting.provinces}}</text>
+        <text class="lighting-stat-label">省份</text>
+      </view>
+      <view class="lighting-stat">
+        <text class="lighting-stat-value">{{lighting.cities}}</text>
+        <text class="lighting-stat-label">城市</text>
+      </view>
+      <view class="lighting-stat">
+        <text class="lighting-stat-value">{{lighting.photoCount}}</text>
+        <text class="lighting-stat-label">照片</text>
+      </view>
+    </view>
+    <view wx:if="{{lighting.litProvinces.length}}" class="lighting-list">
+      <text class="lighting-list-title">已点亮省份</text>
+      <view class="lighting-chips">
+        <text wx:for="{{lighting.litProvinces}}" wx:key="*this" class="chip is-active">{{item}}</text>
+      </view>
+    </view>
+    <view wx:if="{{growthCities.length}}" class="lighting-list">
+      <text class="lighting-list-title">城市生长 · 1 / 3 / 10 个地点</text>
+      <view class="lighting-chips">
+        <text wx:for="{{growthCities}}" wx:key="key" class="chip is-active">{{item.city}} Lv.{{item.level}} · {{item.places}} 处</text>
+      </view>
+    </view>
+    <view class="lighting-actions">
+      <button class="secondary-button" bindtap="onLightingExplore">生成点亮地图分享</button>
+    </view>
+  </view>
+
+  <view wx:if="{{unplacedFootprints.length && mode !== 'lighting'}}" class="unplaced-panel">
+    <text class="unplaced-title">未标注位置 · {{unplacedFootprints.length}}</text>
+    <scroll-view scroll-y class="unplaced-list">
+      <footprint-card wx:for="{{unplacedFootprints}}" wx:key="id" footprint="{{item}}" compact bind:tap="onUnplacedTap" />
+    </scroll-view>
+  </view>
+
+  <!-- Map controls (right side floating) -->
+  <map-controls
+    wx:if="{{tabReady}}"
+    mode="{{mode}}"
+    clusterEnabled="{{clusterEnabled}}"
+    filterActive="{{activeFilterCount > 0}}"
+    raised="{{modeEmpty && mode !== 'lighting'}}"
+    showShare="{{!modeEmpty}}"
+    bind:locate="onLocate"
+    bind:search="onSearch"
+    bind:filter="onFilter"
+    bind:settings="onSettings"
+    bind:share="onShare"
+    bind:clusterToggle="onMapControlClusterToggle"
+  ></map-controls>
+
+  <!-- Empty state -->
+  <view wx:if="{{modeEmpty && !loading && mode !== 'lighting'}}" class="map-empty">
+    <ip-mascot state="{{growth.activeColorId || 'journey'}}" expression="think" size="104rpx" motion="float" label="正在等你出发的小拾" />
+    <view class="map-empty-copy">
+      <text class="map-empty-title">{{modeEmptyTitle}}</text>
+      <text class="map-empty-description">{{modeEmptyDescription}}</text>
+    </view>
+    <view
+      class="map-empty-action"
+      bindtap="onEmptyAction"
+      role="button"
+      aria-label="{{mode === 'wishlist' ? '收藏想去地点' : '添加第一个足迹'}}"
+    >
+      <local-icon name="add-white" size="34rpx" />
+    </view>
+  </view>
+
+  <!-- Loading state -->
+  <view wx:if="{{loading}}" class="map-loading">
+    <view class="map-loading-dot"></view>
+    <text class="map-loading-text">加载中…</text>
+  </view>
+
+  <!-- Footprint detail sheet (half screen) -->
+  <view wx:if="{{detailVisible && selectedFootprint}}" class="detail-sheet-layer" catchtouchmove="preventMove">
+    <view class="detail-sheet-mask" bindtap="onDetailClose"></view>
+    <view class="detail-sheet">
+      <view class="detail-sheet-handle"></view>
+      <footprint-card
+        footprint="{{selectedFootprint}}"
+        bind:tap="onDetailTap"
+      ></footprint-card>
+      <view class="detail-sheet-actions">
+        <button class="text-button" bindtap="onDetailClose">收起</button>
+        <button class="text-button" bindtap="onDetailTap">查看详情 ›</button>
+      </view>
+      <view class="safe-bottom"></view>
+    </view>
+  </view>
+
+  <!-- Filter sheet -->
+  <filter-sheet
+    visible="{{filterVisible}}"
+    currentFilter="{{currentFilter}}"
+    moods="{{moods}}"
+    categories="{{categories}}"
+    bind:apply="onFilterApply"
+    bind:reset="onFilterReset"
+    bind:close="onFilterClose"
+  ></filter-sheet>
+
+  <privacy-popup></privacy-popup>
+</view>

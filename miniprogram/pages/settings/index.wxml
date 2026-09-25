@@ -1,0 +1,49 @@
+<view class="page-shell settings-page">
+  <text class="eyebrow">MAP APPEARANCE</text>
+  <text class="display-title">让地图像你的手账</text>
+
+  <view class="settings-section card">
+    <text class="section-title hand-underline">标记样式</text>
+    <view class="settings-grid">
+      <view
+        wx:for="{{markerOptions}}"
+        wx:key="value"
+        class="settings-option {{settings.markerStyle === item.value ? 'is-active' : ''}}"
+        data-value="{{item.value}}"
+        bindtap="selectMarker"
+      >
+        <view class="marker-sample marker-sample-{{item.value}}"><text>{{item.preview}}</text></view>
+        <text class="settings-option-title">{{item.label}}</text>
+        <text class="settings-option-hint">{{item.hint}}</text>
+      </view>
+    </view>
+  </view>
+
+  <view class="settings-section card">
+    <text class="section-title hand-underline">地图主题</text>
+    <view class="theme-list">
+      <view
+        wx:for="{{themeOptions}}"
+        wx:key="value"
+        class="theme-row {{settings.theme === item.value ? 'is-active' : ''}}"
+        data-value="{{item.value}}"
+        bindtap="selectTheme"
+      >
+        <view class="theme-swatch theme-{{item.value}}"></view>
+        <view class="theme-copy">
+          <text class="settings-option-title">{{item.label}}</text>
+          <text class="settings-option-hint">{{item.hint}}</text>
+        </view>
+        <text class="theme-check">{{settings.theme === item.value ? '✓' : ''}}</text>
+      </view>
+    </view>
+  </view>
+
+  <view class="settings-section settings-switch card">
+    <view>
+      <text class="settings-option-title">聚合相邻标记</text>
+      <text class="settings-option-hint">只改变显示方式，不会合并或删除足迹</text>
+    </view>
+    <switch checked="{{settings.clusterEnabled}}" color="#5B6CFF" bindchange="toggleCluster" />
+  </view>
+</view>

@@ -40,20 +40,6 @@ for (const page of appJson?.pages || []) {
   }
 }
 
-const requiredVisualAssets = [
-  'paper-texture.jpg',
-  'coconut-latte.jpg',
-  'milk-tea.jpg',
-  'claw-machine-empty.webp',
-  'claw-arm.webp',
-  'claw-prize-cup.webp',
-]
-
-for (const asset of requiredVisualAssets) {
-  const file = path.join(miniprogram, 'assets', asset)
-  if (!fs.existsSync(file)) errors.push(`缺少视觉资源：${path.relative(root, file)}`)
-}
-
 const visitMediaFiles = (directory) => {
   for (const entry of fs.readdirSync(directory, { withFileTypes: true })) {
     const file = path.join(directory, entry.name)
@@ -77,12 +63,13 @@ if (totalMediaBytes > maxMediaBytes) {
 
 const requiredCloudFunctions = [
   'login',
-  'recordMutation',
-  'wheelMutation',
+  'footprintMutation',
   'accountMutation',
-  'seedCatalog',
-  'subscriptionMutation',
-  'sendDrinkReminder',
+  'aiAssistant',
+  'travelPlanMutation',
+  'timeCapsuleMutation',
+  'sendCapsuleReminder',
+  'shareCode',
 ]
 
 for (const name of requiredCloudFunctions) {
@@ -98,5 +85,5 @@ if (errors.length) {
 }
 
 console.log(
-  `项目结构检查通过：${appJson.pages.length} 个页面、${requiredCloudFunctions.length} 个云函数、${requiredVisualAssets.length} 个视觉资源，媒体总量 ${Math.ceil(totalMediaBytes / 1024)} KB`,
+  `项目结构检查通过：${appJson.pages.length} 个页面、${requiredCloudFunctions.length} 个云函数、媒体总量 ${Math.ceil(totalMediaBytes / 1024)} KB`,
 )

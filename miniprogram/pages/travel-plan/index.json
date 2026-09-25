@@ -1,0 +1,6 @@
+{
+  "navigationBarTitleText": "旅行计划",
+  "usingComponents": {
+    "empty-state": "/components/empty-state/index"
+  }
+}

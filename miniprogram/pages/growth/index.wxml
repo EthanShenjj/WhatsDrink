@@ -1,0 +1,139 @@
+<view class="growth-page">
+  <view wx:if="{{loading}}" class="growth-loading">正在读取小拾的状态…</view>
+  <block wx:elif="{{snapshot}}">
+    <view class="growth-heading">
+      <text class="eyebrow">XIAOSHI GROWTH</text>
+      <text class="display-title">小拾成长计划</text>
+      <text class="growth-intro">你越持续记录生活，小拾就越丰富。</text>
+    </view>
+
+    <view class="state-card state-{{snapshot.activeColorId}}">
+      <view class="state-copy">
+        <text class="state-kicker">{{snapshot.weeklyTitle}}</text>
+        <text class="state-message">{{snapshot.weeklyMessage}}</text>
+        <view class="state-metrics">
+          <text>近 7 天 {{snapshot.recentVisitCount}} 条足迹</text>
+          <text>{{snapshot.shards}} 枚碎片</text>
+        </view>
+      </view>
+      <ip-mascot state="{{snapshot.activeColorId}}" expression="happy" size="224rpx" motion="float" label="当前状态的小拾" />
+    </view>
+
+    <view class="goal-card card">
+      <view class="goal-head">
+        <text class="goal-label">下一个成长目标</text>
+        <text class="goal-count">{{snapshot.nextGoalProgress}} / {{snapshot.nextGoalTarget}}</text>
+      </view>
+      <text class="goal-copy">{{snapshot.nextGoalText}}</text>
+      <view class="goal-track"><view class="goal-progress" style="width:{{progressPercent}}%"></view></view>
+    </view>
+
+    <view class="section-head">
+      <view><text class="section-title">本月拾光色</text><text class="section-sub">每月 1 日重新结算</text></view>
+      <button class="section-action" bindtap="onMonthlyReport">查看报告</button>
+    </view>
+    <view class="monthly-card card" bindtap="onMonthlyReport">
+      <ip-mascot state="{{snapshot.monthlyColorId}}" expression="companion" size="150rpx" label="本月的小拾" />
+      <view class="monthly-copy">
+        <text class="monthly-title">{{snapshot.monthlyTitle}}</text>
+        <text class="monthly-summary">{{snapshot.monthlySummary}}</text>
+        <text class="monthly-meta">{{snapshot.monthVisitCount}} 个地点 · {{snapshot.monthCityCount}} 座城市</text>
+      </view>
+      <text class="card-arrow">›</text>
+    </view>
+
+    <view class="section-head">
+      <view><text class="section-title">成长色谱</text><text class="section-sub">拾光+ 可锁定已解锁颜色</text></view>
+    </view>
+    <scroll-view class="color-scroll" scroll-x enhanced show-scrollbar="{{false}}">
+      <view class="color-list">
+        <view
+          wx:for="{{snapshot.colors}}"
+          wx:key="id"
+          class="color-card color-{{item.id}} {{!item.unlocked ? 'is-locked' : ''}} {{profile.growth.lockedColorId === item.id ? 'is-selected' : ''}}"
+          data-id="{{item.id}}"
+          bindtap="onColorTap"
+        >
+          <text wx:if="{{profile.growth.lockedColorId === item.id}}" class="selected-pill">已锁定</text>
+          <text wx:elif="{{!item.unlocked}}" class="locked-pill">{{item.hidden ? '???' : '待解锁'}}</text>
+          <ip-mascot state="{{item.id}}" expression="default" size="150rpx" label="{{item.name}}小拾" />
+          <text class="color-name">{{item.unlocked ? item.name : (item.hidden ? '隐藏款' : item.shortName)}}</text>
+          <text class="color-description">{{item.description}}</text>
+        </view>
+      </view>
+    </scroll-view>
+
+    <view wx:if="{{unlockedColorCount >= 3 || snapshot.isPlus}}" class="plus-card plus-card-inline">
+      <view class="plus-badge">拾光+</view>
+      <text class="plus-title">让小拾更像你</text>
+      <text class="plus-copy">自由切换、锁定和组合已解锁的颜色，让每段成长有自己的表达。</text>
+      <button class="plus-button" bindtap="onStartTrial" loading="{{saving}}">
+        {{snapshot.isPlus ? ('体验中 · 剩余 ' + snapshot.plusDaysLeft + ' 天') : '免费体验 7 天'}}
+      </button>
+      <text class="plus-footnote">基础成长色、表情和隐藏成就均可免费获得。</text>
+    </view>
+
+    <view class="section-head">
+      <view><text class="section-title">表情收集</text><text class="section-sub">{{snapshot.expressions.length}} 种生活表情</text></view>
+    </view>
+    <view class="expression-grid">
+      <view wx:for="{{snapshot.expressions}}" wx:key="id" class="expression-card {{!item.unlocked ? 'is-locked' : ''}}">
+        <ip-mascot state="{{item.mascotState}}" expression="{{item.id}}" size="112rpx" label="{{item.name}}表情" />
+        <text class="expression-name">{{item.unlocked ? item.name : '???'}}</text>
+        <text class="expression-copy">{{item.description}}</text>
+      </view>
+    </view>
+
+    <view class="section-head">
+      <view><text class="section-title">隐藏状态</text><text class="section-sub">条件不会全部写明</text></view>
+    </view>
+    <view class="hidden-card card">
+      <view wx:for="{{snapshot.hiddenStates}}" wx:key="id" class="hidden-row">
+        <view class="hidden-dot {{item.unlocked ? 'is-unlocked' : ''}}"></view>
+        <view class="hidden-copy">
+          <text class="hidden-name">{{item.unlocked ? item.name : '???'}}</text>
+          <text class="hidden-hint">{{item.hint}}</text>
+        </view>
+        <text class="hidden-status">{{item.unlocked ? '已发现' : '未发现'}}</text>
+      </view>
+    </view>
+
+    <view class="section-head">
+      <view><text class="section-title">小拾图标主题</text><text class="section-sub">同步到小拾头像与分享卡</text></view>
+    </view>
+    <view class="icon-card card">
+      <view class="icon-preview icon-{{iconColorId}}">
+        <ip-mascot state="{{iconColorId}}" expression="default" size="136rpx" label="当前图标主题" />
+      </view>
+      <view class="icon-copy">
+        <text class="icon-title">当前图标主题</text>
+        <text class="icon-note">微信暂不支持运行时替换入口图标，主题会用于应用内的小拾与分享内容。</text>
+      </view>
+      <scroll-view class="icon-options" scroll-x>
+        <view class="icon-option-list">
+          <view wx:for="{{snapshot.colors}}" wx:key="id" class="icon-option {{iconColorId === item.id ? 'is-active' : ''}} {{!item.unlocked ? 'is-locked' : ''}}" data-id="{{item.id}}" bindtap="onIconTap">
+            <ip-mascot state="{{item.id}}" expression="default" size="86rpx" label="{{item.name}}图标主题" />
+          </view>
+        </view>
+      </scroll-view>
+    </view>
+
+    <view wx:if="{{reportVisible}}" class="report-mask">
+      <view class="report-panel" catchtap="noop">
+        <view class="report-handle"></view>
+        <text class="report-kicker">MONTHLY MOMENTS</text>
+        <text class="report-title">{{snapshot.monthlyTitle}}</text>
+        <ip-mascot state="{{snapshot.monthlyColorId}}" expression="happy" size="190rpx" motion="pop" label="月度拾光色小拾" />
+        <text class="report-summary">{{snapshot.monthlySummary}}</text>
+        <view class="report-stats">
+          <view><text class="report-number">{{snapshot.monthVisitCount}}</text><text>新增地点</text></view>
+          <view><text class="report-number">{{snapshot.monthCityCount}}</text><text>新增城市</text></view>
+          <view><text class="report-number">+5</text><text>拾光碎片</text></view>
+        </view>
+        <button class="report-share" bindtap="onReportShare">生成分享卡</button>
+        <button class="report-close" bindtap="onReportClose">稍后再看</button>
+      </view>
+    </view>
+  </block>
+  <privacy-popup />
+</view>

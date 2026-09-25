@@ -1,0 +1,156 @@
+<view class="page-shell time-page">
+  <view class="time-header">
+    <text class="eyebrow">TIMELINE</text>
+    <view class="time-title-row">
+      <text class="display-title">我的时光</text>
+      <button class="time-capsule-button" bindtap="onCapsuleTap">
+        <local-icon name="clock" size="26rpx" />
+        <text>时光胶囊</text>
+      </button>
+    </view>
+  </view>
+
+  <brand-card wx:if="{{growth}}" variant="tint" interactive ariaLabel="查看本周小拾状态" bind:tap="onGrowthTap">
+    <view class="time-state-card">
+      <view class="time-state-copy">
+        <text class="time-state-kicker">本周小拾状态</text>
+        <text class="time-state-title">{{growth.weeklyTitle}}</text>
+        <text class="time-state-message">{{growth.weeklyMessage}}</text>
+        <growth-state-chip state="{{growth.activeColorId}}" label="{{growth.nextGoalText}}" interactive="{{false}}" />
+      </view>
+      <ip-mascot state="{{growth.activeColorId}}" expression="companion" size="172rpx" motion="float" label="本周的小拾" />
+    </view>
+  </brand-card>
+
+  <view wx:if="{{memoryDrops.length}}" class="memory-drop-section">
+    <view class="memory-drop-heading">
+      <text class="section-title">今日掉落</text>
+      <text class="muted">过去的记忆，今天重新遇见</text>
+    </view>
+    <scroll-view scroll-x class="memory-drop-scroll" show-scrollbar="{{false}}">
+      <view class="memory-drop-row">
+        <view wx:for="{{memoryDrops}}" wx:key="id" class="memory-drop-card card" data-id="{{item.id}}" bindtap="onMemoryDropTap">
+          <image wx:if="{{item.footprint.photos.length}}" class="memory-drop-image" src="{{item.footprint.photos[0]}}" mode="aspectFill" />
+          <view wx:else class="memory-drop-mascot"><ip-mascot state="companion" expression="happy" size="126rpx" label="重新遇见记忆的小拾" /></view>
+          <text class="memory-drop-kind">{{item.kind === 'anniversary' ? '周年记忆' : '最近的回忆'}}</text>
+          <text class="memory-drop-title">{{item.title}}</text>
+          <text wx:if="{{item.footprint.note}}" class="memory-drop-note">{{item.footprint.note}}</text>
+        </view>
+      </view>
+    </scroll-view>
+  </view>
+
+  <view class="time-view-switcher">
+    <view
+      class="time-view-option {{viewMode === 'calendar' ? 'is-active' : ''}}"
+      data-mode="calendar"
+      bindtap="onViewModeTap"
+    >日历</view>
+    <view
+      class="time-view-option {{viewMode === 'timeline' ? 'is-active' : ''}}"
+      data-mode="timeline"
+      bindtap="onViewModeTap"
+    >时间线</view>
+  </view>
+
+  <block wx:if="{{viewMode === 'calendar'}}">
+    <view class="month-nav">
+      <view class="month-nav-btn" bindtap="onPrevMonth" role="button" aria-label="上个月">
+        <text class="month-nav-arrow">‹</text>
+      </view>
+      <view class="month-nav-center">
+        <text class="month-nav-label">{{monthLabel}}</text>
+        <text class="month-nav-today" bindtap="onTodayJump" wx:if="{{selectedKey !== todayKey}}">回到今天</text>
+      </view>
+      <view class="month-nav-btn" bindtap="onNextMonth" role="button" aria-label="下个月">
+        <text class="month-nav-arrow">›</text>
+      </view>
+    </view>
+
+    <view class="calendar-wrapper card">
+      <calendar-grid
+        cells="{{cells}}"
+        year="{{year}}"
+        month="{{month}}"
+        selectedKey="{{selectedKey}}"
+        bind:select="onCellSelect"
+      ></calendar-grid>
+    </view>
+
+    <view class="calendar-meta">
+      <text class="muted">本月共 {{monthFootprintCount}} 个足迹</text>
+    </view>
+
+    <view class="timeline-section">
+      <view class="timeline-header">
+        <text class="section-title hand-underline">{{selectedDateLabel}}</text>
+        <text class="muted" wx:if="{{selectedFootprints.length}}">· {{selectedFootprints.length}} 个足迹</text>
+      </view>
+
+      <view wx:if="{{selectedFootprints.length}}" class="timeline-list">
+        <footprint-card
+          wx:for="{{selectedFootprints}}"
+          wx:key="id"
+          footprint="{{item}}"
+          bind:tap="onFootprintTap"
+        ></footprint-card>
+      </view>
+
+      <ip-feedback
+        wx:elif="{{!loading}}"
+        type="empty"
+        state="journey"
+        expression="think"
+        title="这一天还没有足迹"
+        description="为这一天留下一段值得回味的记忆"
+        actionText="去添加"
+        bind:action="onAddFootprint"
+      ></ip-feedback>
+
+      <view wx:else class="timeline-loading">
+        <text class="muted">加载中…</text>
+      </view>
+    </view>
+  </block>
+
+  <view wx:else class="all-timeline">
+    <ip-feedback
+      wx:if="{{empty && !loading}}"
+      type="empty"
+      state="journey"
+      expression="depart"
+      title="时间线还是空的"
+      description="记录第一处地点后，回忆会在这里按时间生长"
+      actionText="添加足迹"
+      bind:action="onAddFootprint"
+    ></ip-feedback>
+    <view wx:elif="{{loading}}" class="timeline-loading">
+      <text class="muted">加载中…</text>
+    </view>
+    <view wx:else class="timeline-groups">
+      <view
+        wx:for="{{timelineGroups}}"
+        wx:key="key"
+        wx:for-item="group"
+        class="timeline-group"
+      >
+        <view class="timeline-group-date">
+          <view class="timeline-dot"></view>
+          <text>{{group.label}}</text>
+          <text class="muted">{{group.footprints.length}} 个地点</text>
+        </view>
+        <view class="timeline-group-cards">
+          <footprint-card
+            wx:for="{{group.footprints}}"
+            wx:key="id"
+            wx:for-item="footprint"
+            footprint="{{footprint}}"
+            bind:tap="onFootprintTap"
+          ></footprint-card>
+        </view>
+      </view>
+    </view>
+  </view>
+
+  <privacy-popup></privacy-popup>
+</view>

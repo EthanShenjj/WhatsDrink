@@ -1,0 +1,247 @@
+<view class="page-shell form-page {{loading ? 'is-loading' : ''}}">
+  <view wx:if="{{loading}}" class="form-loading">
+    <text class="muted">加载中…</text>
+  </view>
+
+  <block wx:else>
+    <view wx:if="{{status === 'wishlist' || status === 'fulfilled'}}" class="form-wishlist-banner">
+      <text class="form-wishlist-tag">{{status === 'fulfilled' ? '已实现' : '想去'}}</text>
+      <text class="form-wishlist-hint">{{status === 'fulfilled' ? '原来的心愿会一直留在这里' : '记录一个想去的地点，到访时可一键转为足迹'}}</text>
+    </view>
+
+    <!-- 核心字段：地点 -->
+    <view class="form-section">
+      <view class="form-field">
+        <view class="form-field-label">
+          <text>地点</text>
+          <text class="form-field-required">*</text>
+        </view>
+        <view class="form-poi-row">
+          <input
+            class="form-poi-input"
+            value="{{poiName}}"
+            placeholder="填写或选择地点名称"
+            maxlength="40"
+            bindinput="onPoiNameInput"
+            aria-label="地点名称"
+          />
+          <button class="form-poi-button" bindtap="onChooseLocation">
+            <local-icon name="location" size="28rpx" />
+            <text>选择位置</text>
+          </button>
+        </view>
+        <text class="form-field-hint">只填地点也可保存；选择位置后会在地图上显示标记。</text>
+        <input
+          wx:if="{{address}}"
+          class="form-address-display"
+          value="{{address}}"
+          disabled
+          aria-label="地址"
+        />
+      </view>
+
+      <!-- 核心字段：日期（仅 visited 显示） -->
+      <view wx:if="{{status === 'visited'}}" class="form-field">
+        <view class="form-field-label">
+          <text>日期</text>
+        </view>
+        <picker mode="date" value="{{visitDate}}" bindchange="onDateChange">
+          <view class="form-date-picker">
+            <text>{{visitDate || '选择日期'}}</text>
+            <local-icon name="calendar" size="28rpx" />
+          </view>
+        </picker>
+      </view>
+    </view>
+
+    <!-- 可选字段折叠区 -->
+    <view class="form-section form-optional">
+      <view class="form-optional-toggle" bindtap="toggleOptional">
+        <text class="form-optional-title">更多（照片 / 心情 / 标记）</text>
+        <text class="form-optional-arrow {{optionalOpen ? 'is-open' : ''}}">›</text>
+      </view>
+
+      <block wx:if="{{optionalOpen}}">
+        <!-- 照片 -->
+        <view wx:if="{{status === 'visited'}}" class="form-field">
+          <view class="form-field-label">
+            <text>照片</text>
+            <text class="form-field-hint">最多 9 张</text>
+          </view>
+          <photo-uploader
+            photos="{{photos}}"
+            max="{{9}}"
+            bind:add="onPhotoAdd"
+            bind:remove="onPhotoRemove"
+          />
+        </view>
+
+        <!-- 心情 -->
+        <view class="form-field">
+          <view class="form-field-label">
+            <text>心情</text>
+          </view>
+          <mood-picker value="{{mood}}" bind:change="onMoodChange" />
+        </view>
+
+        <!-- 类别 -->
+        <view class="form-field">
+          <view class="form-field-label">
+            <text>类别</text>
+          </view>
+          <scroll-view scroll-x class="form-chips-scroll" enhanced show-scrollbar="{{false}}">
+            <view class="form-chips-row">
+              <view
+                wx:for="{{categoryOptions}}"
+                wx:key="value"
+                class="chip form-category-chip {{category === item.value ? 'is-active' : ''}}"
+                data-value="{{item.value}}"
+                bindtap="selectCategory"
+              >
+                <text class="form-category-emoji">{{item.emoji}}</text>
+                <text>{{item.label}}</text>
+              </view>
+            </view>
+          </scroll-view>
+        </view>
+
+        <!-- 标签 -->
+        <view class="form-field">
+          <view class="form-field-label">
+            <text>标签</text>
+            <text class="form-field-hint">最多 8 个</text>
+          </view>
+          <view class="form-tags-input-row">
+            <input
+              class="form-tag-input"
+              value="{{inputValue}}"
+              placeholder="输入标签后点击添加"
+              maxlength="12"
+              bindinput="onTagInput"
+              bindconfirm="addTag"
+              aria-label="标签"
+            />
+            <button class="form-tag-add-button" bindtap="addTag">添加</button>
+          </view>
+          <view wx:if="{{tags.length}}" class="form-tags-list">
+            <view
+              wx:for="{{tags}}"
+              wx:key="*this"
+              class="chip form-tag-chip"
+            >
+              <text>{{item}}</text>
+              <text class="form-tag-remove" data-index="{{index}}" bindtap="removeTag">×</text>
+            </view>
+          </view>
+        </view>
+
+        <!-- 短记 -->
+        <view class="form-field">
+          <view class="form-field-label">
+            <text>短记</text>
+          </view>
+          <textarea
+            class="form-note"
+            value="{{note}}"
+            placeholder="记下此刻的感受…"
+            maxlength="500"
+            auto-height
+            bindinput="onNoteInput"
+            aria-label="短记"
+          />
+        </view>
+
+        <!-- 标记样式 -->
+        <view class="form-field">
+          <view class="form-field-label">
+            <text>标记样式</text>
+            <text class="form-field-hint">地图上的样式</text>
+          </view>
+          <view class="form-marker-preview">
+            <view
+              class="form-marker-dot"
+              style="background: {{markerColor}};"
+            >
+              <text wx:if="{{markerEmoji}}" class="form-marker-emoji">{{markerEmoji}}</text>
+            </view>
+            <text class="muted form-marker-preview-text">预览</text>
+          </view>
+          <view class="form-marker-colors">
+            <view
+              wx:for="{{markerColors}}"
+              wx:key="value"
+              class="form-marker-color-swatch {{markerColor === item.value ? 'is-active' : ''}}"
+              style="background: {{item.color}};"
+              data-value="{{item.value}}"
+              bindtap="selectMarkerColor"
+            >
+              <text wx:if="{{markerColor === item.value}}" class="form-marker-color-check">✓</text>
+            </view>
+          </view>
+          <scroll-view scroll-x class="form-marker-emojis-scroll" enhanced show-scrollbar="{{false}}">
+            <view class="form-marker-emojis-row">
+              <view
+                wx:for="{{markerEmojis}}"
+                wx:key="*this"
+                class="form-marker-emoji-swatch {{markerEmoji === item ? 'is-active' : ''}}"
+                data-value="{{item}}"
+                bindtap="selectMarkerEmoji"
+              >
+                <text>{{item}}</text>
+              </view>
+            </view>
+          </scroll-view>
+        </view>
+
+        <view class="form-field form-visibility-row">
+          <view>
+            <text class="form-field-label form-visibility-label">允许生成分享卡</text>
+            <text class="form-field-hint">默认仅自己可见，开启后仍不会公开足迹</text>
+          </view>
+          <switch
+            checked="{{visibility === 'share_only'}}"
+            color="#5B6CFF"
+            bindchange="onVisibilityChange"
+            aria-label="允许生成分享卡"
+          />
+        </view>
+      </block>
+    </view>
+
+    <!-- 底部操作 -->
+    <view class="form-actions">
+      <button
+        class="primary-button"
+        loading="{{saving}}"
+        disabled="{{saving}}"
+        bindtap="onSave"
+      >
+        {{saving ? '保存中…' : (convertedFromWishlist ? '保存为去过' : '保存')}}
+      </button>
+      <button
+        wx:if="{{isEditing}}"
+        class="form-delete-button"
+        disabled="{{saving}}"
+        bindtap="onDelete"
+      >
+        删除此足迹
+      </button>
+    </view>
+    <view class="safe-bottom"></view>
+  </block>
+
+  <view wx:if="{{successVisible}}" class="form-success-layer">
+    <view class="form-success-mask"></view>
+    <view class="form-success-panel">
+      <ip-feedback
+        type="success"
+        state="{{successState}}"
+        expression="happy"
+        title="{{successTitle}}"
+        description="{{successDescription}}"
+        actionText="完成"
+        bind:action="onSuccessClose"
+      />
+    </view>
+  </view>
+</view>

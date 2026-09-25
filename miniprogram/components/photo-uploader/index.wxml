@@ -1,0 +1,38 @@
+<view class="photo-grid">
+  <view
+    wx:for="{{photoList}}"
+    wx:key="index"
+    class="photo-cell"
+  >
+    <image
+      class="photo-img"
+      src="{{item.url}}"
+      mode="aspectFill"
+      lazy-load
+      data-index="{{item.index}}"
+      bindtap="onPreview"
+      role="button"
+      aria-label="预览照片"
+    />
+    <view
+      class="photo-remove"
+      data-index="{{item.index}}"
+      catchtap="onRemove"
+      role="button"
+      aria-label="删除照片"
+    >
+      <image class="photo-remove-icon" src="/assets/icons/delete.svg" mode="aspectFit" />
+    </view>
+  </view>
+
+  <view
+    wx:if="{{showAdd}}"
+    class="photo-add"
+    bindtap="onAdd"
+    role="button"
+    aria-label="{{addLabel}}"
+  >
+    <image class="photo-add-icon" src="/assets/icons/add-circle.svg" mode="aspectFit" />
+    <text class="photo-add-text">{{addLabel}}</text>
+  </view>
+</view>

@@ -1,0 +1,12 @@
+.profile-page { padding-bottom: 80rpx; }
+.profile-loading { padding: 120rpx 0; text-align: center; }
+.profile-card { margin: 32rpx 0 24rpx; padding: 38rpx 32rpx; }
+.avatar-wrap { position: relative; width: 150rpx; height: 150rpx; margin: 0 auto; }
+.avatar-image,
+.avatar-placeholder { width: 150rpx; height: 150rpx; border-radius: 50%; }
+.avatar-placeholder { display: flex; align-items: center; justify-content: center; background: var(--moss-soft); color: var(--moss-deep); }
+.avatar-edit { position: absolute; right: -2rpx; bottom: 4rpx; display: flex; align-items: center; justify-content: center; width: 52rpx; height: 52rpx; border: 5rpx solid #fff; border-radius: 50%; background: var(--brand-gradient); color: #fff; box-shadow: var(--shadow-control); }
+.avatar-hint { display: block; margin: 12rpx 0 34rpx; color: var(--muted); font-size: 22rpx; text-align: center; }
+.profile-field { margin-top: 20rpx; }
+.profile-label { display: block; margin-bottom: 10rpx; color: var(--ink); font-size: 25rpx; font-weight: 650; }
+.profile-field input { height: var(--control-height); padding: 0 22rpx; border: 1rpx solid var(--line); border-radius: var(--radius-sm); background: var(--surface-soft); }

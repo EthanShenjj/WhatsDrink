@@ -1,7 +1,7 @@
 {
   "appid": "wxd29da814d2b50d53",
-  "projectname": "WhatsDrink",
-  "description": "记录每天喝什么，并用 Choice One 帮你做决定",
+  "projectname": "Shiguangji",
+  "description": "拾光迹 - 把走过的地方，留成一张会长大的地图",
   "compileType": "miniprogram",
   "miniprogramRoot": "miniprogram/",
   "cloudfunctionRoot": "cloudfunctions/",

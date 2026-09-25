@@ -9,14 +9,14 @@
     bindsubmit="confirm"
     catchtap="preventClose"
     role="dialog"
-    aria-label="微信快捷登录"
+    aria-label="完善个人资料"
   >
     <view class="login-sheet-handle"></view>
     <view class="login-sheet-header">
       <text class="login-sheet-kicker">WELCOME</text>
-      <text class="login-sheet-title">登录后记录这杯</text>
+      <text class="login-sheet-title">完善你的拾光身份</text>
       <text class="login-sheet-description">
-        使用微信头像和昵称，开始记录生活里的每一杯
+        使用微信头像和昵称，创建只属于你的拾光身份
       </text>
     </view>
 
@@ -66,14 +66,14 @@
         loading="{{saving}}"
         disabled="{{saving}}"
       >
-        {{saving ? '正在登录…' : '确认并登录'}}
+        {{saving ? '正在保存…' : '完成设置'}}
       </button>
       <button
         class="login-cancel-button"
         disabled="{{saving}}"
         catchtap="cancel"
       >
-        暂不登录
+        暂不设置
       </button>
     </view>
     <text class="login-sheet-footnote">头像和昵称仅用于完善你的个人资料</text>

@@ -1,59 +1,95 @@
-import { describe, expect, it } from 'vitest'
-import type { DrinkRecord } from '../miniprogram/domain/types'
-import {
-  buildMonthGrid,
-  dateKey,
-  getWeekDays,
-  summarizeRecords,
-  timestampFromDateAndTime,
-} from '../miniprogram/utils/date'
+import { describe, it, expect } from 'vitest'
+import { dateKey, todayKey, buildMonthGrid, formatVisitDate, daysUntil, addDays } from '../miniprogram/utils/date'
+import type { Footprint } from '../miniprogram/domain/types'
 
-const record = (id: string, calories?: number): DrinkRecord => ({
-  id,
-  category: 'coffee',
-  brandName: '测试品牌',
-  drinkName: '测试饮品',
-  size: '中杯',
-  temperature: '冰',
-  sweetness: '标准糖',
-  calorieKcal: calories,
-  calorieSource: 'user',
-  note: '',
-  consumedAt: Date.now(),
-  clientRequestId: `request-${id}`,
-  createdAt: Date.now(),
-  updatedAt: Date.now(),
+describe('dateKey', () => {
+  it('formats a Date correctly', () => {
+    const date = new Date(2026, 8, 22) // Sep 22, 2026
+    expect(dateKey(date)).toBe('2026-09-22')
+  })
+
+  it('formats a timestamp correctly', () => {
+    const ts = new Date(2026, 0, 5).getTime()
+    expect(dateKey(ts)).toBe('2026-01-05')
+  })
+
+  it('formats a date string correctly', () => {
+    expect(dateKey('2026-12-31')).toBe('2026-12-31')
+  })
 })
 
-describe('date utilities', () => {
-  it('builds the correct Monday-to-Sunday week around 2026-07-23', () => {
-    const anchor = new Date(2026, 6, 23, 12)
-    const days = getWeekDays(anchor)
-    expect(days.map((day) => day.day)).toEqual([20, 21, 22, 23, 24, 25, 26])
-    expect(days.map((day) => day.weekday)).toEqual(['一', '二', '三', '四', '五', '六', '日'])
-    expect(days.find((day) => day.isToday)?.key).toBe('2026-07-23')
+describe('todayKey', () => {
+  it('returns today as a key string', () => {
+    const today = new Date()
+    const expected = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`
+    expect(todayKey()).toBe(expected)
+  })
+})
+
+describe('formatVisitDate', () => {
+  it('returns 今天 for today', () => {
+    expect(formatVisitDate(todayKey())).toBe('今天')
   })
 
-  it('builds a 42-cell July 2026 month grid beginning on Monday', () => {
-    const cells = buildMonthGrid(2026, 6, new Date(2026, 6, 23))
-    expect(cells).toHaveLength(42)
-    expect(cells[0].key).toBe('2026-06-29')
-    expect(cells[2].key).toBe('2026-07-01')
-    expect(cells.find((cell) => cell.isToday)?.key).toBe('2026-07-23')
+  it('returns formatted date for other days', () => {
+    expect(formatVisitDate('2026-06-15')).toBe('2026年6月15日')
   })
 
-  it('sums only known calories and reports missing values', () => {
-    expect(summarizeRecords([record('a', 180), record('b'), record('c', 106)])).toEqual({
-      count: 3,
-      knownCalories: 286,
-      unknownCaloriesCount: 1,
-    })
+  it('returns 今天 for undefined', () => {
+    expect(formatVisitDate(undefined)).toBe('今天')
+  })
+})
+
+describe('buildMonthGrid', () => {
+  it('returns 42 cells', () => {
+    const grid = buildMonthGrid(2026, 8, [])
+    expect(grid).toHaveLength(42)
   })
 
-  it('combines local date and time without UTC drift', () => {
-    const timestamp = timestampFromDateAndTime('2026-07-23', '09:10')
-    expect(dateKey(timestamp)).toBe('2026-07-23')
-    expect(new Date(timestamp).getHours()).toBe(9)
-    expect(new Date(timestamp).getMinutes()).toBe(10)
+  it('marks cells with footprints', () => {
+    const fps: Footprint[] = [
+      {
+        id: '1', userId: 'u', status: 'visited', poiName: 'Test',
+        visitDate: '2026-09-15', photos: ['photo.jpg'], tags: [],
+        visibility: 'private', source: 'manual', clientRequestId: 'r',
+        createdAt: 0, updatedAt: 0,
+      },
+    ]
+    const grid = buildMonthGrid(2026, 8, fps)
+    const cellWithFootprint = grid.find((c) => c.key === '2026-09-15')
+    expect(cellWithFootprint?.footprintCount).toBe(1)
+    expect(cellWithFootprint?.previewPhoto).toBe('photo.jpg')
+  })
+
+  it('starts on Monday', () => {
+    const grid = buildMonthGrid(2026, 8, []) // Sep 2026
+    // Sep 1, 2026 is a Tuesday, so the grid should start on Mon Aug 31
+    expect(grid[0].key).toBe('2026-08-31')
+  })
+})
+
+describe('daysUntil', () => {
+  it('returns 0 for today', () => {
+    expect(daysUntil(todayKey())).toBe(0)
+  })
+
+  it('returns positive for future', () => {
+    const future = addDays(todayKey(), 30)
+    expect(daysUntil(future)).toBe(30)
+  })
+
+  it('returns negative for past', () => {
+    const past = addDays(todayKey(), -5)
+    expect(daysUntil(past)).toBe(-5)
+  })
+})
+
+describe('addDays', () => {
+  it('adds days correctly', () => {
+    expect(addDays('2026-01-01', 10)).toBe('2026-01-11')
+  })
+
+  it('handles month boundary', () => {
+    expect(addDays('2026-01-30', 5)).toBe('2026-02-04')
   })
 })

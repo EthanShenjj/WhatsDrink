@@ -1,0 +1,49 @@
+<view
+  wx:if="{{footprint}}"
+  class="fp-card {{compact ? 'is-compact' : ''}} {{footprint.status !== 'visited' ? 'is-wishlist' : ''}}"
+  bindtap="onTap"
+  role="button"
+  aria-label="{{footprint.poiName}}"
+>
+  <view class="fp-thumb">
+    <image
+      wx:if="{{derived.photo}}"
+      class="fp-thumb-img"
+      src="{{derived.photo}}"
+      mode="aspectFill"
+      lazy-load
+    />
+    <view wx:else class="fp-thumb-placeholder">
+      <image class="fp-thumb-icon" src="/assets/icons/image.svg" mode="aspectFit" />
+    </view>
+    <view class="fp-status-badge">{{derived.statusLabel}}</view>
+  </view>
+
+  <view class="fp-body">
+    <view class="fp-head">
+      <text class="fp-title">{{footprint.poiName}}</text>
+      <text wx:if="{{derived.dateLabel}}" class="fp-date">{{derived.dateLabel}}</text>
+    </view>
+
+    <view wx:if="{{derived.locationLabel}}" class="fp-meta">
+      <image class="fp-meta-icon" src="/assets/icons/location.svg" mode="aspectFit" />
+      <text class="fp-meta-text">{{derived.locationLabel}}</text>
+    </view>
+
+    <view class="fp-tags">
+      <view wx:if="{{derived.categoryLabel}}" class="fp-chip">
+        <text class="fp-chip-emoji">{{derived.categoryEmoji}}</text>
+        <text class="fp-chip-text">{{derived.categoryLabel}}</text>
+      </view>
+      <view wx:if="{{derived.moodLabel}}" class="fp-chip is-mood">
+        <text class="fp-chip-emoji">{{derived.moodEmoji}}</text>
+        <text class="fp-chip-text">{{derived.moodLabel}}</text>
+      </view>
+    </view>
+
+    <text
+      wx:if="{{derived.notePreview && !compact}}"
+      class="fp-note"
+    >{{derived.notePreview}}</text>
+  </view>
+</view>

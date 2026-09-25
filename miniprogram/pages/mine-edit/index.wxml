@@ -1,0 +1,23 @@
+<view class="page-shell profile-page">
+  <text class="eyebrow">PROFILE</text>
+  <text class="display-title">编辑个人资料</text>
+
+  <view wx:if="{{loading}}" class="profile-loading"><text class="muted">加载中…</text></view>
+  <block wx:else>
+    <view class="profile-card card">
+      <view class="avatar-wrap" bindtap="chooseAvatar">
+        <image wx:if="{{avatarUrl}}" class="avatar-image" src="{{avatarUrl}}" mode="aspectFill" />
+        <view wx:else class="avatar-placeholder"><local-icon name="user" size="52rpx" /></view>
+        <view class="avatar-edit"><local-icon name="camera" size="28rpx" /></view>
+      </view>
+      <text class="avatar-hint">点击更换头像</text>
+
+      <view class="profile-field">
+        <text class="profile-label">昵称</text>
+        <input value="{{nickname}}" maxlength="20" placeholder="给自己一个名字" bindinput="onNicknameInput" />
+      </view>
+    </view>
+
+    <button class="primary-button" loading="{{saving}}" disabled="{{saving}}" bindtap="onSave">保存资料</button>
+  </block>
+</view>

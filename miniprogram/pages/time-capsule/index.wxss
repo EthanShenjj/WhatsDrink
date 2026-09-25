@@ -1,0 +1,26 @@
+.capsule-page { padding-bottom: 100rpx; }
+.capsule-intro { display: block; margin-top: 12rpx; color: var(--muted); font-size: 24rpx; }
+.capsule-new { margin-top: 28rpx; }
+.capsule-form { margin-top: 28rpx; padding: 30rpx; }
+.field-label { display: block; margin: 24rpx 0 10rpx; color: var(--ink); font-size: 25rpx; font-weight: 600; }
+.field-input, .field-textarea { width: 100%; min-height: 80rpx; padding: 18rpx 22rpx; border: 1rpx solid var(--line); border-radius: var(--radius-sm); background: var(--surface-soft); color: var(--ink); font-size: 26rpx; }
+.field-textarea { min-height: 130rpx; }
+.field-picker { display: flex; align-items: center; justify-content: space-between; }
+.reminder-row { display: flex; align-items: center; justify-content: space-between; gap: 20rpx; margin-top: 26rpx; color: var(--ink); font-size: 25rpx; }
+.reminder-hint { display: block; margin-top: 8rpx; color: var(--muted); font-size: 20rpx; }
+.form-actions { display: flex; gap: 14rpx; margin-top: 32rpx; }
+.form-actions button { flex: 1; min-width: 0; }
+.capsule-list { margin-top: 40rpx; }
+.capsule-item { display: flex; align-items: center; gap: 18rpx; margin-top: 18rpx; padding: 26rpx; }
+.capsule-symbol { display: flex; width: 62rpx; height: 62rpx; align-items: center; justify-content: center; border-radius: 22rpx; background: var(--surface-high); }
+.capsule-copy { display: flex; min-width: 0; flex: 1; flex-direction: column; }
+.capsule-title { color: var(--ink); font-size: 27rpx; font-weight: 600; }
+.capsule-date { color: var(--muted); font-size: 21rpx; }
+.capsule-arrow { color: var(--outline); font-size: 38rpx; }
+.detail-layer { position: fixed; z-index: 200; inset: 0; display: flex; align-items: center; justify-content: center; padding: 40rpx; }
+.detail-mask { position: absolute; inset: 0; background: rgba(23, 24, 43, 0.48); }
+.detail-card { position: relative; width: 100%; max-height: 75vh; padding: 34rpx; overflow-y: auto; }
+.detail-date { display: block; margin-top: 10rpx; color: var(--muted); font-size: 22rpx; }
+.detail-text { display: block; margin: 30rpx 0; color: var(--ink); font-size: 28rpx; line-height: 1.7; white-space: pre-wrap; }
+.detail-photo { width: 180rpx; height: 180rpx; margin: 0 12rpx 22rpx 0; border-radius: var(--radius-sm); }
+.delete-button { margin-top: 12rpx; background: transparent; color: var(--danger); font-size: 23rpx; }

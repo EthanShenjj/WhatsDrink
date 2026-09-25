@@ -237,6 +237,47 @@ final result: passed
 
 final result: blocked
 
+
+---
+
+# 小拾成长计划 Design QA — 2026-09-24
+
+**Source visual truth**
+
+- 角色与状态参考：`/var/folders/nx/ww_j5y216qz18dj4jlst6pdh0000gn/T/codex-clipboard-f4ee8988-8d76-444a-aaff-09da50662287.png`
+- 暖色隐藏款参考：`/var/folders/nx/ww_j5y216qz18dj4jlst6pdh0000gn/T/codex-clipboard-a071dbf5-aec5-48e2-bf0d-a9643ff05268.png`
+- App Icon 参考：`/var/folders/nx/ww_j5y216qz18dj4jlst6pdh0000gn/T/codex-clipboard-b8af6697-138d-485a-848c-f95c32586bfa.png`
+- 目标：在现有拾光迹视觉体系内落地周状态色、月度拾光色、表情收集、隐藏状态、会员颜色锁定与图标主题。
+
+**Implementation evidence**
+
+- Runtime: WeChat Developer Tools 2.02.2609212 Nightly, iPhone 12/13 Pro simulator, 390 × 753 CSS px.
+- Surfaces reviewed together with the source boards: `pages/mine/index`, `pages/growth/index`, and monthly `pages/share-card/index?type=map&month=2026-09`.
+- Interactions verified: open growth hub, start the one-time 7-day trial, lock/unlock an earned color, settle the monthly report for +5 shards, open the in-app monthly report panel, and navigate to the monthly share card.
+- Static and automated gates: project structure passed, TypeScript passed, 61 tests passed, packaged media total 161 KB.
+- Runtime note: the simulator still reports the pre-existing CloudBase `Failed to fetch` / `read ECONNRESET` condition; repository fallback kept the growth flow functional for local verification.
+
+**Findings and fixes**
+
+- Pass 1 — P1: using the full design board as a runtime crop exposed labels and white card edges around the mascot.
+  - Fix: extracted the six approved state characters into lightweight transparent WebP assets and reused them through one `xiaoshi-mascot` component.
+- Pass 2 — P1: the native monthly modal settled shards but did not render reliably in the simulator.
+  - Fix: replaced it with an in-app bottom report panel containing monthly color, summary, three metrics, and a share-card action.
+- Pass 3 — P2: the first report mask used the unsupported `inset` shorthand and was present in accessibility output without visible bounds.
+  - Fix: set explicit `top/right/bottom/left: 0`; the panel and dimmed mask rendered correctly at 390 × 753.
+- Typography and hierarchy: the blue-purple hero, weekly status, progress goal, monthly color, collection areas, and dark premium card follow the selected light, playful reference without replacing the app’s existing warm paper system.
+- Asset fidelity: all mascot art comes from the user-selected boards; no emoji, CSS mascot drawing, or placeholder illustration was added.
+- Product behavior: free users retain all earned colors, expressions, and hidden states; the trial only changes expression freedom through color lock and theme selection.
+- Platform variance: WeChat mini programs cannot replace the launcher icon at runtime, so the paid icon theme is honestly scoped to the in-app mascot and share output.
+
+**Open variances**
+
+- The source boards use a cool white presentation canvas. The implementation keeps the existing warm paper background so the growth system feels native to the current product.
+- Empty test data intentionally shows the default state and locked collection items; rule coverage verifies exploration, highlight, dawn, and Plus-lock states with synthetic footprints.
+
+final result: passed
+
+
 ---
 
 # WhatsDrink Login Sheet Design QA

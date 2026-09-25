@@ -1,7 +1,0 @@
-{
-  "navigationBarTitleText": "Profile",
-  "usingComponents": {
-    "wd-icon": "/components/local-icon/index",
-    "privacy-popup": "/components/privacy-popup/index"
-  }
-}

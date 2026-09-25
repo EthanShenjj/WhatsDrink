@@ -1,45 +1,55 @@
 {
   "pages": [
-    "pages/home/index",
-    "pages/calendar/index",
-    "pages/choice/index",
-    "pages/profile/index",
-    "pages/record-form/index",
-    "pages/wheel-edit/index",
-    "pages/profile-edit/index",
-    "pages/privacy/index"
+    "pages/map/index",
+    "pages/time/index",
+    "pages/guide/index",
+    "pages/mine/index",
+    "pages/growth/index",
+    "pages/footprint-form/index",
+    "pages/footprint-detail/index",
+    "pages/share-card/index",
+    "pages/settings/index",
+    "pages/mine-edit/index",
+    "pages/privacy/index",
+    "pages/travel-plan/index",
+    "pages/time-capsule/index"
   ],
   "window": {
-    "navigationBarTitleText": "WhatsDrink",
-    "navigationBarBackgroundColor": "#FDFCFB",
+    "navigationBarTitleText": "拾光迹",
+    "navigationBarBackgroundColor": "#F7F8FF",
     "navigationBarTextStyle": "black",
-    "backgroundColor": "#FDFCFB",
-    "backgroundTextStyle": "light"
+    "backgroundColor": "#F7F8FF",
+    "backgroundTextStyle": "dark"
   },
   "tabBar": {
     "custom": true,
-    "color": "#4F453F",
-    "selectedColor": "#97472C",
-    "backgroundColor": "#FDFCFB",
+    "color": "#6F7489",
+    "selectedColor": "#5B6CFF",
+    "backgroundColor": "#FFFFFF",
     "list": [
       {
-        "pagePath": "pages/home/index",
-        "text": "今日"
+        "pagePath": "pages/map/index",
+        "text": "地图"
       },
       {
-        "pagePath": "pages/calendar/index",
-        "text": "日历"
+        "pagePath": "pages/time/index",
+        "text": "时光"
       },
       {
-        "pagePath": "pages/choice/index",
-        "text": "Choice One"
-      },
-      {
-        "pagePath": "pages/profile/index",
+        "pagePath": "pages/mine/index",
         "text": "我的"
       }
     ]
   },
+  "permission": {
+    "scope.userLocation": {
+      "desc": "用于在地图上定位你的位置和创建足迹"
+    }
+  },
+  "requiredPrivateInfos": [
+    "getLocation",
+    "chooseLocation"
+  ],
   "style": "v2",
   "lazyCodeLoading": "requiredComponents",
   "sitemapLocation": "sitemap.json"

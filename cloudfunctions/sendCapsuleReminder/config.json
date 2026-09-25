@@ -1,0 +1,9 @@
+{
+  "triggers": [
+    {
+      "name": "dailyCapsuleReminder",
+      "type": "timer",
+      "config": "0 0 9 * * * *"
+    }
+  ]
+}

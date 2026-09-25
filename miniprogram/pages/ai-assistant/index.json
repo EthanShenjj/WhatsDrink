@@ -1,0 +1,9 @@
+{
+  "navigationBarTitleText": "AI 小拾",
+  "usingComponents": {
+    "ip-mascot": "/components/ip-mascot/index",
+    "local-icon": "/components/local-icon/index",
+    "photo-uploader": "/components/photo-uploader/index",
+    "mood-picker": "/components/mood-picker/index"
+  }
+}

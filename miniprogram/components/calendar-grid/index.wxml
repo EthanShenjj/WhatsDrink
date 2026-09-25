@@ -1,0 +1,35 @@
+<view class="cal-grid">
+  <view class="cal-weekdays">
+    <view
+      wx:for="{{weekdays}}"
+      wx:key="*this"
+      class="cal-weekday"
+    >{{item}}</view>
+  </view>
+
+  <view class="cal-cells">
+    <view
+      wx:for="{{cellViews}}"
+      wx:key="key"
+      class="cal-cell {{item.inMonth ? 'in-month' : 'out-month'}} {{item.isToday ? 'is-today' : ''}} {{item.hasFootprint ? 'has-fp' : ''}} {{item.isSelected ? 'is-selected' : ''}}"
+      data-key="{{item.key}}"
+      data-inmonth="{{item.inMonth}}"
+      bindtap="onSelect"
+      role="button"
+      aria-label="{{item.day}}"
+    >
+      <view wx:if="{{item.previewPhoto}}" class="cell-thumb-wrap">
+        <image class="cell-thumb" src="{{item.previewPhoto}}" mode="aspectFill" lazy-load />
+        <text class="cell-day cell-day-on-thumb">{{item.day}}</text>
+      </view>
+      <view wx:elif="{{item.moodEmoji}}" class="cell-emoji">
+        <text class="cell-emoji-text">{{item.moodEmoji}}</text>
+        <text class="cell-day">{{item.day}}</text>
+      </view>
+      <view wx:else class="cell-default">
+        <text class="cell-day">{{item.day}}</text>
+        <view wx:if="{{item.hasFootprint}}" class="cell-dot"></view>
+      </view>
+    </view>
+  </view>
+</view>

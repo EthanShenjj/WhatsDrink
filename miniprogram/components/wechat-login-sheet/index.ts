@@ -1,8 +1,8 @@
 import type { UserProfile } from '../../domain/types'
 import {
-  loginForRecordAccess,
+  loginForAccess,
   saveProfile,
-  uploadRecordPhoto,
+  uploadPhoto,
 } from '../../services/repository'
 
 Component({
@@ -47,13 +47,13 @@ Component({
 
       this.setData({ saving: true })
       try {
-        await loginForRecordAccess()
-        const avatarUrl = await uploadRecordPhoto(selectedAvatarUrl)
+        await loginForAccess()
+        const avatarUrl = await uploadPhoto(selectedAvatarUrl)
         const profile = await saveProfile({ nickname, avatarUrl })
         this.triggerEvent<{ profile: UserProfile }>('success', { profile })
       } catch {
         this.setData({ saving: false })
-        wx.showToast({ title: '登录失败，请重试', icon: 'none' })
+        wx.showToast({ title: '保存失败，请重试', icon: 'none' })
       }
     },
     cancel() {

@@ -1,0 +1,118 @@
+.cal-grid {
+  width: 100%;
+}
+
+.cal-weekdays {
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+  margin-bottom: 16rpx;
+  padding: 0 8rpx;
+}
+
+.cal-weekday {
+  text-align: center;
+  color: var(--muted);
+  font-size: 22rpx;
+  font-weight: 600;
+  letter-spacing: 1rpx;
+}
+
+.cal-cells {
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+  gap: 8rpx;
+}
+
+.cal-cell {
+  position: relative;
+  display: flex;
+  aspect-ratio: 1 / 1;
+  align-items: center;
+  justify-content: center;
+  border-radius: var(--radius-sm);
+  background: transparent;
+  overflow: hidden;
+  transition: background 160ms ease-out;
+}
+
+.cal-cell.in-month {
+  background: var(--surface-soft);
+}
+
+.cal-cell.in-month:active {
+  background: var(--surface-highest);
+}
+
+.cal-cell.out-month {
+  opacity: 0.35;
+}
+
+.cal-cell.is-today {
+  box-shadow: inset 0 0 0 2rpx #8C95FF;
+}
+
+.cal-cell.has-fp:not(.is-today) {
+  background: #E9EBFF;
+}
+
+.cal-cell.is-selected { background: linear-gradient(135deg, #5B76FF, #A88BFF) !important; box-shadow: 0 8rpx 20rpx rgba(91,108,255,.24); }
+.cal-cell.is-selected .cell-day { color: #fff; }
+.cal-cell.is-selected .cell-dot { background: #fff; }
+
+.cell-default {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 4rpx;
+}
+
+.cell-day {
+  color: var(--ink);
+  font-size: 26rpx;
+  font-weight: 600;
+  line-height: 1.2;
+}
+
+.cell-day-on-thumb {
+  position: absolute;
+  bottom: 6rpx;
+  right: 8rpx;
+  padding: 2rpx 8rpx;
+  border-radius: 99rpx;
+  background: rgba(23, 24, 43, 0.62);
+  color: #fff;
+  font-size: 18rpx;
+  font-weight: 600;
+}
+
+.cell-dot {
+  width: 8rpx;
+  height: 8rpx;
+  border-radius: 50%;
+  background: var(--brand-primary);
+}
+
+.cell-thumb-wrap {
+  position: relative;
+  width: 100%;
+  height: 100%;
+}
+
+.cell-thumb {
+  width: 100%;
+  height: 100%;
+}
+
+.cell-emoji {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 2rpx;
+}
+
+.cell-emoji-text {
+  font-size: 30rpx;
+  line-height: 1;
+}

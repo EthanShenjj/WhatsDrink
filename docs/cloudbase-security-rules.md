@@ -1,21 +1,10 @@
 # CloudBase 安全规则
 
-这些规则在 CloudBase 控制台逐个集合设置。客户端只读取数据，所有个人数据写入都经过云函数并由 `cloud.getWXContext()` 取得 OpenID。
+这些规则在 CloudBase 控制台逐个集合设置。个人数据的读取和写入都经过云函数，由 `cloud.getWXContext()` 取得 OpenID，再按 `_openid` 过滤和校验。
 
 ## 数据库
 
-`user_profiles`、`drink_records`、`wheels`：
-
-```json
-{
-  "read": "doc._openid == auth.openid",
-  "write": false
-}
-```
-
-客户端查询个人集合时必须带上 `_openid: "{openid}"` 条件；项目中的 repository 已这样处理。
-
-`reminder_subscriptions` 只允许通过云函数访问：
+`user_profiles`、`footprints`、`travel_plans`、`time_capsules`、`share_snapshots`：
 
 ```json
 {
@@ -24,20 +13,11 @@
 }
 ```
 
-`brands`、`drinks`：
-
-```json
-{
-  "read": true,
-  "write": false
-}
-```
-
-目录只允许通过管理员云函数或控制台维护。
+客户端不直接查询这些集合；`footprintMutation`、`travelPlanMutation` 和 `timeCapsuleMutation` 的 `list` 动作会在云函数中按当前 OpenID 查询。
 
 ## 云存储
 
-饮品与头像照片采用“仅创建者可读写”：
+足迹照片与头像采用"仅创建者可读写"：
 
 ```json
 {
@@ -48,14 +28,12 @@
 
 ## 云函数
 
-`login`、`recordMutation`、`wheelMutation`、`accountMutation`、`subscriptionMutation` 设置为：
+`login`、`footprintMutation`、`accountMutation`、`aiAssistant`、`travelPlanMutation`、`timeCapsuleMutation`、`shareCode` 设置为：
 
 ```text
 auth != null
 ```
 
-`seedCatalog` 设置为 `false`，只从控制台调用；同时配置环境变量 `ADMIN_OPENIDS`，值为允许初始化目录的 OpenID，多个值用英文逗号分隔。
-
-`sendDrinkReminder` 设置为 `false`，只允许定时触发器或云开发控制台调用。
+`sendCapsuleReminder` 设置为 `false`，只允许定时触发器或云开发控制台调用。
 
 规则语法依据 CloudBase 官方的[数据库安全规则](https://docs.cloudbase.net/database/security-rules)、[云存储安全规则](https://docs.cloudbase.net/storage/security-rules)和[云函数安全规则](https://docs.cloudbase.net/cloud-function/security-rules)。

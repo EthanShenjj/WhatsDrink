@@ -1,21 +1,31 @@
 <view class="page-shell privacy-page">
-  <text class="eyebrow">DATA & PRIVACY</text>
+  <text class="eyebrow">DATA &amp; PRIVACY</text>
   <text class="display-title">你的记录，只属于你</text>
 
   <view class="privacy-section">
     <text class="section-title hand-underline">我们保存什么</text>
-    <text>微信身份对应的内部用户标识、你主动填写的头像昵称、饮品记录、自定义转盘，以及你主动上传的饮品照片。</text>
+    <text>微信身份对应的内部用户标识、你主动填写的头像昵称，以及你创建的地点、日期、照片、心情、短记、想去清单、旅行计划和时光胶囊。</text>
   </view>
   <view class="privacy-section">
     <text class="section-title hand-underline">为什么需要</text>
-    <text>这些数据只用于登录识别、同步个人记录、展示日历与转盘结果。热量只作为个人记录参考，不提供医疗、营养或减脂建议。</text>
+    <text>这些数据只用于识别用户、保存个人记录，以及在地图、日历和时间线中展示你的私人回忆。MVP 不提供公开个人主页。</text>
   </view>
   <view class="privacy-section">
     <text class="section-title hand-underline">你可以控制</text>
-    <text>你可以随时编辑或删除单条记录，在“我的”中清除全部记录，或者注销账号并删除个人资料、记录、照片和自定义转盘。</text>
+    <text>足迹默认仅自己可见。你可以随时编辑或删除单条记录，也可以在“我的”中清除足迹、照片、计划与胶囊。</text>
   </view>
   <view class="privacy-section">
-    <text class="section-title hand-underline">照片权限</text>
-    <text>只有当你主动点击“添加一张照片”时，才会请求相册或相机能力。拒绝权限不会影响其他记录功能。</text>
+    <text class="section-title hand-underline">按需权限</text>
+    <text>只有主动定位、选地点、拍照或选择照片时，才会请求对应能力。拒绝定位后仍可搜索或手动填写地点；拒绝照片权限也能无图创建足迹。</text>
   </view>
+  <view class="privacy-section">
+    <text class="section-title hand-underline">订阅提醒</text>
+    <text>时光胶囊的微信提醒需单独授权，拒绝后胶囊仍会保存在应用内，你也可以随时在系统设置中管理授权。</text>
+  </view>
+  <view class="privacy-section">
+    <text class="section-title hand-underline">分享保护</text>
+    <text>分享卡默认隐藏详细地址，不展示经纬度，并可继续隐藏日期与短记。分享图片一旦保存或转发到外部，拾光迹无法替你撤回。</text>
+  </view>
+
+  <button class="secondary-button privacy-settings-button" bindtap="onOpenSettings">管理系统权限</button>
 </view>

@@ -1,0 +1,51 @@
+<view class="page-shell capsule-page">
+  <text class="eyebrow">A LETTER TO LATER</text>
+  <text class="display-title">时光胶囊</text>
+  <text class="capsule-intro">写给未来的自己，等时间到了再开启。</text>
+  <button class="primary-button capsule-new" bindtap="onNew">封存一段回忆</button>
+
+  <view wx:if="{{formVisible}}" class="capsule-form card">
+    <text class="section-title">新的胶囊</text>
+    <text class="field-label">标题</text>
+    <input class="field-input" value="{{title}}" placeholder="例如 毕业后的第一年" maxlength="60" bindinput="onTitleInput" />
+    <text class="field-label">想对未来说的话</text>
+    <textarea class="field-textarea" value="{{text}}" placeholder="此刻的心情、想记住的事…" maxlength="2000" auto-height bindinput="onTextInput" />
+    <text class="field-label">关联足迹（选填）</text>
+    <picker wx:if="{{footprints.length}}" mode="selector" range="{{footprints}}" range-key="poiName" value="{{footprintIndex}}" bindchange="onFootprintChange">
+      <view class="field-input field-picker">{{footprintId ? footprints[footprintIndex].poiName : '选择一条足迹'}} ›</view>
+    </picker>
+    <text wx:else class="muted">还没有去过的足迹，也可以只写留言。</text>
+    <text class="field-label">照片（选填）</text>
+    <photo-uploader photos="{{photos}}" max="{{9}}" bind:add="onPhotoAdd" bind:remove="onPhotoRemove" />
+    <text class="field-label">解锁日期</text>
+    <picker mode="date" value="{{unlockDate}}" start="{{today}}" bindchange="onDateChange"><view class="field-input field-picker">{{unlockDate}} ›</view></picker>
+    <view wx:if="{{reminderAvailable}}" class="reminder-row"><view><text>微信提醒</text><text class="reminder-hint">需要单独授权；拒绝后仍可在这里打开</text></view><switch checked="{{wantsReminder}}" color="#5B6CFF" bindchange="onReminderChange" /></view>
+    <text wx:else class="reminder-hint">到期后可在“时光”中打开。微信提醒尚未配置。</text>
+    <view class="form-actions"><button class="secondary-button" bindtap="onCancel">取消</button><button class="primary-button" loading="{{saving}}" disabled="{{saving}}" bindtap="onSave">保存胶囊</button></view>
+  </view>
+
+  <view class="capsule-list">
+    <text class="section-title">我的胶囊</text>
+    <view wx:if="{{capsules.length}}">
+      <view wx:for="{{capsules}}" wx:key="id" class="capsule-item card" data-id="{{item.id}}" bindtap="onCapsuleTap">
+        <view class="capsule-symbol"><local-icon name="{{item.status === 'locked' ? 'lock' : 'sparkles'}}" size="34rpx" /></view>
+        <view class="capsule-copy"><text class="capsule-title">{{item.title}}</text><text class="capsule-date">{{item.status === 'locked' ? '将于 ' + item.unlockDate + ' 解锁' : '已解锁'}}</text></view>
+        <text class="capsule-arrow">›</text>
+      </view>
+    </view>
+    <empty-state wx:elif="{{!loading}}" title="还没有时光胶囊" description="为未来的自己留一句话，或封存一段足迹。" />
+  </view>
+
+  <view wx:if="{{selectedCapsule}}" class="detail-layer">
+    <view class="detail-mask" bindtap="onCloseDetail"></view>
+    <view class="detail-card card">
+      <text class="eyebrow">A MOMENT RETURNED</text>
+      <text class="section-title">{{selectedCapsule.title}}</text>
+      <text class="detail-date">{{selectedCapsule.unlockDate}} · 已解锁</text>
+      <text wx:if="{{selectedCapsule.text}}" class="detail-text">{{selectedCapsule.text}}</text>
+      <image wx:for="{{selectedCapsule.photos}}" wx:key="*this" class="detail-photo" src="{{item}}" mode="aspectFill" />
+      <button class="secondary-button" bindtap="onCloseDetail">收起</button>
+      <button class="delete-button" data-id="{{selectedCapsule.id}}" bindtap="onDelete">删除胶囊</button>
+    </view>
+  </view>
+</view>

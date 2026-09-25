@@ -1,0 +1,9 @@
+{
+  "navigationBarTitleText": "攻略",
+  "usingComponents": {
+    "local-icon": "/components/local-icon/index",
+    "footprint-card": "/components/footprint-card/index",
+    "empty-state": "/components/empty-state/index",
+    "privacy-popup": "/components/privacy-popup/index"
+  }
+}

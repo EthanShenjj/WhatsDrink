@@ -1,0 +1,15 @@
+<view class="map-controls {{raised ? 'is-raised' : ''}}">
+  <view
+    wx:for="{{buttons}}"
+    wx:key="key"
+    wx:if="{{item.key !== 'share' || showShare}}"
+    class="mc-button {{item.key === 'filter' && filterActive ? 'has-badge' : ''}}"
+    data-event="{{item.event}}"
+    bindtap="onTap"
+    role="button"
+    aria-label="{{item.label}}"
+  >
+    <image class="mc-icon" src="/assets/icons/{{item.icon}}.svg" mode="aspectFit" />
+    <view wx:if="{{item.key === 'filter' && filterActive}}" class="mc-badge"></view>
+  </view>
+</view>

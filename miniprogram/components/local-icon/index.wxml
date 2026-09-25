@@ -1,7 +1,8 @@
 <image
+  wx:if="{{iconSrc}}"
   class="local-icon"
-  src="/assets/icons/{{name}}.svg"
-  style="width: {{size}}; height: {{size}};"
+  src="{{iconSrc}}"
+  style="width:{{size}};height:{{size}};{{color ? 'color:' + color : ''}}"
   mode="aspectFit"
   aria-hidden="true"
 />

@@ -1,0 +1,141 @@
+<view
+  wx:if="{{visible}}"
+  class="filter-layer"
+  catchtouchmove="preventMove"
+>
+  <view class="filter-mask" catchtap="close"></view>
+  <view class="filter-sheet" catchtap="preventMove" role="dialog" aria-label="筛选足迹">
+    <view class="filter-handle"></view>
+    <view class="filter-header">
+      <text class="filter-title">筛选</text>
+      <view class="filter-close" bindtap="close" role="button" aria-label="关闭">
+        <image class="filter-close-icon" src="/assets/icons/delete.svg" mode="aspectFit" />
+      </view>
+    </view>
+
+    <scroll-view scroll-y class="filter-body">
+      <view class="filter-section">
+        <view class="section-head">
+          <text class="section-name">时间</text>
+          <text
+            wx:if="{{localFilter.dateStart || localFilter.dateEnd}}"
+            class="section-clear"
+            bindtap="clearDate"
+          >清除</text>
+        </view>
+        <view class="date-row">
+          <picker
+            mode="date"
+            class="date-picker"
+            value="{{localFilter.dateStart || ''}}"
+            end="{{localFilter.dateEnd || today}}"
+            bindchange="onDateStartChange"
+          >
+            <view class="date-pill">
+              <text class="date-pill-text">{{localFilter.dateStart || '开始日期'}}</text>
+              <image class="date-pill-icon" src="/assets/icons/chevron-down.svg" mode="aspectFit" />
+            </view>
+          </picker>
+          <text class="date-sep">至</text>
+          <picker
+            mode="date"
+            class="date-picker"
+            value="{{localFilter.dateEnd || ''}}"
+            start="{{localFilter.dateStart || ''}}"
+            end="{{today}}"
+            bindchange="onDateEndChange"
+          >
+            <view class="date-pill">
+              <text class="date-pill-text">{{localFilter.dateEnd || '结束日期'}}</text>
+              <image class="date-pill-icon" src="/assets/icons/chevron-down.svg" mode="aspectFit" />
+            </view>
+          </picker>
+        </view>
+      </view>
+
+      <view class="filter-section">
+        <view class="section-head">
+          <text class="section-name">地区</text>
+          <text
+            wx:if="{{localFilter.province || localFilter.city}}"
+            class="section-clear"
+            bindtap="clearRegion"
+          >清除</text>
+        </view>
+        <view class="region-row">
+          <picker
+            mode="selector"
+            class="region-picker"
+            range="{{provinces}}"
+            value="{{provinceIndex}}"
+            bindchange="onProvinceChange"
+          >
+            <view class="region-pill">
+              <text class="region-pill-text">{{localFilter.province || '选择省份'}}</text>
+              <image class="region-pill-icon" src="/assets/icons/chevron-down.svg" mode="aspectFit" />
+            </view>
+          </picker>
+          <picker
+            wx:if="{{cities.length > 0}}"
+            mode="selector"
+            class="region-picker"
+            range="{{cities}}"
+            value="{{cityIndex}}"
+            bindchange="onCityChange"
+          >
+            <view class="region-pill">
+              <text class="region-pill-text">{{localFilter.city || '选择城市'}}</text>
+              <image class="region-pill-icon" src="/assets/icons/chevron-down.svg" mode="aspectFit" />
+            </view>
+          </picker>
+        </view>
+      </view>
+
+      <view class="filter-section">
+        <view class="section-head">
+          <text class="section-name">类别</text>
+        </view>
+        <view class="chip-grid">
+          <view
+            wx:for="{{categoryOptions}}"
+            wx:key="value"
+            class="chip-item {{localFilter.category === item.value ? 'is-active' : ''}}"
+            data-value="{{item.value}}"
+            bindtap="toggleCategory"
+            role="button"
+            aria-label="{{item.label}}"
+          >
+            <text class="chip-emoji">{{item.emoji}}</text>
+            <text class="chip-text">{{item.label}}</text>
+          </view>
+        </view>
+      </view>
+
+      <view class="filter-section">
+        <view class="section-head">
+          <text class="section-name">心情</text>
+        </view>
+        <view class="chip-grid">
+          <view
+            wx:for="{{moodOptions}}"
+            wx:key="value"
+            class="chip-item {{localFilter.mood === item.value ? 'is-active is-mood' : ''}}"
+            data-value="{{item.value}}"
+            bindtap="toggleMood"
+            role="button"
+            aria-label="{{item.label}}"
+          >
+            <text class="chip-emoji">{{item.emoji}}</text>
+            <text class="chip-text">{{item.label}}</text>
+          </view>
+        </view>
+      </view>
+    </scroll-view>
+
+    <view class="filter-footer">
+      <view class="filter-reset" bindtap="reset" role="button">重置</view>
+      <view class="filter-apply" bindtap="apply" role="button">应用筛选</view>
+    </view>
+    <view class="safe-bottom"></view>
+  </view>
+</view>
