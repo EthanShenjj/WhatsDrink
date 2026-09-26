@@ -13,11 +13,12 @@ import {
 } from '../../services/repository'
 import { createDefaultFootprint } from '../../utils/footprint'
 import { placeKey, visitsAtPlace } from '../../utils/footprint'
-import { todayKey } from '../../utils/date'
+import { todayKey, dateKey } from '../../utils/date'
 import {
   CATEGORY_OPTIONS,
   MARKER_COLORS,
   MARKER_EMOJIS,
+  moodLabel,
 } from '../../data/options'
 
 interface PageData {
@@ -53,6 +54,15 @@ interface PageData {
   loading: boolean
   saving: boolean
   optionalOpen: boolean
+  optionalSummary: string
+  canSave: boolean
+  draftRestorable: boolean
+  draftDiscarded: boolean
+  pendingDraft?: Partial<FootprintDraft>
+  dateShortcuts: Array<{ label: string; value: string }>
+  pendingUploads: string[]
+  uploadFailedCount: number
+  uploadRetrying: boolean
   categoryOptions: typeof CATEGORY_OPTIONS
   markerColors: typeof MARKER_COLORS
   markerEmojis: typeof MARKER_EMOJIS
@@ -98,6 +108,15 @@ Page<PageData, WechatMiniprogram.IAnyObject>({
     loading: false,
     saving: false,
     optionalOpen: false,
+    optionalSummary: '',
+    canSave: false,
+    draftRestorable: false,
+    draftDiscarded: false,
+    pendingDraft: undefined,
+    dateShortcuts: [],
+    pendingUploads: [],
+    uploadFailedCount: 0,
+    uploadRetrying: false,
     categoryOptions: CATEGORY_OPTIONS,
     markerColors: MARKER_COLORS,
     markerEmojis: MARKER_EMOJIS,
@@ -113,6 +132,15 @@ Page<PageData, WechatMiniprogram.IAnyObject>({
     const status: FootprintStatus = query.status === 'wishlist' ? 'wishlist' : 'visited'
     const convertingWishlist = query.convert === '1'
     wx.setNavigationBarTitle({ title: status === 'wishlist' ? '新增想去' : '新增足迹' })
+
+    const yesterday = new Date()
+    yesterday.setDate(yesterday.getDate() - 1)
+    this.setData({
+      dateShortcuts: [
+        { label: '今天', value: todayKey() },
+        { label: '昨天', value: dateKey(yesterday) },
+      ],
+    })
 
     const revisiting = Boolean(query.revisit)
     const sourceId = query.id || query.revisit
@@ -162,6 +190,7 @@ Page<PageData, WechatMiniprogram.IAnyObject>({
           wx.setNavigationBarTitle({
             title: convertingWishlist ? '记录这次到访' : revisiting ? '再记一次' : fp.status === 'wishlist' ? '编辑想去' : fp.status === 'fulfilled' ? '编辑已实现愿望' : '编辑足迹',
           })
+          this.updateFormState()
           wx.hideLoading()
         })
         .catch(() => {
@@ -197,49 +226,72 @@ Page<PageData, WechatMiniprogram.IAnyObject>({
         }
       }
       this.setData(baseData as WechatMiniprogram.IAnyObject)
+      this.updateFormState()
 
       const saved = loadDraft()
       if (saved && (saved.poiName || saved.note)) {
-        wx.showModal({
-          title: '恢复草稿',
-          content: '检测到上次未保存的内容，是否恢复？',
-          confirmText: '恢复',
-          cancelText: '丢弃',
-          success: (res) => {
-            if (res.confirm) {
-              this.setData({
-                status: saved.status,
-                placeId: saved.placeId,
-                poiName: saved.poiName || this.data.poiName,
-                address: saved.address || this.data.address,
-                lat: saved.lat ?? this.data.lat,
-                lng: saved.lng ?? this.data.lng,
-                country: saved.country || this.data.country,
-                province: saved.province || this.data.province,
-                city: saved.city || this.data.city,
-                district: saved.district || this.data.district,
-                visitDate: saved.visitDate || this.data.visitDate,
-                photos: saved.photos || this.data.photos,
-                mood: saved.mood || this.data.mood,
-                category: saved.category || this.data.category,
-                tags: saved.tags || this.data.tags,
-                note: saved.note || this.data.note,
-                markerColor: saved.markerStyle?.color || this.data.markerColor,
-                markerEmoji: saved.markerStyle?.emoji || this.data.markerEmoji,
-                source: saved.source || this.data.source,
-                wishlistCreatedAt: saved.wishlistCreatedAt,
-              })
-            } else {
-              clearDraft()
-            }
-          },
-        })
+        this.setData({ draftRestorable: true, pendingDraft: saved })
       }
     }
   },
 
+  updateFormState() {
+    const d = this.data
+    const canSave = Boolean(d.poiName.trim())
+    const parts: string[] = []
+    if (d.status === 'visited' && d.photos.length) parts.push(`${d.photos.length} 张照片`)
+    if (d.mood) parts.push(moodLabel(d.mood))
+    if (d.tags.length) parts.push(`${d.tags.length} 个标签`)
+    if (d.note && d.note.trim()) parts.push('有短记')
+    const optionalSummary = parts.join(' · ')
+    if (canSave !== d.canSave || optionalSummary !== d.optionalSummary) {
+      this.setData({ canSave, optionalSummary })
+    }
+  },
+
+  onRestoreDraft() {
+    const saved = this.data.pendingDraft
+    if (!saved) return
+    this.setData({
+      status: saved.status || this.data.status,
+      placeId: saved.placeId,
+      poiName: saved.poiName || this.data.poiName,
+      address: saved.address || this.data.address,
+      lat: saved.lat ?? this.data.lat,
+      lng: saved.lng ?? this.data.lng,
+      country: saved.country || this.data.country,
+      province: saved.province || this.data.province,
+      city: saved.city || this.data.city,
+      district: saved.district || this.data.district,
+      visitDate: saved.visitDate || this.data.visitDate,
+      photos: saved.photos || this.data.photos,
+      mood: saved.mood || this.data.mood,
+      category: saved.category || this.data.category,
+      tags: saved.tags || this.data.tags,
+      note: saved.note || this.data.note,
+      markerColor: saved.markerStyle?.color || this.data.markerColor,
+      markerEmoji: saved.markerStyle?.emoji || this.data.markerEmoji,
+      source: saved.source || this.data.source,
+      wishlistCreatedAt: saved.wishlistCreatedAt,
+      draftRestorable: false,
+      pendingDraft: undefined,
+      optionalOpen: Boolean(saved.note || saved.tags?.length),
+    })
+    this.updateFormState()
+  },
+
+  onDiscardDraft() {
+    clearDraft()
+    this.setData({ draftRestorable: false, pendingDraft: undefined, draftDiscarded: true })
+  },
+
   onUnload() {
-    if (!this.data.saved && !this.data.id && (this.data.poiName || this.data.note || this.data.photos.length)) {
+    if (
+      !this.data.saved &&
+      !this.data.draftDiscarded &&
+      !this.data.id &&
+      (this.data.poiName || this.data.note || this.data.photos.length)
+    ) {
       const draft: FootprintDraft = {
         placeId: this.data.placeId,
         status: this.data.status,
@@ -272,6 +324,7 @@ Page<PageData, WechatMiniprogram.IAnyObject>({
 
   onPoiNameInput(e: WechatMiniprogram.Input) {
     this.setData({ poiName: e.detail.value || '' })
+    this.updateFormState()
   },
 
   onAddressInput(e: WechatMiniprogram.Input) {
@@ -287,21 +340,35 @@ Page<PageData, WechatMiniprogram.IAnyObject>({
           lat: res.latitude,
           lng: res.longitude,
         })
+        this.updateFormState()
       },
       fail: () => {},
     })
+  },
+
+  onClearLocation() {
+    this.setData({ address: '', lat: undefined, lng: undefined })
   },
 
   onDateChange(e: WechatMiniprogram.PickerChange) {
     this.setData({ visitDate: String(e.detail.value) })
   },
 
+  onDateShortcutTap(
+    e: WechatMiniprogram.TouchEvent & { currentTarget: { dataset: { value: string } } },
+  ) {
+    this.setData({ visitDate: e.currentTarget.dataset.value })
+  },
+
   onNoteInput(e: WechatMiniprogram.TextareaInput) {
     this.setData({ note: e.detail.value || '' })
+    this.updateFormState()
   },
 
   onMoodChange(e: WechatMiniprogram.CustomEvent<{ value: string }>) {
-    this.setData({ mood: e.detail.value })
+    const value = e.detail.value
+    this.setData({ mood: value === this.data.mood ? '' : value })
+    this.updateFormState()
   },
 
   selectCategory(
@@ -327,6 +394,7 @@ Page<PageData, WechatMiniprogram.IAnyObject>({
       return
     }
     this.setData({ tags: [...this.data.tags, tag], inputValue: '' })
+    this.updateFormState()
   },
 
   removeTag(
@@ -336,6 +404,7 @@ Page<PageData, WechatMiniprogram.IAnyObject>({
     const tags = [...this.data.tags]
     tags.splice(index, 1)
     this.setData({ tags })
+    this.updateFormState()
   },
 
   selectMarkerColor(
@@ -351,8 +420,24 @@ Page<PageData, WechatMiniprogram.IAnyObject>({
     this.setData({ markerEmoji: value === this.data.markerEmoji ? '' : value })
   },
 
+  uploadPhotos(tempPaths: string[]) {
+    if (!tempPaths.length) return
+    wx.showLoading({ title: '上传中…', mask: true })
+    return Promise.all(tempPaths.map((p) => uploadPhoto(p)))
+      .then((uploaded) => {
+        this.setData({ photos: [...this.data.photos, ...uploaded] })
+        this.updateFormState()
+      })
+      .catch(() => {
+        const pending = [...new Set([...this.data.pendingUploads, ...tempPaths])]
+        this.setData({ pendingUploads: pending, uploadFailedCount: pending.length })
+        wx.showToast({ title: '上传失败，可点击重试', icon: 'none' })
+      })
+      .finally(() => wx.hideLoading())
+  },
+
   onPhotoAdd() {
-    const remaining = 9 - this.data.photos.length
+    const remaining = 9 - this.data.photos.length - this.data.pendingUploads.length
     if (remaining <= 0) {
       wx.showToast({ title: '最多 9 张照片', icon: 'none' })
       return
@@ -361,20 +446,25 @@ Page<PageData, WechatMiniprogram.IAnyObject>({
       count: remaining,
       mediaType: ['image'],
       sizeType: ['compressed'],
-      success: async (res) => {
-        wx.showLoading({ title: '上传中…', mask: true })
-        const tempPaths = res.tempFiles.map((f) => f.tempFilePath)
-        try {
-          const uploaded = await Promise.all(tempPaths.map((p) => uploadPhoto(p)))
-          this.setData({ photos: [...this.data.photos, ...uploaded] })
-        } catch (err) {
-          wx.showToast({ title: '上传失败', icon: 'none' })
-        } finally {
-          wx.hideLoading()
-        }
+      success: (res) => {
+        this.uploadPhotos(res.tempFiles.map((f) => f.tempFilePath))
       },
       fail: () => {},
     })
+  },
+
+  onRetryUpload() {
+    if (this.data.uploadRetrying) return
+    const tempPaths = this.data.pendingUploads
+    if (!tempPaths.length) return
+    this.setData({ uploadRetrying: true })
+    this.uploadPhotos(tempPaths)
+      ?.then(() => {
+        this.setData({ pendingUploads: [], uploadFailedCount: 0, uploadRetrying: false })
+      })
+      ?.catch(() => {
+        this.setData({ uploadRetrying: false })
+      })
   },
 
   onPhotoRemove(e: WechatMiniprogram.CustomEvent<{ index: number }>) {
@@ -385,6 +475,7 @@ Page<PageData, WechatMiniprogram.IAnyObject>({
       deletePhotos([removed]).catch(() => undefined)
     }
     this.setData({ photos })
+    this.updateFormState()
   },
 
   async onSave() {

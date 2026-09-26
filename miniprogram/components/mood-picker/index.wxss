@@ -60,7 +60,7 @@
   top: 0;
   right: 0;
   bottom: 0;
-  width: 40rpx;
+  width: 64rpx;
   background: linear-gradient(to left, var(--surface), rgba(255, 255, 255, 0));
   pointer-events: none;
 }

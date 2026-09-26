@@ -3,8 +3,8 @@
     <text class="eyebrow">TIMELINE</text>
     <view class="time-title-row">
       <text class="display-title">我的时光</text>
-      <button class="time-capsule-button" bindtap="onCapsuleTap">
-        <local-icon name="clock" size="26rpx" />
+      <button class="time-capsule-button" hover-class="time-capsule-button--pressed" bindtap="onCapsuleTap">
+        <local-icon name="clock-brand" size="28rpx" />
         <text>时光胶囊</text>
       </button>
     </view>

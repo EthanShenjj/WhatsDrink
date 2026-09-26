@@ -9,6 +9,14 @@
       <text class="form-wishlist-hint">{{status === 'fulfilled' ? '原来的心愿会一直留在这里' : '记录一个想去的地点，到访时可一键转为足迹'}}</text>
     </view>
 
+    <view wx:if="{{draftRestorable}}" class="form-draft-banner">
+      <text class="form-draft-text">检测到上次未保存的内容</text>
+      <view class="form-draft-actions">
+        <button class="form-draft-restore" bindtap="onRestoreDraft">恢复</button>
+        <button class="form-draft-discard" bindtap="onDiscardDraft">丢弃</button>
+      </view>
+    </view>
+
     <!-- 核心字段：地点 -->
     <view class="form-section">
       <view class="form-field">
@@ -31,13 +39,17 @@
           </button>
         </view>
         <text class="form-field-hint">只填地点也可保存；选择位置后会在地图上显示标记。</text>
-        <input
+        <view
           wx:if="{{address}}"
-          class="form-address-display"
-          value="{{address}}"
-          disabled
-          aria-label="地址"
-        />
+          class="form-address-bar"
+          bindtap="onChooseLocation"
+          role="button"
+          aria-label="已标记地址，点击重新选择"
+        >
+          <local-icon name="location" size="26rpx" />
+          <text class="form-address-text">{{address}}</text>
+          <text class="form-address-clear" catchtap="onClearLocation" role="button" aria-label="清除地址">×</text>
+        </view>
       </view>
 
       <!-- 核心字段：日期（仅 visited 显示） -->
@@ -51,6 +63,35 @@
             <local-icon name="calendar" size="28rpx" />
           </view>
         </picker>
+        <view class="form-date-shortcuts">
+          <view
+            wx:for="{{dateShortcuts}}"
+            wx:key="label"
+            class="form-date-chip {{visitDate === item.value ? 'is-active' : ''}}"
+            data-value="{{item.value}}"
+            bindtap="onDateShortcutTap"
+            role="button"
+            aria-label="日期：{{item.label}}"
+          >{{item.label}}</view>
+        </view>
+      </view>
+
+      <!-- 核心字段：照片（仅 visited 显示） -->
+      <view wx:if="{{status === 'visited'}}" class="form-field">
+        <view class="form-field-label">
+          <text>照片</text>
+          <text class="form-field-hint">最多 9 张</text>
+        </view>
+        <photo-uploader
+          photos="{{photos}}"
+          max="{{9}}"
+          bind:add="onPhotoAdd"
+          bind:remove="onPhotoRemove"
+        />
+        <view wx:if="{{uploadFailedCount > 0}}" class="form-upload-retry">
+          <text>{{uploadFailedCount}} 张照片上传失败</text>
+          <button class="form-upload-retry-button" bindtap="onRetryUpload">重试</button>
+        </view>
       </view>
     </view>
 
@@ -58,24 +99,13 @@
     <view class="form-section form-optional">
       <view class="form-optional-toggle" bindtap="toggleOptional">
         <text class="form-optional-title">更多设置</text>
-        <text class="form-optional-arrow {{optionalOpen ? 'is-open' : ''}}">›</text>
+        <view class="form-optional-right">
+          <text wx:if="{{optionalSummary && !optionalOpen}}" class="form-optional-summary">{{optionalSummary}}</text>
+          <text class="form-optional-arrow {{optionalOpen ? 'is-open' : ''}}">›</text>
+        </view>
       </view>
 
       <block wx:if="{{optionalOpen}}">
-        <!-- 照片 -->
-        <view wx:if="{{status === 'visited'}}" class="form-field">
-          <view class="form-field-label">
-            <text>照片</text>
-            <text class="form-field-hint">最多 9 张</text>
-          </view>
-          <photo-uploader
-            photos="{{photos}}"
-            max="{{9}}"
-            bind:add="onPhotoAdd"
-            bind:remove="onPhotoRemove"
-          />
-        </view>
-
         <!-- 心情 -->
         <view class="form-field">
           <view class="form-field-label">
@@ -111,7 +141,7 @@
         </view>
 
         <!-- 标签 -->
-        <view class="form-field">
+        <view class="form-field form-field-divided">
           <view class="form-field-label">
             <text>标签</text>
             <text class="form-field-hint">最多 8 个</text>
@@ -157,7 +187,7 @@
         </view>
 
         <!-- 标记样式 -->
-        <view class="form-field">
+        <view class="form-field form-field-divided">
           <view class="form-field-label">
             <text>标记样式</text>
             <text class="form-field-hint">地图上的样式</text>
@@ -213,7 +243,7 @@
       <button
         class="primary-button"
         loading="{{saving}}"
-        disabled="{{saving}}"
+        disabled="{{saving || !canSave}}"
         bindtap="onSave"
       >
         {{saving ? '保存中…' : (convertedFromWishlist ? '保存为去过' : '保存')}}

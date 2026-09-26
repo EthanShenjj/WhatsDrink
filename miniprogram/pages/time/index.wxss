@@ -24,21 +24,29 @@
 
 .time-capsule-button {
   display: inline-flex;
+  flex: none;
+  width: auto;
   align-items: center;
-  gap: 8rpx;
-  padding: 8rpx 20rpx;
+  gap: 10rpx;
+  padding: 14rpx 24rpx;
   margin: 0;
-  border: 1rpx solid var(--line);
+  border: 0;
   border-radius: 99rpx;
   background: var(--surface);
+  box-shadow: 0 6rpx 16rpx rgba(91, 108, 255, 0.16);
   color: var(--brand-primary-deep);
-  font-size: 22rpx;
+  font-size: 24rpx;
   font-weight: 600;
   line-height: 1.4;
 }
 
 .time-capsule-button::after {
   border: 0;
+}
+
+.time-capsule-button--pressed {
+  box-shadow: 0 3rpx 8rpx rgba(91, 108, 255, 0.18);
+  transform: scale(0.97);
 }
 
 .memory-drop-section {
