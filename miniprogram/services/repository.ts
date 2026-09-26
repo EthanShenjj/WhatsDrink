@@ -9,12 +9,17 @@ import type {
   ShareSnapshot,
   MapSettings,
   GrowthPreferences,
+  CreatePaymentOrderResult,
+  MembershipAccount,
+  PaymentOrder,
+  PaymentProductId,
 } from '../domain/types'
 import { createId } from '../utils/id'
 import { CLOUD_ENV_ID, STORAGE_KEYS, USE_CLOUD } from './config'
 import { DEFAULT_MAP_SETTINGS } from '../data/options'
 import { todayKey } from '../utils/date'
 import { placeKey } from '../utils/footprint'
+import { hasTimeCapsuleCapacity } from '../utils/payment'
 
 let sessionReady = false
 let cloudReady = false
@@ -197,6 +202,80 @@ export const startGrowthTrial = async (): Promise<UserProfile> => {
   return next
 }
 
+// ─── Membership & Virtual Payment ───
+
+const loginCode = (): Promise<string> =>
+  new Promise((resolve, reject) => {
+    wx.login({
+      success: (result) => result.code ? resolve(result.code) : reject(new Error('未取得微信登录凭证')),
+      fail: reject,
+    })
+  })
+
+const syncMembershipAccount = (account: MembershipAccount): MembershipAccount => {
+  setStored(STORAGE_KEYS.profile, account.profile)
+  setStored(STORAGE_KEYS.paymentOrders, account.orders)
+  try {
+    getApp<IAppOption>().globalData.profile = account.profile
+  } catch {
+    // Unit contexts can use the repository without an initialized App.
+  }
+  return account
+}
+
+export const getMembershipAccount = async (): Promise<MembershipAccount> => {
+  if (USE_CLOUD && !cloudReady) await loginForAccess()
+  if (USE_CLOUD && cloudReady) {
+    const account = await callCloud<MembershipAccount>('paymentMutation', { action: 'account' })
+    return syncMembershipAccount(account)
+  }
+  return {
+    profile: await ensureProfile(),
+    orders: getStored<PaymentOrder[]>(STORAGE_KEYS.paymentOrders, []),
+  }
+}
+
+export const createPaymentOrder = async (
+  productId: PaymentProductId,
+): Promise<CreatePaymentOrderResult> => {
+  if (USE_CLOUD && !cloudReady) await loginForAccess()
+  if (!USE_CLOUD || !cloudReady) {
+    throw new Error('微信支付需要登录已部署的云开发环境')
+  }
+  const code = await loginCode()
+  const result = await callCloud<CreatePaymentOrderResult>('paymentMutation', {
+    action: 'createOrder',
+    productId,
+    code,
+  })
+  const orders = getStored<PaymentOrder[]>(STORAGE_KEYS.paymentOrders, [])
+  setStored(STORAGE_KEYS.paymentOrders, [
+    result.order,
+    ...orders.filter((order) => order.outTradeNo !== result.order.outTradeNo),
+  ])
+  return result
+}
+
+export const getPaymentOrder = async (outTradeNo: string): Promise<PaymentOrder> => {
+  if (USE_CLOUD && !cloudReady) await loginForAccess()
+  if (!USE_CLOUD || !cloudReady) {
+    const local = getStored<PaymentOrder[]>(STORAGE_KEYS.paymentOrders, [])
+      .find((order) => order.outTradeNo === outTradeNo)
+    if (!local) throw new Error('订单不存在')
+    return local
+  }
+  const order = await callCloud<PaymentOrder>('paymentMutation', {
+    action: 'getOrder',
+    outTradeNo,
+  })
+  const orders = getStored<PaymentOrder[]>(STORAGE_KEYS.paymentOrders, [])
+  setStored(STORAGE_KEYS.paymentOrders, [
+    order,
+    ...orders.filter((item) => item.outTradeNo !== order.outTradeNo),
+  ])
+  return order
+}
+
 const listCloudFootprints = (): Promise<Footprint[]> =>
   callCloud<Footprint[]>('footprintMutation', { action: 'list' })
 
@@ -225,7 +304,7 @@ export const saveFootprint = async (draft: FootprintDraft): Promise<Footprint> =
     id: draft.id || createId('fp'),
     userId: profile.id,
     clientRequestId: createId('req'),
-    createdAt: draft.id ? now : now,
+    createdAt: now,
     updatedAt: now,
   }
   if (draft.id) {
@@ -440,6 +519,12 @@ export const listTimeCapsules = async (): Promise<TimeCapsule[]> => {
 export const saveTimeCapsule = async (draft: TimeCapsuleDraft): Promise<TimeCapsule> => {
   const now = Date.now()
   const profile = await ensureProfile()
+  if (!draft.id) {
+    const existingCapsules = await listTimeCapsules()
+    if (!hasTimeCapsuleCapacity(existingCapsules.length, profile.growth, now)) {
+      throw new Error('免费版最多可创建 3 个时光胶囊，开通拾光+ 后不限数量')
+    }
+  }
   const existing = draft.id
     ? getStored<TimeCapsule[]>(STORAGE_KEYS.timeCapsules, []).find(
         (item) => item.id === draft.id,

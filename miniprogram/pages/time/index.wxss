@@ -57,6 +57,11 @@
   font-size: 21rpx;
 }
 
+.memory-drop-wrap {
+  position: relative;
+  margin: 0 -32rpx;
+}
+
 .memory-drop-scroll {
   white-space: nowrap;
 }
@@ -64,6 +69,18 @@
 .memory-drop-row {
   display: inline-flex;
   gap: 18rpx;
+  padding: 0 32rpx;
+}
+
+/* 右侧渐隐提示横向可滑动 */
+.memory-drop-fade {
+  position: absolute;
+  top: 0;
+  right: 0;
+  bottom: 0;
+  width: 40rpx;
+  background: linear-gradient(to left, var(--paper), rgba(247, 248, 255, 0));
+  pointer-events: none;
 }
 
 .memory-drop-card {
@@ -175,10 +192,17 @@
   color: var(--brand-primary-deep);
   font-size: 20rpx;
   font-weight: 600;
+  transition: opacity 160ms ease-out;
+}
+
+/* 占位隐藏而不是移除，避免「回到今天」出现/消失时把下方内容顶得跳动 */
+.month-nav-today.is-hidden {
+  opacity: 0;
+  pointer-events: none;
 }
 
 .calendar-wrapper {
-  padding: 24rpx 16rpx;
+  padding: 24rpx;
 }
 
 .calendar-meta {

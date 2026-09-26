@@ -5,22 +5,21 @@
 .cal-weekdays {
   display: grid;
   grid-template-columns: repeat(7, 1fr);
-  margin-bottom: 16rpx;
-  padding: 0 8rpx;
+  margin-bottom: 20rpx;
+  padding: 0 4rpx;
 }
 
 .cal-weekday {
   text-align: center;
   color: var(--muted);
-  font-size: 22rpx;
-  font-weight: 600;
-  letter-spacing: 1rpx;
+  font-size: 24rpx;
+  font-weight: 500;
 }
 
 .cal-cells {
   display: grid;
   grid-template-columns: repeat(7, 1fr);
-  gap: 8rpx;
+  gap: 12rpx 8rpx;
 }
 
 .cal-cell {
@@ -35,24 +34,63 @@
   transition: background 160ms ease-out;
 }
 
-.cal-cell.in-month {
-  background: var(--surface-soft);
-}
-
 .cal-cell.in-month:active {
   background: var(--surface-highest);
 }
 
 .cal-cell.out-month {
-  opacity: 0.35;
+  background: transparent;
 }
 
-.cal-cell.is-today {
-  box-shadow: inset 0 0 0 2rpx #8C95FF;
+.cal-cell.out-month:active {
+  background: var(--surface-highest);
 }
 
-.cal-cell.has-fp:not(.is-today) {
-  background: #E9EBFF;
+.cell-day-out {
+  color: var(--muted);
+  opacity: 0.45;
+  font-weight: 400;
+}
+
+@keyframes cal-slide-from-right {
+  from {
+    opacity: 0;
+    transform: translateX(28rpx);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+
+@keyframes cal-slide-from-left {
+  from {
+    opacity: 0;
+    transform: translateX(-28rpx);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+
+.cal-anim-next-0,
+.cal-anim-next-1 {
+  animation: cal-slide-from-right 220ms ease-out;
+}
+
+.cal-anim-prev-0,
+.cal-anim-prev-1 {
+  animation: cal-slide-from-left 220ms ease-out;
+}
+
+.cal-cell.is-today .cell-day {
+  color: var(--brand-primary-deep);
+  font-weight: 600;
+}
+
+.cal-cell.is-today:not(.is-selected) {
+  box-shadow: inset 0 0 0 2rpx rgba(91, 108, 255, 0.35);
 }
 
 .cal-cell.is-selected { background: linear-gradient(135deg, #5B76FF, #A88BFF) !important; box-shadow: 0 8rpx 20rpx rgba(91,108,255,.24); }
@@ -64,13 +102,13 @@
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  gap: 4rpx;
+  gap: 6rpx;
 }
 
 .cell-day {
   color: var(--ink);
   font-size: 26rpx;
-  font-weight: 600;
+  font-weight: 500;
   line-height: 1.2;
 }
 
@@ -113,6 +151,6 @@
 }
 
 .cell-emoji-text {
-  font-size: 30rpx;
+  font-size: 32rpx;
   line-height: 1;
 }

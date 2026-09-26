@@ -1,6 +1,7 @@
 {
   "navigationBarTitleText": "编辑资料",
   "usingComponents": {
-    "local-icon": "/components/local-icon/index"
+    "local-icon": "/components/local-icon/index",
+    "privacy-popup": "/components/privacy-popup/index"
   }
 }

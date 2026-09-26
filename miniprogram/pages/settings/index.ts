@@ -5,7 +5,6 @@ const MARKER_OPTIONS: Array<{ value: MapSettings['markerStyle']; label: string; 
   { value: 'dot', label: '色点', hint: '轻量清晰', preview: '●' },
   { value: 'emoji', label: 'Emoji', hint: '更有情绪', preview: '🌿' },
   { value: 'label', label: '名称标签', hint: '放大后可读', preview: '地点' },
-  { value: 'cluster', label: '聚合气泡', hint: '足迹较多时推荐', preview: '12' },
 ]
 
 const THEME_OPTIONS: Array<{ value: MapSettings['theme']; label: string; hint: string }> = [

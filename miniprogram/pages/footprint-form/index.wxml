@@ -57,7 +57,7 @@
     <!-- 可选字段折叠区 -->
     <view class="form-section form-optional">
       <view class="form-optional-toggle" bindtap="toggleOptional">
-        <text class="form-optional-title">更多（照片 / 心情 / 标记）</text>
+        <text class="form-optional-title">更多设置</text>
         <text class="form-optional-arrow {{optionalOpen ? 'is-open' : ''}}">›</text>
       </view>
 
@@ -89,20 +89,25 @@
           <view class="form-field-label">
             <text>类别</text>
           </view>
-          <scroll-view scroll-x class="form-chips-scroll" enhanced show-scrollbar="{{false}}">
-            <view class="form-chips-row">
-              <view
-                wx:for="{{categoryOptions}}"
-                wx:key="value"
-                class="chip form-category-chip {{category === item.value ? 'is-active' : ''}}"
-                data-value="{{item.value}}"
-                bindtap="selectCategory"
-              >
-                <text class="form-category-emoji">{{item.emoji}}</text>
-                <text>{{item.label}}</text>
+          <view class="form-scroll-wrap">
+            <scroll-view scroll-x class="form-chips-scroll" enhanced show-scrollbar="{{false}}">
+              <view class="form-chips-row">
+                <view
+                  wx:for="{{categoryOptions}}"
+                  wx:key="value"
+                  class="chip form-category-chip {{category === item.value ? 'is-active' : ''}}"
+                  data-value="{{item.value}}"
+                  bindtap="selectCategory"
+                  role="button"
+                  aria-label="类别：{{item.label}}"
+                >
+                  <text class="form-category-emoji">{{item.emoji}}</text>
+                  <text>{{item.label}}</text>
+                </view>
               </view>
-            </view>
-          </scroll-view>
+            </scroll-view>
+            <view class="form-scroll-fade" aria-hidden="true"></view>
+          </view>
         </view>
 
         <!-- 标签 -->
@@ -115,7 +120,7 @@
             <input
               class="form-tag-input"
               value="{{inputValue}}"
-              placeholder="输入标签后点击添加"
+              placeholder="输入新标签"
               maxlength="12"
               bindinput="onTagInput"
               bindconfirm="addTag"
@@ -171,26 +176,33 @@
               wx:for="{{markerColors}}"
               wx:key="value"
               class="form-marker-color-swatch {{markerColor === item.value ? 'is-active' : ''}}"
-              style="background: {{item.color}};"
-              data-value="{{item.value}}"
-              bindtap="selectMarkerColor"
-            >
+                style="background: {{item.color}};"
+                data-value="{{item.value}}"
+                bindtap="selectMarkerColor"
+                role="button"
+                aria-label="标记颜色"
+              >
               <text wx:if="{{markerColor === item.value}}" class="form-marker-color-check">✓</text>
             </view>
           </view>
-          <scroll-view scroll-x class="form-marker-emojis-scroll" enhanced show-scrollbar="{{false}}">
-            <view class="form-marker-emojis-row">
-              <view
-                wx:for="{{markerEmojis}}"
-                wx:key="*this"
-                class="form-marker-emoji-swatch {{markerEmoji === item ? 'is-active' : ''}}"
-                data-value="{{item}}"
-                bindtap="selectMarkerEmoji"
-              >
-                <text>{{item}}</text>
+          <view class="form-scroll-wrap">
+            <scroll-view scroll-x class="form-marker-emojis-scroll" enhanced show-scrollbar="{{false}}">
+              <view class="form-marker-emojis-row">
+                <view
+                  wx:for="{{markerEmojis}}"
+                  wx:key="*this"
+                  class="form-marker-emoji-swatch {{markerEmoji === item ? 'is-active' : ''}}"
+                  data-value="{{item}}"
+                  bindtap="selectMarkerEmoji"
+                  role="button"
+                  aria-label="标记图标 {{item}}"
+                >
+                  <text>{{item}}</text>
+                </view>
               </view>
-            </view>
-          </scroll-view>
+            </scroll-view>
+            <view class="form-scroll-fade" aria-hidden="true"></view>
+          </view>
         </view>
 
         <view class="form-field form-visibility-row">
@@ -244,4 +256,6 @@
       />
     </view>
   </view>
+
+  <privacy-popup />
 </view>

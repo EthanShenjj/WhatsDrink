@@ -2,17 +2,29 @@
   <text class="eyebrow">SHIGUANGJI · LIFEMAP</text>
   <text class="display-title">我的拾光</text>
 
-  <brand-card variant="gradient" interactive ariaLabel="编辑个人资料" bind:tap="onLoginTap">
+  <brand-card variant="gradient" interactive ariaLabel="进入个人设置" bind:tap="onProfileTap">
     <view class="profile-hero">
       <image wx:if="{{profile.avatarUrl}}" class="profile-avatar" src="{{profile.avatarUrl}}" mode="aspectFill" />
       <view wx:else class="profile-avatar profile-avatar-empty">拾</view>
       <view class="profile-copy">
         <text class="profile-name">{{profile.nickname || '拾光者'}}</text>
-        <text class="profile-hint">{{isLoggedIn ? '编辑个人资料' : '完善资料，让回忆随你同行'}}</text>
+        <text class="profile-hint">个人资料、数据与隐私设置</text>
       </view>
       <text class="profile-arrow">›</text>
     </view>
   </brand-card>
+
+  <view class="membership-card {{growth.isPlus ? 'is-active' : ''}}" bindtap="onMembershipTap" role="button" aria-label="查看拾光加付费方案">
+    <view class="membership-symbol"><local-icon name="sparkles" size="38rpx" /></view>
+    <view class="membership-copy">
+      <view class="membership-title-row">
+        <text class="membership-title">{{growth.isPlus ? '拾光+ 已开通' : '开通拾光+'}}</text>
+        <text class="membership-pill">{{growth.isPlus ? '已生效' : '31 天 ¥6 起'}}</text>
+      </view>
+      <text class="membership-note">{{growth.isPlus ? ('当前权益剩余 ' + growth.plusDaysLeft + ' 天') : '专属主题 · 无限时光胶囊 · 单次购买不自动续费'}}</text>
+    </view>
+    <text class="membership-arrow">›</text>
+  </view>
 
   <view wx:if="{{growth}}" class="growth-card growth-{{growth.activeColorId}}" bindtap="onGrowthTap" role="button" aria-label="查看小拾成长计划">
     <view class="growth-card-copy">
@@ -64,23 +76,6 @@
     </view>
   </view>
 
-  <view class="data-actions card">
-    <view
-      class="data-action-row {{clearing ? 'is-disabled' : ''}}"
-      bindtap="onClearAll"
-      role="button"
-      aria-label="清除所有记录"
-      aria-disabled="{{clearing}}"
-    >
-      <view class="data-action-icon"><local-icon name="delete" size="34rpx" /></view>
-      <view class="data-action-copy">
-        <text class="data-action-title">{{clearing ? '正在清除…' : '清除所有记录'}}</text>
-        <text class="data-action-hint">删除足迹、照片、计划与胶囊</text>
-      </view>
-      <text class="menu-arrow">›</text>
-    </view>
-  </view>
   <text class="version-label">拾光迹 · LifeMap v{{version}}</text>
-  <wechat-login-sheet visible="{{loginSheetVisible}}" bind:success="onLoginSuccess" bind:cancel="onLoginCancel" />
   <privacy-popup />
 </view>

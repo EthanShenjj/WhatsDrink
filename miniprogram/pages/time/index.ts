@@ -130,13 +130,15 @@ Page<PageData, WechatMiniprogram.IAnyObject>({
     return `${year}-${String(month + 1).padStart(2, '0')}-01`
   },
 
-  onPrevMonth() {
+  goToMonth(delta: number) {
     let { year, month } = this.data
-    if (month === 0) {
+    month += delta
+    if (month < 0) {
       year -= 1
       month = 11
-    } else {
-      month -= 1
+    } else if (month > 11) {
+      year += 1
+      month = 0
     }
     this.setData({
       year,
@@ -147,21 +149,30 @@ Page<PageData, WechatMiniprogram.IAnyObject>({
     this.applyFootprints(this.data.footprints)
   },
 
+  onTouchStart(e: WechatMiniprogram.TouchEvent) {
+    const touch = e.touches[0]
+    this._swipeStartX = touch.clientX
+    this._swipeStartY = touch.clientY
+  },
+
+  onTouchEnd(e: WechatMiniprogram.TouchEvent) {
+    const touch = e.changedTouches[0]
+    if (!touch || this._swipeStartX === undefined) return
+    const dx = touch.clientX - this._swipeStartX
+    const dy = touch.clientY - this._swipeStartY
+    this._swipeStartX = undefined
+    this._swipeStartY = undefined
+    // 水平位移足够大且明显强于纵向位移才判定为翻月滑动，避免干扰页面纵向滚动
+    if (Math.abs(dx) < 60 || Math.abs(dx) < Math.abs(dy) * 1.5) return
+    this.goToMonth(dx < 0 ? 1 : -1)
+  },
+
+  onPrevMonth() {
+    this.goToMonth(-1)
+  },
+
   onNextMonth() {
-    let { year, month } = this.data
-    if (month === 11) {
-      year += 1
-      month = 0
-    } else {
-      month += 1
-    }
-    this.setData({
-      year,
-      month,
-      selectedKey: this.selectedKeyForMonth(year, month),
-      monthLabel: formatMonthLabel(year, month),
-    })
-    this.applyFootprints(this.data.footprints)
+    this.goToMonth(1)
   },
 
   onTodayJump() {
@@ -176,8 +187,21 @@ Page<PageData, WechatMiniprogram.IAnyObject>({
     this.applyFootprints(this.data.footprints)
   },
 
-  onCellSelect(e: WechatMiniprogram.CustomEvent<{ key: string }>) {
+  onCellSelect(e: WechatMiniprogram.CustomEvent<{ key: string; inMonth?: boolean }>) {
     const key = e.detail.key
+    // 点击了相邻月份的补位日期：先翻到对应月份再选中
+    const viewPrefix = `${this.data.year}-${String(this.data.month + 1).padStart(2, '0')}`
+    if (key.slice(0, 7) !== viewPrefix) {
+      const [year, month] = key.split('-').map(Number)
+      this.setData({
+        year,
+        month: month - 1,
+        monthLabel: formatMonthLabel(year, month - 1),
+        selectedKey: key,
+      })
+      this.applyFootprints(this.data.footprints)
+      return
+    }
     const grouped = groupByDate(this.data.footprints)
     const list = sortByVisitDate(grouped.get(key) || [])
     this.setData({
@@ -194,7 +218,8 @@ Page<PageData, WechatMiniprogram.IAnyObject>({
   },
 
   onAddFootprint() {
-    wx.navigateTo({ url: '/pages/footprint-form/index' })
+    // 带上当前选中的日期，补记历史足迹时表单不必再手动改日期
+    wx.navigateTo({ url: `/pages/footprint-form/index?date=${this.data.selectedKey}` })
   },
 
   onCapsuleTap() {

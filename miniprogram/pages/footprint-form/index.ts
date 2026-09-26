@@ -178,6 +178,9 @@ Page<PageData, WechatMiniprogram.IAnyObject>({
         visitDate: status === 'visited' ? todayKey() : undefined,
         markerColor: status === 'wishlist' ? MARKER_COLORS[1].value : MARKER_COLORS[0].value,
       }
+      if (query.date && status === 'visited' && /^\d{4}-\d{2}-\d{2}$/.test(query.date)) {
+        baseData.visitDate = query.date
+      }
       if (query.presetPoiName) {
         baseData.poiName = decodeURIComponent(query.presetPoiName)
       }

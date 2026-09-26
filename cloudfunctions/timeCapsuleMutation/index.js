@@ -7,6 +7,7 @@ const capsules = db.collection('time_capsules')
 const footprints = db.collection('footprints')
 
 const STATUSES = new Set(['locked', 'unlocked'])
+const FREE_CAPSULE_LIMIT = 3
 
 const text = (value, max = 80) => String(value || '').trim().slice(0, max)
 
@@ -168,14 +169,22 @@ exports.main = async (event = {}) => {
       const clientId = validId(input.id)
       if (!clientId) throw new Error('胶囊 ID 不能为空')
       const id = idFromClient(OPENID, clientId)
-      const data = sanitizeCapsule(input, OPENID)
-      await assertOwnedFootprint(data.footprintId, OPENID)
       const conflict = await capsules.where({ _id: id }).limit(1).get()
       if (conflict.data.length) {
         const existing = conflict.data[0]
         if (existing._openid === OPENID) return { ok: true, data: publicCapsule(existing) }
         throw new Error('胶囊已存在，不能覆盖')
       }
+      const [profileResult, capsuleCount] = await Promise.all([
+        db.collection('user_profiles').where({ _openid: OPENID }).limit(1).get(),
+        capsules.where({ _openid: OPENID }).count(),
+      ])
+      const plusUntil = Number(profileResult.data[0]?.growth?.plusUntil) || 0
+      if (capsuleCount.total >= FREE_CAPSULE_LIMIT && plusUntil <= Date.now()) {
+        throw new Error('免费版最多可创建 3 个时光胶囊，开通拾光+ 后不限数量')
+      }
+      const data = sanitizeCapsule(input, OPENID)
+      await assertOwnedFootprint(data.footprintId, OPENID)
       await capsules.doc(id).set({ data })
       return { ok: true, data: publicCapsule(data, id) }
     }

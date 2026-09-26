@@ -118,6 +118,10 @@ Page<PageData, WechatMiniprogram.IAnyObject>({
     await this.activateTrial()
   },
 
+  onMembershipTap() {
+    wx.navigateTo({ url: '/pages/membership/index' })
+  },
+
   async offerTrial(content: string) {
     const confirmed = await new Promise<boolean>((resolve) => {
       wx.showModal({
@@ -134,11 +138,7 @@ Page<PageData, WechatMiniprogram.IAnyObject>({
 
   async activateTrial() {
     if (this.data.profile?.growth?.trialStartedAt && !this.data.snapshot?.isPlus) {
-      wx.showModal({
-        title: '拾光+ 体验已结束',
-        content: '正式订阅将在小程序发布后开放。你已经解锁的成长颜色、表情与成就都会保留。',
-        showCancel: false,
-      })
+      wx.navigateTo({ url: '/pages/membership/index' })
       return
     }
     if (this.data.snapshot?.isPlus) {

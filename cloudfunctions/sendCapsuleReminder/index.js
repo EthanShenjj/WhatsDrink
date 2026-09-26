@@ -15,11 +15,19 @@ const todayString = () => {
   return `${value.year}-${value.month}-${value.day}`
 }
 
+// 订阅消息 time 字段要求中文日期格式（如 2026年9月26日），否则发送报 47003
+const formatDateCN = (value) => {
+  const match = /^(\d{4})-(\d{2})-(\d{2})$/.exec(String(value || ''))
+  if (!match) return String(value || '')
+  return `${Number(match[1])}年${Number(match[2])}月${Number(match[3])}日`
+}
+
 const sendSubscription = async (capsule) => {
   if (!capsule.subscriptionId || !process.env.CAPSULE_TEMPLATE_ID) return false
   const templateId = process.env.CAPSULE_TEMPLATE_ID
   const page = process.env.CAPSULE_PAGE || 'pages/time/index'
-  // Template variables are placeholders until a real template is configured.
+  // 体验版/开发版调试提醒时，在云函数环境变量里把 CAPSULE_MINIPROGRAM_STATE 设为 developer 或 trial
+  const miniprogramState = process.env.CAPSULE_MINIPROGRAM_STATE
   try {
     await cloud.openapi.subscribeMessage.send({
       touser: capsule._openid,
@@ -27,13 +35,20 @@ const sendSubscription = async (capsule) => {
       page,
       data: {
         thing1: { value: String(capsule.title || '时间胶囊').slice(0, 20) },
-        time2: { value: String(capsule.unlockDate || todayString()).slice(0, 20) },
+        time2: { value: formatDateCN(capsule.unlockDate || todayString()) },
         thing3: { value: '你的时间胶囊已解锁，快来看看吧' },
       },
+      ...(miniprogramState ? { miniprogramState } : {}),
     })
     return true
   } catch (error) {
-    // Swallow subscription errors (e.g., user revoked subscription, expired template)
+    // 订阅失败会静默降级（用户拒收、订阅额度耗尽等），但把错误码留下便于排查模板配置问题
+    console.warn(
+      '[sendCapsuleReminder] subscribeMessage.send failed',
+      'errCode:', error.errCode,
+      'errMsg:', error.errMsg || error.message,
+      'capsuleId:', capsule._id,
+    )
     return false
   }
 }

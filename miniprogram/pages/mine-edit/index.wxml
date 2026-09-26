@@ -20,4 +20,6 @@
 
     <button class="primary-button" loading="{{saving}}" disabled="{{saving}}" bindtap="onSave">保存资料</button>
   </block>
+
+  <privacy-popup />
 </view>

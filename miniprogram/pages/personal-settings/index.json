@@ -1,0 +1,8 @@
+{
+  "navigationBarTitleText": "个人设置",
+  "usingComponents": {
+    "local-icon": "/components/local-icon/index",
+    "wechat-login-sheet": "/components/wechat-login-sheet/index",
+    "privacy-popup": "/components/privacy-popup/index"
+  }
+}

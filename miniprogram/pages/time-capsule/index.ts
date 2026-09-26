@@ -3,6 +3,7 @@ import { CAPSULE_TEMPLATE_ID } from '../../services/config'
 import {
   deleteTimeCapsule,
   deletePhotos,
+  ensureProfile,
   listFootprints,
   listTimeCapsules,
   saveTimeCapsule,
@@ -10,6 +11,7 @@ import {
   uploadPhoto,
 } from '../../services/repository'
 import { todayKey } from '../../utils/date'
+import { hasTimeCapsuleCapacity } from '../../utils/payment'
 
 Page({
   data: {
@@ -29,6 +31,7 @@ Page({
     wantsReminder: false,
     reminderAvailable: Boolean(CAPSULE_TEMPLATE_ID),
     selectedCapsule: null as TimeCapsule | null,
+    isPlus: false,
   },
 
   onLoad(query: Record<string, string>) {
@@ -44,19 +47,31 @@ Page({
   async loadAll() {
     this.setData({ loading: true, today: todayKey() })
     try {
-      const [capsules, footprints] = await Promise.all([listTimeCapsules(), listFootprints()])
+      const [capsules, footprints, profile] = await Promise.all([
+        listTimeCapsules(),
+        listFootprints(),
+        ensureProfile(),
+      ])
       const unlocked = await Promise.all(capsules.map(async (capsule) => {
         if (capsule.status === 'locked' && capsule.unlockDate <= todayKey()) {
           try { return await unlockTimeCapsule(capsule.id) } catch { return capsule }
         }
         return capsule
       }))
+      const linkable = footprints.filter(
+        (fp) => fp.status === 'visited' || fp.status === 'fulfilled',
+      )
       this.setData({
         capsules: unlocked,
-        footprints: footprints.filter((fp) => fp.status === 'visited'),
-        footprintIndex: Math.max(0, footprints.filter((fp) => fp.status === 'visited').findIndex((fp) => fp.id === this.data.footprintId)),
+        footprints: linkable,
+        footprintIndex: Math.max(0, linkable.findIndex((fp) => fp.id === this.data.footprintId)),
+        isPlus: Boolean(profile.growth?.plusUntil && profile.growth.plusUntil > Date.now()),
         loading: false,
       })
+      if (this.data.formVisible && !this.data.id && !hasTimeCapsuleCapacity(unlocked.length, profile.growth)) {
+        this.setData({ formVisible: false })
+        this.showMembershipOffer()
+      }
     } catch {
       this.setData({ loading: false })
       wx.showToast({ title: '胶囊加载失败', icon: 'none' })
@@ -64,6 +79,13 @@ Page({
   },
 
   onNew() {
+    if (!hasTimeCapsuleCapacity(
+      this.data.capsules.length,
+      this.data.isPlus ? { plusUntil: Date.now() + 1 } : undefined,
+    )) {
+      this.showMembershipOffer()
+      return
+    }
     this.setData({
       formVisible: true,
       id: '',
@@ -75,6 +97,18 @@ Page({
       unlockDate: todayKey(),
       wantsReminder: false,
       selectedCapsule: null,
+    })
+  },
+
+  showMembershipOffer() {
+    wx.showModal({
+      title: '三个胶囊已经装满啦',
+      content: '免费版可以保存 3 个时光胶囊。开通拾光+ 后，可以继续为未来封存回忆。',
+      confirmText: '看看拾光+',
+      cancelText: '暂不需要',
+      success: (result) => {
+        if (result.confirm) wx.navigateTo({ url: '/pages/membership/index' })
+      },
     })
   },
 

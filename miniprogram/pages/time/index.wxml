@@ -27,17 +27,20 @@
       <text class="section-title">今日掉落</text>
       <text class="muted">过去的记忆，今天重新遇见</text>
     </view>
-    <scroll-view scroll-x class="memory-drop-scroll" show-scrollbar="{{false}}">
-      <view class="memory-drop-row">
-        <view wx:for="{{memoryDrops}}" wx:key="id" class="memory-drop-card card" data-id="{{item.id}}" bindtap="onMemoryDropTap">
-          <image wx:if="{{item.footprint.photos.length}}" class="memory-drop-image" src="{{item.footprint.photos[0]}}" mode="aspectFill" />
-          <view wx:else class="memory-drop-mascot"><ip-mascot state="companion" expression="happy" size="126rpx" label="重新遇见记忆的小拾" /></view>
-          <text class="memory-drop-kind">{{item.kind === 'anniversary' ? '周年记忆' : '最近的回忆'}}</text>
-          <text class="memory-drop-title">{{item.title}}</text>
-          <text wx:if="{{item.footprint.note}}" class="memory-drop-note">{{item.footprint.note}}</text>
+    <view class="memory-drop-wrap">
+      <scroll-view scroll-x class="memory-drop-scroll" show-scrollbar="{{false}}">
+        <view class="memory-drop-row">
+          <view wx:for="{{memoryDrops}}" wx:key="id" class="memory-drop-card card" data-id="{{item.id}}" bindtap="onMemoryDropTap">
+            <image wx:if="{{item.footprint.photos.length}}" class="memory-drop-image" src="{{item.footprint.photos[0]}}" mode="aspectFill" />
+            <view wx:else class="memory-drop-mascot"><ip-mascot state="companion" expression="happy" size="126rpx" label="重新遇见记忆的小拾" /></view>
+            <text class="memory-drop-kind">{{item.kind === 'anniversary' ? '周年记忆' : '最近的回忆'}}</text>
+            <text class="memory-drop-title">{{item.title}}</text>
+            <text wx:if="{{item.footprint.note}}" class="memory-drop-note">{{item.footprint.note}}</text>
+          </view>
         </view>
-      </view>
-    </scroll-view>
+      </scroll-view>
+      <view class="memory-drop-fade" aria-hidden="true"></view>
+    </view>
   </view>
 
   <view class="time-view-switcher">
@@ -60,14 +63,21 @@
       </view>
       <view class="month-nav-center">
         <text class="month-nav-label">{{monthLabel}}</text>
-        <text class="month-nav-today" bindtap="onTodayJump" wx:if="{{selectedKey !== todayKey}}">回到今天</text>
+        <text
+          class="month-nav-today {{selectedKey !== todayKey ? '' : 'is-hidden'}}"
+          bindtap="onTodayJump"
+        >回到今天</text>
       </view>
       <view class="month-nav-btn" bindtap="onNextMonth" role="button" aria-label="下个月">
         <text class="month-nav-arrow">›</text>
       </view>
     </view>
 
-    <view class="calendar-wrapper card">
+    <view
+      class="calendar-wrapper card"
+      bindtouchstart="onTouchStart"
+      bindtouchend="onTouchEnd"
+    >
       <calendar-grid
         cells="{{cells}}"
         year="{{year}}"

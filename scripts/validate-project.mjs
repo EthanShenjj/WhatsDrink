@@ -70,6 +70,8 @@ const requiredCloudFunctions = [
   'timeCapsuleMutation',
   'sendCapsuleReminder',
   'shareCode',
+  'paymentMutation',
+  'paymentNotify',
 ]
 
 for (const name of requiredCloudFunctions) {

@@ -1,0 +1,52 @@
+.membership-page { padding-bottom: calc(100rpx + env(safe-area-inset-bottom)); }
+.membership-hero { display: flex; min-height: 250rpx; align-items: center; margin: -32rpx -32rpx 0; padding: 44rpx 22rpx 32rpx 32rpx; background: linear-gradient(145deg, #ECEFFF 0%, #F8ECFF 58%, #FFF0F6 100%); }
+.hero-copy { min-width: 0; flex: 1; }
+.membership-hero .display-title { max-width: 440rpx; font-size: 42rpx; line-height: 1.35; }
+.hero-note { display: block; margin-top: 14rpx; color: var(--muted); font-size: 23rpx; }
+.active-card { display: flex; align-items: center; gap: 18rpx; margin-top: 24rpx; padding: 24rpx; border: 1rpx solid rgba(91,108,255,.15); }
+.active-icon { display: flex; width: 64rpx; height: 64rpx; align-items: center; justify-content: center; border-radius: 22rpx; background: #E7E9FF; }
+.active-copy { display: flex; flex-direction: column; }
+.active-title { color: var(--ink); font-size: 28rpx; font-weight: 700; }
+.active-note { margin-top: 3rpx; color: var(--muted); font-size: 22rpx; }
+.benefit-card { margin-top: 24rpx; padding: 8rpx 26rpx; }
+.benefit-row { display: flex; align-items: center; gap: 20rpx; min-height: 112rpx; border-bottom: 1rpx solid var(--line); }
+.benefit-row:last-child { border-bottom: 0; }
+.benefit-row > view { display: flex; flex-direction: column; }
+.benefit-row > view text:first-child { color: var(--ink); font-size: 27rpx; font-weight: 650; }
+.benefit-row > view text:last-child { margin-top: 3rpx; color: var(--muted); font-size: 21rpx; }
+.section-heading { display: flex; align-items: flex-end; justify-content: space-between; margin-top: 38rpx; }
+.section-heading > text:last-child { color: var(--muted); font-size: 21rpx; }
+.product-list { display: flex; flex-direction: column; gap: 18rpx; margin-top: 20rpx; }
+.product-card { position: relative; display: flex; min-height: 164rpx; align-items: center; gap: 20rpx; padding: 26rpx; border: 3rpx solid transparent; border-radius: 30rpx; background: #fff; box-shadow: var(--shadow-card); }
+.product-card.is-selected { border-color: var(--brand-primary); background: linear-gradient(135deg, #FFFFFF, #F3F3FF); }
+.product-badge { position: absolute; top: -3rpx; right: 24rpx; padding: 6rpx 18rpx; border-radius: 0 0 16rpx 16rpx; background: var(--brand-primary); color: #fff; font-size: 19rpx; font-weight: 700; }
+.product-radio { display: flex; width: 38rpx; height: 38rpx; flex: 0 0 38rpx; align-items: center; justify-content: center; border: 3rpx solid var(--outline); border-radius: 50%; }
+.is-selected .product-radio { border-color: var(--brand-primary); }
+.is-selected .product-radio view { width: 20rpx; height: 20rpx; border-radius: 50%; background: var(--brand-primary); }
+.product-copy { display: flex; min-width: 0; flex: 1; flex-direction: column; }
+.product-name { color: var(--ink); font-size: 30rpx; font-weight: 700; }
+.product-description { margin-top: 5rpx; color: var(--muted); font-size: 21rpx; }
+.product-average { margin-top: 10rpx; color: var(--brand-primary-deep); font-size: 21rpx; font-weight: 600; }
+.product-price { display: flex; align-items: baseline; color: var(--ink); }
+.product-price text:first-child { font-size: 24rpx; font-weight: 650; }
+.product-price text:last-child { font-size: 48rpx; font-weight: 750; }
+.buy-button { margin-top: 30rpx; }
+.purchase-note { display: block; margin-top: 16rpx; padding: 0 10rpx; color: var(--muted); font-size: 21rpx; line-height: 1.65; text-align: center; }
+.policy-card { display: flex; flex-direction: column; gap: 10rpx; margin-top: 30rpx; padding: 26rpx; color: var(--muted); font-size: 22rpx; }
+.policy-title { margin-bottom: 4rpx; color: var(--ink); font-size: 27rpx; font-weight: 700; }
+.order-section { margin-top: 38rpx; }
+.order-heading { display: flex; align-items: center; justify-content: space-between; }
+.order-heading .text-button { min-height: 48rpx; line-height: 48rpx; font-size: 22rpx; }
+.order-card { margin-top: 16rpx; padding: 0 26rpx; }
+.order-row { display: flex; align-items: center; gap: 18rpx; min-height: 112rpx; border-bottom: 1rpx solid var(--line); }
+.order-row:last-child { border-bottom: 0; }
+.order-copy { display: flex; min-width: 0; flex: 1; flex-direction: column; }
+.order-copy text:first-child { color: var(--ink); font-size: 25rpx; font-weight: 650; }
+.order-copy text:last-child { margin-top: 4rpx; overflow: hidden; color: var(--muted); font-size: 18rpx; text-overflow: ellipsis; white-space: nowrap; }
+.order-meta { display: flex; align-items: flex-end; flex-direction: column; }
+.order-meta > text:first-child { color: var(--ink); font-size: 24rpx; font-weight: 650; }
+.order-meta > text:last-child { margin-top: 4rpx; font-size: 19rpx; }
+.status-fulfilled { color: #3D8C72; }
+.status-refunded, .status-failed { color: var(--danger); }
+.status-pending, .status-paid { color: var(--amber-deep); }
+.order-empty { display: block; padding: 40rpx 0; color: var(--muted); font-size: 23rpx; text-align: center; }

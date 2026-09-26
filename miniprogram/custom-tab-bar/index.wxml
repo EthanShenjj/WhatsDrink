@@ -17,7 +17,7 @@
       <image
         wx:else
         class="tab-icon"
-        src="/assets/icons/{{item.icon}}.svg"
+        src="/assets/icons/{{item.icon}}{{selected === index ? '-active' : ''}}.svg"
         mode="aspectFit"
         aria-hidden="true"
       />

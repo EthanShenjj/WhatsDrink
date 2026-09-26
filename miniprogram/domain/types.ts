@@ -100,6 +100,59 @@ export interface GrowthPreferences {
   viewedMonthlyReports?: string[]
 }
 
+export type PaymentProductId = 'plus_31d_v1' | 'plus_372d_v1'
+
+export interface PaymentProduct {
+  id: PaymentProductId
+  name: string
+  shortName: string
+  description: string
+  priceFen: number
+  days: number
+  badge?: string
+}
+
+export type PaymentOrderStatus =
+  | 'pending'
+  | 'paid'
+  | 'fulfilled'
+  | 'refunded'
+  | 'failed'
+
+export interface PaymentOrder {
+  id: string
+  outTradeNo: string
+  wxOrderId?: string
+  productId: PaymentProductId
+  productName: string
+  amountFen: number
+  status: PaymentOrderStatus
+  entitlementStartsAt?: number
+  entitlementEndsAt?: number
+  createdAt: number
+  updatedAt: number
+  paidAt?: number
+  fulfilledAt?: number
+  refundedAt?: number
+}
+
+export interface VirtualPaymentData {
+  mode: 'short_series_goods'
+  signData: string
+  paySig: string
+  signature: string
+}
+
+export interface CreatePaymentOrderResult {
+  order: PaymentOrder
+  payData: VirtualPaymentData
+}
+
+export interface MembershipAccount {
+  profile: UserProfile
+  orders: PaymentOrder[]
+}
+
 export interface GrowthColorView {
   id: GrowthColorId
   name: string

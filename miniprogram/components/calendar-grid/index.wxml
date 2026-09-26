@@ -7,7 +7,7 @@
     >{{item}}</view>
   </view>
 
-  <view class="cal-cells">
+  <view class="cal-cells {{animClass}}">
     <view
       wx:for="{{cellViews}}"
       wx:key="key"
@@ -16,20 +16,23 @@
       data-inmonth="{{item.inMonth}}"
       bindtap="onSelect"
       role="button"
-      aria-label="{{item.day}}"
+      aria-label="{{item.inMonth ? year + '年' + (month + 1) + '月' + item.day + '日' + (item.footprintCount ? '，' + item.footprintCount + '个足迹' : '') : '其他月份' + item.day + '日，点击查看'}}"
     >
-      <view wx:if="{{item.previewPhoto}}" class="cell-thumb-wrap">
-        <image class="cell-thumb" src="{{item.previewPhoto}}" mode="aspectFill" lazy-load />
-        <text class="cell-day cell-day-on-thumb">{{item.day}}</text>
-      </view>
-      <view wx:elif="{{item.moodEmoji}}" class="cell-emoji">
-        <text class="cell-emoji-text">{{item.moodEmoji}}</text>
-        <text class="cell-day">{{item.day}}</text>
-      </view>
-      <view wx:else class="cell-default">
-        <text class="cell-day">{{item.day}}</text>
-        <view wx:if="{{item.hasFootprint}}" class="cell-dot"></view>
-      </view>
+      <block wx:if="{{item.inMonth}}">
+        <view wx:if="{{item.previewPhoto}}" class="cell-thumb-wrap">
+          <image class="cell-thumb" src="{{item.previewPhoto}}" mode="aspectFill" lazy-load />
+          <text class="cell-day cell-day-on-thumb">{{item.day}}</text>
+        </view>
+        <view wx:elif="{{item.moodEmoji}}" class="cell-emoji">
+          <text class="cell-emoji-text">{{item.moodEmoji}}</text>
+          <text class="cell-day">{{item.day}}</text>
+        </view>
+        <view wx:else class="cell-default">
+          <text class="cell-day">{{item.day}}</text>
+          <view wx:if="{{item.hasFootprint}}" class="cell-dot"></view>
+        </view>
+      </block>
+      <text wx:else class="cell-day cell-day-out">{{item.day}}</text>
     </view>
   </view>
 </view>

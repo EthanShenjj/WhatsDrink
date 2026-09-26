@@ -153,6 +153,7 @@
     showShare="{{!modeEmpty}}"
     bind:locate="onLocate"
     bind:search="onSearch"
+    bind:ai="onAiTap"
     bind:filter="onFilter"
     bind:settings="onSettings"
     bind:share="onShare"

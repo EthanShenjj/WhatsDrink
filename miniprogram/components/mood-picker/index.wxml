@@ -1,18 +1,21 @@
-<scroll-view scroll-x class="mood-scroll" show-scrollbar="{{false}}" enhanced>
-  <view class="mood-row">
-    <view
-      wx:for="{{moodList}}"
-      wx:key="value"
-      class="mood-item {{value === item.value ? 'is-selected' : ''}}"
-      data-value="{{item.value}}"
-      bindtap="onPick"
-      role="button"
-      aria-label="{{item.label}}"
-    >
-      <view class="mood-emoji-wrap">
-        <text class="mood-emoji">{{item.emoji}}</text>
+<view class="mood-wrap">
+  <scroll-view scroll-x class="mood-scroll" show-scrollbar="{{false}}" enhanced>
+    <view class="mood-row">
+      <view
+        wx:for="{{moodList}}"
+        wx:key="value"
+        class="mood-item {{value === item.value ? 'is-selected' : ''}}"
+        data-value="{{item.value}}"
+        bindtap="onPick"
+        role="button"
+        aria-label="{{item.label}}"
+      >
+        <view class="mood-emoji-wrap">
+          <text class="mood-emoji">{{item.emoji}}</text>
+        </view>
+        <text class="mood-label">{{item.label}}</text>
       </view>
-      <text class="mood-label">{{item.label}}</text>
     </view>
-  </view>
-</scroll-view>
+  </scroll-view>
+  <view class="mood-scroll-fade" aria-hidden="true"></view>
+</view>

@@ -4,6 +4,7 @@
     "ip-mascot": "/components/ip-mascot/index",
     "share-preview": "/components/share-preview/index",
     "empty-state": "/components/empty-state/index",
-    "local-icon": "/components/local-icon/index"
+    "local-icon": "/components/local-icon/index",
+    "privacy-popup": "/components/privacy-popup/index"
   }
 }

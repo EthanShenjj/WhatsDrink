@@ -4,7 +4,7 @@
 
 ## 数据库
 
-`user_profiles`、`footprints`、`travel_plans`、`time_capsules`、`share_snapshots`：
+`user_profiles`、`footprints`、`travel_plans`、`time_capsules`、`share_snapshots`、`payment_orders`、`user_entitlements`：
 
 ```json
 {
@@ -28,12 +28,14 @@
 
 ## 云函数
 
-`login`、`footprintMutation`、`accountMutation`、`aiAssistant`、`travelPlanMutation`、`timeCapsuleMutation`、`shareCode` 设置为：
+`login`、`footprintMutation`、`accountMutation`、`aiAssistant`、`travelPlanMutation`、`timeCapsuleMutation`、`shareCode`、`paymentMutation` 设置为：
 
 ```text
 auth != null
 ```
 
 `sendCapsuleReminder` 设置为 `false`，只允许定时触发器或云开发控制台调用。
+
+`paymentNotify` 设置为 `false` 并开启 HTTP 访问。该入口由微信服务器调用，函数内部使用消息推送 Token 校验签名；配置见[虚拟支付部署说明](virtual-payment-setup.md)。
 
 规则语法依据 CloudBase 官方的[数据库安全规则](https://docs.cloudbase.net/database/security-rules)、[云存储安全规则](https://docs.cloudbase.net/storage/security-rules)和[云函数安全规则](https://docs.cloudbase.net/cloud-function/security-rules)。

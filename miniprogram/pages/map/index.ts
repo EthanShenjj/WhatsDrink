@@ -585,6 +585,10 @@ Page<PageData, WechatMiniprogram.IAnyObject>({
     this.setData({ filterVisible: true })
   },
 
+  onAiTap() {
+    wx.navigateTo({ url: '/pages/ai-assistant/index' })
+  },
+
   onSettings() {
     wx.navigateTo({ url: '/pages/settings/index' })
   },

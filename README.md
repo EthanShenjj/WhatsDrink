@@ -21,6 +21,7 @@
 - 旅行攻略：从想去清单选择地点，按天安排并保存为计划（智能路线优化待接入）
 - 时光胶囊：选择足迹或新建文字/照片，设置未来解锁日期；配置订阅模板并取得授权后可发送提醒
 - 微信登录 + 云端同步；云环境不可用时使用本地存储，随后不会自动合并两端数据
+- 拾光+ 虚拟支付：31 天卡 / 372 天卡、7 天试用、购买记录、幂等发货、查单补发与退款权益回收；真实扣款需按部署文档配置微信后台与云函数密钥
 - 隐私优先：足迹默认仅自己可见，分享卡默认隐藏精确经纬度
 
 ## 本地体验
@@ -44,7 +45,7 @@
 1. 将 [project.config.json](project.config.json) 的 `appid` 换为真实 AppID。
 2. 创建云开发环境，把环境 ID 写入 `miniprogram/services/config.ts` 的 `CLOUD_ENV_ID`。
 3. 按[数据库结构](docs/cloudbase-database-schema.md)创建五个集合并配置索引。
-4. 在开发者工具中分别上传并部署 `cloudfunctions/` 下八个云函数，选择"云端安装依赖"；同时上传 `sendCapsuleReminder` 的触发器。
+4. 在开发者工具中分别上传并部署 `cloudfunctions/` 下十个云函数，选择"云端安装依赖"；同时上传 `sendCapsuleReminder` 的触发器。虚拟支付额外配置见[虚拟支付部署说明](docs/virtual-payment-setup.md)。
 5. 按 [CloudBase 安全规则](docs/cloudbase-security-rules.md) 配置数据库、云存储和云函数权限。
 6. 在小程序管理后台填写用户隐私保护指引，说明位置、相册/相机和云存储用途。
 7. 如需时光胶囊订阅消息，在微信公众平台选择模板，把模板 ID 写入 `miniprogram/services/config.ts` 的 `CAPSULE_TEMPLATE_ID`，并给 `sendCapsuleReminder` 配置 `CAPSULE_TEMPLATE_ID` 环境变量。

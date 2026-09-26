@@ -162,9 +162,24 @@
   transform: rotate(-90deg);
 }
 
-.form-optional > view:not(.form-optional-toggle),
-.form-optional > block {
+.form-optional > view:not(.form-optional-toggle) {
   padding: 0 32rpx 32rpx;
+}
+
+/* 横向滚动区通栏到卡片边缘，右侧渐隐提示还有更多内容 */
+.form-scroll-wrap {
+  position: relative;
+  margin: 0 -32rpx;
+}
+
+.form-scroll-fade {
+  position: absolute;
+  top: 0;
+  right: 0;
+  bottom: 0;
+  width: 40rpx;
+  background: linear-gradient(to left, var(--surface), rgba(255, 255, 255, 0));
+  pointer-events: none;
 }
 
 .form-chips-scroll {
@@ -175,7 +190,7 @@
 .form-chips-row {
   display: inline-flex;
   gap: 16rpx;
-  padding: 4rpx 0 8rpx;
+  padding: 4rpx 32rpx 8rpx;
 }
 
 .form-category-chip {
@@ -204,14 +219,17 @@
 }
 
 .form-tag-add-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
   min-height: var(--control-height);
-  padding: 0 28rpx;
+  padding: 0 32rpx;
+  border: 1rpx solid var(--moss);
   border-radius: var(--radius-sm);
-  background: var(--surface-highest);
-  color: var(--ink);
+  background: var(--moss-soft);
+  color: var(--moss-deep);
   font-size: 26rpx;
   font-weight: 600;
-  line-height: 1;
 }
 
 .form-tag-add-button::after {
@@ -313,7 +331,7 @@
 .form-marker-emojis-row {
   display: inline-flex;
   gap: 12rpx;
-  padding: 4rpx 0 8rpx;
+  padding: 4rpx 32rpx 8rpx;
 }
 
 .form-marker-emoji-swatch {

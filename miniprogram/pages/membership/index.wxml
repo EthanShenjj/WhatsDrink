@@ -1,0 +1,78 @@
+<view class="page-shell membership-page">
+  <view class="membership-hero">
+    <view class="hero-copy">
+      <text class="eyebrow">SHIGUANG PLUS</text>
+      <text class="display-title">让每段足迹，都有更完整的回响</text>
+      <text class="hero-note">完整回顾、专属表达与更安心的保存。</text>
+    </view>
+    <ip-mascot state="companion" expression="happy" size="190rpx" motion="float" label="陪伴状态的小拾" />
+  </view>
+
+  <view wx:if="{{isPlus}}" class="active-card card">
+    <view class="active-icon"><local-icon name="check-circle" size="38rpx" /></view>
+    <view class="active-copy">
+      <text class="active-title">拾光+ 已生效</text>
+      <text class="active-note">当前权益有效至 {{plusUntilLabel}}</text>
+    </view>
+  </view>
+
+  <view class="benefit-card card">
+    <view class="benefit-row"><local-icon name="sparkles" size="34rpx" /><view><text>自由锁定成长颜色</text><text>把喜欢的已解锁颜色留在小拾身上</text></view></view>
+    <view class="benefit-row"><local-icon name="heart" size="34rpx" /><view><text>小拾专属图标主题</text><text>让应用里的陪伴状态更像你</text></view></view>
+    <view class="benefit-row"><local-icon name="secured" size="34rpx" /><view><text>不限数量的时光胶囊</text><text>继续为未来的自己封存重要回忆</text></view></view>
+  </view>
+
+  <view class="section-heading">
+    <text class="section-title">选择时长</text>
+    <text>单次购买，不会自动续费</text>
+  </view>
+
+  <view class="product-list">
+    <view
+      wx:for="{{products}}"
+      wx:key="id"
+      class="product-card {{selectedProductId === item.id ? 'is-selected' : ''}}"
+      data-id="{{item.id}}"
+      bindtap="onProductTap"
+      role="radio"
+      aria-checked="{{selectedProductId === item.id}}"
+    >
+      <text wx:if="{{item.badge}}" class="product-badge">{{item.badge}}</text>
+      <view class="product-radio"><view></view></view>
+      <view class="product-copy">
+        <text class="product-name">{{item.shortName}}</text>
+        <text class="product-description">{{item.description}}</text>
+        <text class="product-average">{{item.perMonthLabel}}</text>
+      </view>
+      <view class="product-price"><text>¥</text><text>{{item.priceLabel}}</text></view>
+    </view>
+  </view>
+
+  <button class="primary-button buy-button" loading="{{purchasing}}" disabled="{{purchasing}}" bindtap="onBuy">
+    {{purchasing ? '正在处理…' : '开通拾光+'}}
+  </button>
+  <text class="purchase-note">购买后从当前权益到期日继续顺延；试用剩余时间不会被覆盖。支付成功后以平台确认结果为准。</text>
+
+  <view class="policy-card card">
+    <text class="policy-title">购买与数据说明</text>
+    <text>· 这是单次购买，不会自动扣费，到期后可自主续购。</text>
+    <text>· 权益到期后，已创建的足迹与照片仍可查看和导出。</text>
+    <text>· Android 等终端退款由开发者处理；iOS 退款需通过 App Store 申请。</text>
+  </view>
+
+  <view class="order-section">
+    <view class="order-heading">
+      <text class="section-title">购买记录</text>
+      <button class="text-button" loading="{{refreshing}}" bindtap="onRefresh">恢复购买与权益</button>
+    </view>
+    <view wx:if="{{orders.length}}" class="order-card card">
+      <view wx:for="{{orders}}" wx:key="outTradeNo" class="order-row">
+        <view class="order-copy"><text>{{item.productName}}</text><text>{{item.dateLabel}} · {{item.outTradeNo}}</text></view>
+        <view class="order-meta"><text>¥{{item.priceLabel}}</text><text class="status-{{item.status}}">{{item.statusLabel}}</text></view>
+      </view>
+    </view>
+    <text wx:else class="order-empty">还没有购买记录</text>
+  </view>
+
+  <privacy-popup />
+</view>

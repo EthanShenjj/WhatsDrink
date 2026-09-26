@@ -41,12 +41,12 @@
 }
 
 .tab-icon { width: 40rpx; height: 40rpx; opacity: .48; }
-.is-selected .tab-icon { opacity: 1; filter: saturate(1.7) hue-rotate(185deg); }
+.is-selected .tab-icon { opacity: 1; }
 
 .tab-label {
   overflow: hidden;
   max-width: 100%;
-  color: #777C91;
+  color: #6F7489;
   font-size: 21rpx;
   font-weight: 600;
   line-height: 32rpx;
@@ -57,16 +57,16 @@
 .is-selected .tab-label { color: #3E47C8; }
 .tab-selected-indicator { position: absolute; bottom: 2rpx; width: 24rpx; height: 5rpx; border-radius: 99rpx; background: #5B6CFF; }
 
-.tab-item-add { transform: translateY(-24rpx); }
-.tab-item-add:active { transform: translateY(-24rpx) scale(.95); }
+.tab-item-add { transform: translateY(-10rpx); }
+.tab-item-add:active { transform: translateY(-10rpx) scale(.95); }
 .tab-item-add .tab-icon-wrap {
-  width: 104rpx;
-  height: 104rpx;
-  border: 7rpx solid rgba(255,255,255,.96);
-  border-radius: 52rpx;
+  width: 82rpx;
+  height: 82rpx;
+  border: 5rpx solid rgba(255,255,255,.96);
+  border-radius: 41rpx;
   background: linear-gradient(135deg, #5B76FF, #A88BFF);
-  box-shadow: 0 14rpx 32rpx rgba(91,108,255,.34);
+  box-shadow: 0 8rpx 22rpx rgba(91,108,255,.24);
 }
-.tab-add-pin { width: 52rpx; height: 52rpx; filter: brightness(0) invert(1); }
-.tab-add-plus { position: absolute; right: 19rpx; bottom: 20rpx; width: 24rpx; height: 24rpx; }
-.tab-item-add .tab-label { margin-top: -2rpx; color: #4A4F73; }
+.tab-add-pin { width: 42rpx; height: 42rpx; filter: brightness(0) invert(1); }
+.tab-add-plus { position: absolute; right: 14rpx; bottom: 14rpx; width: 20rpx; height: 20rpx; }
+.tab-item-add .tab-label { margin-top: 1rpx; color: #4A4F73; }

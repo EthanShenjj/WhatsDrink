@@ -14,6 +14,7 @@ export const STORAGE_KEYS = {
   travelPlans: 'shiguangji:travel-plans',
   timeCapsules: 'shiguangji:time-capsules',
   shareSnapshots: 'shiguangji:share-snapshots',
+  paymentOrders: 'shiguangji:payment-orders',
   draft: 'shiguangji:footprint-draft',
 } as const
 
@@ -23,4 +24,6 @@ export const COLLECTIONS = {
   travelPlans: 'travel_plans',
   timeCapsules: 'time_capsules',
   shareSnapshots: 'share_snapshots',
+  paymentOrders: 'payment_orders',
+  userEntitlements: 'user_entitlements',
 } as const

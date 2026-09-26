@@ -13,10 +13,13 @@
   >
     <view class="login-sheet-handle"></view>
     <view class="login-sheet-header">
-      <text class="login-sheet-kicker">WELCOME</text>
-      <text class="login-sheet-title">完善你的拾光身份</text>
+      <view class="login-sheet-brand">
+        <view class="login-sheet-brand-dot"></view>
+        <text>拾光迹</text>
+      </view>
+      <text class="login-sheet-title">完善个人资料</text>
       <text class="login-sheet-description">
-        使用微信头像和昵称，创建只属于你的拾光身份
+        选择头像和昵称，让每段足迹都有你的名字
       </text>
     </view>
 
@@ -25,6 +28,7 @@
         class="login-avatar-button"
         open-type="chooseAvatar"
         bindchooseavatar="chooseAvatar"
+        hover-class="login-avatar-button-active"
         aria-label="{{avatarUrl ? '更换微信头像' : '选择微信头像'}}"
       >
         <image wx:if="{{avatarUrl}}" src="{{avatarUrl}}" mode="aspectFill" />
@@ -63,6 +67,7 @@
       <button
         class="login-confirm-button"
         form-type="submit"
+        hover-class="login-confirm-button-active"
         loading="{{saving}}"
         disabled="{{saving}}"
       >
@@ -70,6 +75,7 @@
       </button>
       <button
         class="login-cancel-button"
+        hover-class="login-cancel-button-active"
         disabled="{{saving}}"
         catchtap="cancel"
       >

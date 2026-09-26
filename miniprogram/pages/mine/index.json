@@ -4,7 +4,6 @@
     "local-icon": "/components/local-icon/index",
     "ip-mascot": "/components/ip-mascot/index",
     "brand-card": "/components/brand-card/index",
-    "wechat-login-sheet": "/components/wechat-login-sheet/index",
     "privacy-popup": "/components/privacy-popup/index"
   }
 }

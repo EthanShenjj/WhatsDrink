@@ -1,0 +1,8 @@
+{
+  "navigationBarTitleText": "拾光+",
+  "usingComponents": {
+    "ip-mascot": "/components/ip-mascot/index",
+    "local-icon": "/components/local-icon/index",
+    "privacy-popup": "/components/privacy-popup/index"
+  }
+}

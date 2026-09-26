@@ -55,4 +55,6 @@
       <text class="share-hint">先生成图片，再转发或保存。分享链接只打开小程序首页，不会公开私人足迹详情。</text>
     </view>
   </block>
+
+  <privacy-popup />
 </view>

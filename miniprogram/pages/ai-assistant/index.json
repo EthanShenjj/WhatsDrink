@@ -4,6 +4,7 @@
     "ip-mascot": "/components/ip-mascot/index",
     "local-icon": "/components/local-icon/index",
     "photo-uploader": "/components/photo-uploader/index",
-    "mood-picker": "/components/mood-picker/index"
+    "mood-picker": "/components/mood-picker/index",
+    "privacy-popup": "/components/privacy-popup/index"
   }
 }

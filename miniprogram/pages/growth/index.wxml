@@ -63,13 +63,14 @@
       </view>
     </scroll-view>
 
-    <view wx:if="{{unlockedColorCount >= 3 || snapshot.isPlus}}" class="plus-card plus-card-inline">
+    <view class="plus-card plus-card-inline">
       <view class="plus-badge">拾光+</view>
       <text class="plus-title">让小拾更像你</text>
       <text class="plus-copy">自由切换、锁定和组合已解锁的颜色，让每段成长有自己的表达。</text>
       <button class="plus-button" bindtap="onStartTrial" loading="{{saving}}">
-        {{snapshot.isPlus ? ('体验中 · 剩余 ' + snapshot.plusDaysLeft + ' 天') : '免费体验 7 天'}}
+        {{snapshot.isPlus ? ('拾光+ · 剩余 ' + snapshot.plusDaysLeft + ' 天') : (profile.growth.trialStartedAt ? '查看拾光+' : '免费体验 7 天')}}
       </button>
+      <button class="plus-plan-link" bindtap="onMembershipTap">{{snapshot.isPlus ? '查看权益与购买记录' : '查看 31 天 / 372 天付费方案'}}</button>
       <text class="plus-footnote">基础成长色、表情和隐藏成就均可免费获得。</text>
     </view>
 

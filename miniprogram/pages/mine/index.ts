@@ -2,7 +2,6 @@ import type { GrowthSnapshot, LightingStats, UserProfile } from '../../domain/ty
 import {
   ensureProfile,
   listFootprints,
-  clearAllData,
 } from '../../services/repository'
 import { computeLighting } from '../../utils/footprint'
 import { computeGrowthSnapshot } from '../../utils/growth'
@@ -19,20 +18,17 @@ interface PageData {
   isLoggedIn: boolean
   stats: LightingStats | null
   growth: GrowthSnapshot | null
-  loginSheetVisible: boolean
   menu: MenuRow[]
   version: string
-  clearing: boolean
   loading: boolean
 }
 
 const app = getApp<IAppOption>()
 
 const MENU: MenuRow[] = [
+  { key: 'membership', label: '拾光+ 与购买记录', icon: 'sparkles' },
   { key: 'settings', label: '地图设置', icon: 'settings' },
   { key: 'explore', label: '探索与轻攻略', hint: 'P1', icon: 'compass' },
-  { key: 'export', label: '数据导出', hint: 'P1', icon: 'download' },
-  { key: 'privacy', label: '隐私设置', icon: 'lock' },
   { key: 'capsule', label: '时光胶囊', icon: 'clock' },
   { key: 'about', label: '关于拾光迹', icon: 'sparkles' },
 ]
@@ -43,10 +39,8 @@ Page<PageData, WechatMiniprogram.IAnyObject>({
     isLoggedIn: false,
     stats: null,
     growth: null,
-    loginSheetVisible: false,
     menu: MENU,
     version: '1.0.0',
-    clearing: false,
     loading: true,
   },
 
@@ -83,27 +77,8 @@ Page<PageData, WechatMiniprogram.IAnyObject>({
     }
   },
 
-  onLoginTap() {
-    if (this.data.isLoggedIn) {
-      wx.navigateTo({ url: '/pages/mine-edit/index' })
-      return
-    }
-    this.setData({ loginSheetVisible: true })
-  },
-
-  async onLoginSuccess(e: WechatMiniprogram.CustomEvent<{ profile: UserProfile }>) {
-    const profile = e.detail.profile
-    app.globalData.profile = profile
-    this.setData({
-      profile,
-      isLoggedIn: true,
-      loginSheetVisible: false,
-    })
-    wx.showToast({ title: '资料已完善', icon: 'success' })
-  },
-
-  onLoginCancel() {
-    this.setData({ loginSheetVisible: false })
+  onProfileTap() {
+    wx.navigateTo({ url: '/pages/personal-settings/index' })
   },
 
   onAnnualReview() {
@@ -114,20 +89,21 @@ Page<PageData, WechatMiniprogram.IAnyObject>({
     wx.navigateTo({ url: '/pages/growth/index' })
   },
 
+  onMembershipTap() {
+    wx.navigateTo({ url: '/pages/membership/index' })
+  },
+
   onMenuTap(e: WechatMiniprogram.TouchEvent) {
     const key = String(e.currentTarget.dataset.key || '')
     switch (key) {
+      case 'membership':
+        wx.navigateTo({ url: '/pages/membership/index' })
+        break
       case 'settings':
         wx.navigateTo({ url: '/pages/settings/index' })
         break
       case 'explore':
         wx.navigateTo({ url: '/pages/guide/index' })
-        break
-      case 'export':
-        wx.showToast({ title: '功能开发中', icon: 'none' })
-        break
-      case 'privacy':
-        wx.navigateTo({ url: '/pages/privacy/index' })
         break
       case 'capsule':
         wx.navigateTo({ url: '/pages/time-capsule/index' })
@@ -149,49 +125,4 @@ Page<PageData, WechatMiniprogram.IAnyObject>({
     })
   },
 
-  async onClearAll() {
-    if (this.data.clearing) return
-    const confirmed = await this.confirmDialog({
-      title: '清除所有数据',
-      content: '将删除所有足迹、照片和攻略，且无法恢复。确定继续吗？',
-      confirmText: '确认清除',
-      confirmColor: '#3E47C8',
-    })
-    if (!confirmed) return
-    this.setData({ clearing: true })
-    try {
-      await clearAllData()
-      app.globalData.footprints = []
-      app.globalData.footprintsCachedAt = Date.now()
-      this.setData({
-        stats: computeLighting([]),
-        growth: computeGrowthSnapshot([], this.data.profile),
-        clearing: false,
-      })
-      wx.showToast({ title: '已清除所有数据', icon: 'success' })
-    } catch (err) {
-      console.warn('[mine] clear failed', err)
-      wx.showToast({ title: '操作失败，请重试', icon: 'none' })
-      this.setData({ clearing: false })
-    }
-  },
-
-  confirmDialog(opts: {
-    title: string
-    content: string
-    confirmText?: string
-    confirmColor?: string
-  }): Promise<boolean> {
-    return new Promise((resolve) => {
-      wx.showModal({
-        title: opts.title,
-        content: opts.content,
-        confirmText: opts.confirmText || '确认',
-        confirmColor: opts.confirmColor || '#3E47C8',
-        cancelText: '取消',
-        success: (res) => resolve(Boolean(res.confirm)),
-        fail: () => resolve(false),
-      })
-    })
-  },
 })

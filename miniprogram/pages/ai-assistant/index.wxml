@@ -75,4 +75,6 @@
 
     <button class="primary-button ai-primary" loading="{{saving}}" disabled="{{saving || (needsPoiConfirmation && !poiConfirmed)}}" bindtap="onConfirmSave">确认后保存足迹</button>
   </block>
+
+  <privacy-popup />
 </view>

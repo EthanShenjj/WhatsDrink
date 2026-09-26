@@ -3,6 +3,7 @@
   "usingComponents": {
     "empty-state": "/components/empty-state/index",
     "photo-uploader": "/components/photo-uploader/index",
-    "local-icon": "/components/local-icon/index"
+    "local-icon": "/components/local-icon/index",
+    "privacy-popup": "/components/privacy-popup/index"
   }
 }

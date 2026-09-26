@@ -48,4 +48,6 @@
       <button class="delete-button" data-id="{{selectedCapsule.id}}" bindtap="onDelete">删除胶囊</button>
     </view>
   </view>
+
+  <privacy-popup />
 </view>
