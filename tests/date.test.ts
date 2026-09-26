@@ -51,7 +51,7 @@ describe('buildMonthGrid', () => {
       {
         id: '1', userId: 'u', status: 'visited', poiName: 'Test',
         visitDate: '2026-09-15', photos: ['photo.jpg'], tags: [],
-        visibility: 'private', source: 'manual', clientRequestId: 'r',
+        source: 'manual', clientRequestId: 'r',
         createdAt: 0, updatedAt: 0,
       },
     ]

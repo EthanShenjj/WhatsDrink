@@ -252,7 +252,7 @@ final result: blocked
 **Implementation evidence**
 
 - Runtime: WeChat Developer Tools 2.02.2609212 Nightly, iPhone 12/13 Pro simulator, 390 × 753 CSS px.
-- Surfaces reviewed together with the source boards: `pages/mine/index`, `pages/growth/index`, and monthly `pages/share-card/index?type=map&month=2026-09`.
+- Surfaces reviewed together with the source boards: `pages/mine/index` and `pages/growth/index`, including the monthly report panel.
 - Interactions verified: open growth hub, start the one-time 7-day trial, lock/unlock an earned color, settle the monthly report for +5 shards, open the in-app monthly report panel, and navigate to the monthly share card.
 - Static and automated gates: project structure passed, TypeScript passed, 61 tests passed, packaged media total 161 KB.
 - Runtime note: the simulator still reports the pre-existing CloudBase `Failed to fetch` / `read ECONNRESET` condition; repository fallback kept the growth flow functional for local verification.
@@ -262,7 +262,7 @@ final result: blocked
 - Pass 1 — P1: using the full design board as a runtime crop exposed labels and white card edges around the mascot.
   - Fix: extracted the six approved state characters into lightweight transparent WebP assets and reused them through one `xiaoshi-mascot` component.
 - Pass 2 — P1: the native monthly modal settled shards but did not render reliably in the simulator.
-  - Fix: replaced it with an in-app bottom report panel containing monthly color, summary, three metrics, and a share-card action.
+  - Fix: replaced it with an in-app bottom report panel containing monthly color, summary, three metrics, and a close action.
 - Pass 3 — P2: the first report mask used the unsupported `inset` shorthand and was present in accessibility output without visible bounds.
   - Fix: set explicit `top/right/bottom/left: 0`; the panel and dimmed mask rendered correctly at 390 × 753.
 - Typography and hierarchy: the blue-purple hero, weekly status, progress goal, monthly color, collection areas, and dark premium card follow the selected light, playful reference without replacing the app’s existing warm paper system.

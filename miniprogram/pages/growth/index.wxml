@@ -100,7 +100,7 @@
     </view>
 
     <view class="section-head">
-      <view><text class="section-title">小拾图标主题</text><text class="section-sub">同步到小拾头像与分享卡</text></view>
+      <view><text class="section-title">小拾图标主题</text><text class="section-sub">应用到小拾头像</text></view>
     </view>
     <view class="icon-card card">
       <view class="icon-preview icon-{{iconColorId}}">
@@ -108,7 +108,7 @@
       </view>
       <view class="icon-copy">
         <text class="icon-title">当前图标主题</text>
-        <text class="icon-note">微信暂不支持运行时替换入口图标，主题会用于应用内的小拾与分享内容。</text>
+        <text class="icon-note">微信暂不支持运行时替换入口图标，主题会用于应用内的小拾形象。</text>
       </view>
       <scroll-view class="icon-options" scroll-x>
         <view class="icon-option-list">
@@ -131,7 +131,6 @@
           <view><text class="report-number">{{snapshot.monthCityCount}}</text><text>新增城市</text></view>
           <view><text class="report-number">+5</text><text>拾光碎片</text></view>
         </view>
-        <button class="report-share" bindtap="onReportShare">生成分享卡</button>
         <button class="report-close" bindtap="onReportClose">稍后再看</button>
       </view>
     </view>

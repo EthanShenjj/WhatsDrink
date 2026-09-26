@@ -205,18 +205,6 @@
           </view>
         </view>
 
-        <view class="form-field form-visibility-row">
-          <view>
-            <text class="form-field-label form-visibility-label">允许生成分享卡</text>
-            <text class="form-field-hint">默认仅自己可见，开启后仍不会公开足迹</text>
-          </view>
-          <switch
-            checked="{{visibility === 'share_only'}}"
-            color="#5B6CFF"
-            bindchange="onVisibilityChange"
-            aria-label="允许生成分享卡"
-          />
-        </view>
       </block>
     </view>
 

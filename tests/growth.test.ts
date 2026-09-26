@@ -15,7 +15,6 @@ const makeFootprint = (id: string, visitDate: string, overrides: Partial<Footpri
   category: 'park',
   photos: [],
   tags: [],
-  visibility: 'private',
   source: 'manual',
   clientRequestId: `request-${id}`,
   createdAt: at(visitDate),

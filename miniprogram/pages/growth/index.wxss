@@ -117,5 +117,4 @@
 .report-stats { display: grid; width: 100%; grid-template-columns: repeat(3, 1fr); margin-top: 24rpx; padding: 22rpx 0; border-radius: 28rpx; background: rgba(255,255,255,.72); }
 .report-stats view { display: flex; align-items: center; color: #8b8495; font-size: 19rpx; flex-direction: column; }
 .report-number { color: #413b86; font-size: 32rpx; font-weight: 700; }
-.report-share { width: 100%; min-height: 84rpx; margin-top: 22rpx; border-radius: 42rpx; background: linear-gradient(90deg, #625dd2, #9b72dd); color: #fff; font-size: 27rpx; font-weight: 700; line-height: 84rpx; }
-.report-close { min-height: 64rpx; margin-top: 8rpx; background: transparent; color: #85808e; font-size: 22rpx; line-height: 64rpx; }
+.report-close { min-height: 72rpx; margin-top: 22rpx; background: transparent; color: #85808e; font-size: 22rpx; line-height: 72rpx; }

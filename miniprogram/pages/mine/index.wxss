@@ -47,12 +47,7 @@
 .stats-secondary { display: flex; flex-wrap: wrap; gap: 10rpx; margin-top: 28rpx; padding-top: 22rpx; border-top: 1rpx solid var(--line); }
 .stats-secondary text { padding: 7rpx 14rpx; border-radius: 99rpx; background: var(--surface-high); color: var(--muted); font-size: 18rpx; }
 
-.annual-card { display: flex; min-height: 126rpx; align-items: center; gap: 18rpx; padding: 24rpx 28rpx; }
-.annual-icon { display: flex; width: 68rpx; height: 68rpx; align-items: center; justify-content: center; border-radius: 24rpx; background: #E7E9FF; }
-.annual-copy-wrap { display: flex; min-width: 0; flex: 1; flex-direction: column; }
-.annual-title { color: var(--ink); font-size: 28rpx; font-weight: 700; }
-.annual-copy { margin-top: 3rpx; color: var(--muted); font-size: 21rpx; }
-.annual-arrow, .menu-arrow { color: var(--outline); font-size: 42rpx; line-height: 1; }
+.menu-arrow { color: var(--outline); font-size: 42rpx; line-height: 1; }
 
 .menu-card { margin-top: 28rpx; padding: 4rpx 28rpx; }
 .menu-row { display: flex; min-height: 96rpx; align-items: center; gap: 18rpx; border-bottom: 1rpx solid var(--line); }

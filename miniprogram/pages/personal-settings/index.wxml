@@ -35,7 +35,7 @@
         <view class="row-icon"><local-icon name="lock" size="34rpx" /></view>
         <view class="row-copy">
           <text class="row-title">隐私设置</text>
-          <text class="row-hint">管理位置、照片与分享范围</text>
+          <text class="row-hint">管理位置、照片与系统权限</text>
         </view>
         <text class="row-arrow">›</text>
       </view>

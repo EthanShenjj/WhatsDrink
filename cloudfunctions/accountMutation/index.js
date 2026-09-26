@@ -65,8 +65,6 @@ const clearAllForUser = async (openid) => {
     if (Array.isArray(cap.photos)) files.push(...cap.photos)
   })
 
-  await drainCollection('share_snapshots', openid)
-
   if (files.length) await deleteCloudFiles(files, openid)
 }
 

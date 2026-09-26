@@ -19,7 +19,6 @@ const makeFP = (overrides: Partial<Footprint> = {}): Footprint => ({
   poiName: 'Test Place',
   photos: [],
   tags: [],
-  visibility: 'private',
   source: 'manual',
   clientRequestId: 'req1',
   createdAt: 1000,
@@ -187,7 +186,6 @@ describe('createDefaultFootprint', () => {
   it('creates a visited footprint with today date', () => {
     const draft = createDefaultFootprint()
     expect(draft.status).toBe('visited')
-    expect(draft.visibility).toBe('private')
     expect(draft.source).toBe('manual')
     expect(draft.photos).toEqual([])
     expect(draft.visitDate).toBeTruthy()

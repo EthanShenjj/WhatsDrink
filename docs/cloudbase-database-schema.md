@@ -5,10 +5,9 @@
 | 集合 | 云端主要字段 | 使用位置 |
 | --- | --- | --- |
 | `user_profiles` | `_openid`, `nickname`, `avatarUrl`, `createdAt`, `updatedAt` | `login`、`accountMutation` |
-| `footprints` | `_openid`, `status`, `poiName`, `address?`, `lat?`, `lng?`, `country?`, `province?`, `city?`, `district?`, `visitDate?`, `photos`, `mood?`, `category?`, `tags`, `note?`, `markerStyle?`, `visibility`, `source`, `placeId?`, `wishId?`, `isImportant`, `wishlistCreatedAt?`, `fulfilledAt?`, `fulfilledVisitId?`, `convertedFromWishlist?`, `clientRequestId`, `createdAt`, `updatedAt` | `footprintMutation`；旅行计划和时间胶囊也会校验足迹引用 |
+| `footprints` | `_openid`, `status`, `poiName`, `address?`, `lat?`, `lng?`, `country?`, `province?`, `city?`, `district?`, `visitDate?`, `photos`, `mood?`, `category?`, `tags`, `note?`, `markerStyle?`, `source`, `placeId?`, `wishId?`, `isImportant`, `wishlistCreatedAt?`, `fulfilledAt?`, `fulfilledVisitId?`, `convertedFromWishlist?`, `clientRequestId`, `createdAt`, `updatedAt` | `footprintMutation`；旅行计划和时间胶囊也会校验足迹引用 |
 | `travel_plans` | `_openid`, `title`, `city`, `days`, `preferences`, `poiIds`, `dayPlans`, `status`, `createdAt`, `updatedAt` | `travelPlanMutation` |
 | `time_capsules` | `_openid`, `title`, `footprintId?`, `text?`, `photos`, `unlockDate`, `status`, `subscriptionId?`, `createdAt`, `updatedAt`, `unlockedAt?`, `reminderAttemptedAt?`, `reminderSentAt?`, `reminderFailedAt?` | `timeCapsuleMutation`、`sendCapsuleReminder` |
-| `share_snapshots` | 当前仅预留；客户端分享快照保存在本地 | `accountMutation` 删除账号时会清理此集合 |
 | `payment_orders` | `_openid`, `outTradeNo`, `wxOrderId?`, `catalogProductId`, `platformProductId`, `productName`, `amountFen`, `durationDays`, `status`, `entitlementStartsAt?`, `entitlementEndsAt?`, `createdAt`, `updatedAt`, `paidAt?`, `fulfilledAt?`, `refundedAt?` | `paymentMutation`、`paymentNotify` |
 | `user_entitlements` | `_openid`, `entitlementKey`, `sourceOrderId`, `startsAt`, `expiresAt`, `status`, `createdAt`, `updatedAt`, `revokedAt?` | `paymentNotify`、支付查单兜底 |
 
@@ -26,7 +25,6 @@
 | `travel_plans` | `_openid` 升序，`updatedAt` 降序 | 否 | 按用户列出旅行计划 |
 | `time_capsules` | `_openid` 升序，`unlockDate` 升序 | 否 | 按用户列出时间胶囊 |
 | `time_capsules` | `status` 升序，`unlockDate` 升序 | 否 | 定时查找待解锁胶囊 |
-| `share_snapshots` | `_openid` 升序 | 否 | 删除账号时清理数据 |
 | `payment_orders` | `_openid` 升序，`createdAt` 降序 | 否 | 用户购买记录 |
 | `payment_orders` | `outTradeNo` 升序 | 是 | 商户订单幂等与通知定位 |
 | `payment_orders` | `wxOrderId` 升序 | 建议唯一 | 微信订单幂等 |
@@ -41,6 +39,6 @@
 
 - 保留原有 `brands`、`drink_records`、`drinks`、`wheels` 和系统集合及其数据。
 - 沿用原有空集合 `user_profiles` 及 `_openid_1` 索引。
-- 新建 `footprints`、`travel_plans`、`time_capsules`、`share_snapshots`。
+- 新建 `footprints`、`travel_plans`、`time_capsules`。
 - 已创建本节表格所列索引，并通过 `listIndexes` 逐项复查。
 - 原有五个业务集合均已关闭客户端直接读写。支付上线前，还需按本文创建并关闭 `payment_orders`、`user_entitlements` 的客户端读写。

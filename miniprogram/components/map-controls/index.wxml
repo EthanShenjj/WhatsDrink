@@ -2,7 +2,6 @@
   <view
     wx:for="{{buttons}}"
     wx:key="key"
-    wx:if="{{item.key !== 'share' || showShare}}"
     class="mc-button {{item.key === 'filter' && filterActive ? 'has-badge' : ''}}"
     data-event="{{item.event}}"
     bindtap="onTap"

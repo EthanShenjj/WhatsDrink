@@ -41,7 +41,6 @@ interface PageData {
   note?: string
   markerColor: string
   markerEmoji: string
-  visibility: 'private' | 'share_only'
   source: 'manual' | 'ai' | 'import'
   wishlistCreatedAt?: number
   convertedFromWishlist: boolean
@@ -87,7 +86,6 @@ Page<PageData, WechatMiniprogram.IAnyObject>({
     note: '',
     markerColor: MARKER_COLORS[0].value,
     markerEmoji: '',
-    visibility: 'private',
     source: 'manual',
     wishlistCreatedAt: undefined,
     convertedFromWishlist: false,
@@ -150,7 +148,6 @@ Page<PageData, WechatMiniprogram.IAnyObject>({
             note: convertingWishlist || revisiting ? '' : fp.note || '',
             markerColor: fp.markerStyle?.color || MARKER_COLORS[0].value,
             markerEmoji: fp.markerStyle?.emoji || '',
-            visibility: fp.visibility,
             source: fp.source,
             wishlistCreatedAt: fp.wishlistCreatedAt,
             convertedFromWishlist: convertingWishlist || (!revisiting && !!fp.convertedFromWishlist),
@@ -229,7 +226,6 @@ Page<PageData, WechatMiniprogram.IAnyObject>({
                 note: saved.note || this.data.note,
                 markerColor: saved.markerStyle?.color || this.data.markerColor,
                 markerEmoji: saved.markerStyle?.emoji || this.data.markerEmoji,
-                visibility: saved.visibility || this.data.visibility,
                 source: saved.source || this.data.source,
                 wishlistCreatedAt: saved.wishlistCreatedAt,
               })
@@ -262,7 +258,6 @@ Page<PageData, WechatMiniprogram.IAnyObject>({
         tags: this.data.tags,
         note: this.data.note || undefined,
         markerStyle: { color: this.data.markerColor, emoji: this.data.markerEmoji || undefined },
-        visibility: this.data.visibility,
         source: this.data.source,
         wishlistCreatedAt: this.data.wishlistCreatedAt,
         convertedFromWishlist: this.data.convertedFromWishlist,
@@ -307,10 +302,6 @@ Page<PageData, WechatMiniprogram.IAnyObject>({
 
   onMoodChange(e: WechatMiniprogram.CustomEvent<{ value: string }>) {
     this.setData({ mood: e.detail.value })
-  },
-
-  onVisibilityChange(e: WechatMiniprogram.SwitchChange) {
-    this.setData({ visibility: e.detail.value ? 'share_only' : 'private' })
   },
 
   selectCategory(
@@ -426,7 +417,6 @@ Page<PageData, WechatMiniprogram.IAnyObject>({
       tags: this.data.tags,
       note: this.data.note || undefined,
       markerStyle: { color: this.data.markerColor, emoji: this.data.markerEmoji || undefined },
-      visibility: this.data.visibility,
       source: this.data.source,
       wishlistCreatedAt: this.data.wishlistCreatedAt,
       convertedFromWishlist: this.data.convertedFromWishlist,

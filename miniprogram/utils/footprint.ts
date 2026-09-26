@@ -137,7 +137,6 @@ export const createDefaultFootprint = (
   poiName: '',
   photos: [],
   tags: [],
-  visibility: 'private',
   source: 'manual',
   visitDate: dateKey(new Date()),
   ...overrides,

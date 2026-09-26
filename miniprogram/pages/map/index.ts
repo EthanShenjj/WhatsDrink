@@ -571,7 +571,6 @@ Page<PageData, WechatMiniprogram.IAnyObject>({
           status,
           photos: [] as string[],
           tags: [] as string[],
-          visibility: 'private' as const,
           source: 'manual' as const,
         }
         wx.setStorageSync('sgj:quick-place', draft)
@@ -591,11 +590,6 @@ Page<PageData, WechatMiniprogram.IAnyObject>({
 
   onSettings() {
     wx.navigateTo({ url: '/pages/settings/index' })
-  },
-
-  onShare() {
-    wx.setStorageSync('sgj:share-map-ids', this.data.filteredFootprints.map((fp) => fp.id))
-    wx.navigateTo({ url: `/pages/share-card/index?type=map&mode=${this.data.mode}` })
   },
 
   onFilterApply(e: WechatMiniprogram.CustomEvent<{ filter: FilterState }>) {
@@ -680,10 +674,6 @@ Page<PageData, WechatMiniprogram.IAnyObject>({
   onEmptyAction() {
     const status = this.data.mode === 'wishlist' ? 'wishlist' : 'visited'
     wx.navigateTo({ url: `/pages/footprint-form/index?status=${status}` })
-  },
-
-  onLightingExplore() {
-    this.onShare()
   },
 
   preventMove() {},

@@ -353,23 +353,6 @@
   box-shadow: 0 0 0 3rpx rgba(91, 108, 255, 0.18);
 }
 
-.form-visibility-row {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 24rpx;
-  padding-top: 28rpx;
-  border-top: 1rpx solid var(--line);
-}
-
-.form-visibility-label {
-  margin-bottom: 4rpx;
-}
-
-.form-visibility-row > view {
-  flex: 1;
-}
-
 .form-actions {
   position: fixed;
   left: 0;

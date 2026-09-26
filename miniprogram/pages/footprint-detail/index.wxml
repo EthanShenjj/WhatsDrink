@@ -178,10 +178,6 @@
         <local-icon name="edit" size="36rpx" />
         <text class="detail-action-label">编辑</text>
       </view>
-      <view class="detail-action" bindtap="onShare">
-        <local-icon name="share" size="36rpx" />
-        <text class="detail-action-label">分享</text>
-      </view>
       <view class="detail-action detail-action-danger" bindtap="onDelete">
         <local-icon name="delete" size="36rpx" />
         <text class="detail-action-label">删除</text>

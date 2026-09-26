@@ -1,5 +1,4 @@
 const STATUSES = new Set(['visited', 'wishlist', 'fulfilled'])
-const VISIBILITIES = new Set(['private', 'share_only'])
 const SOURCES = new Set(['manual', 'ai', 'import'])
 
 const text = (value, max = 80) => String(value || '').trim().slice(0, max)
@@ -156,7 +155,6 @@ const sanitizeFootprint = (input, openid, existing, now = Date.now()) => {
     tags: sanitizeStringArray(input.tags, 20, 30),
     note: optionalText(input.note, 1000),
     markerStyle: sanitizeMarkerStyle(input.markerStyle),
-    visibility: enumValue(input.visibility, VISIBILITIES, 'private', '可见性'),
     source: enumValue(input.source, SOURCES, 'manual', '来源'),
     placeId: optionalText(input.placeId, 160),
     wishId: status === 'visited' ? optionalText(input.wishId, 100) : undefined,

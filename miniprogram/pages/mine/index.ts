@@ -81,10 +81,6 @@ Page<PageData, WechatMiniprogram.IAnyObject>({
     wx.navigateTo({ url: '/pages/personal-settings/index' })
   },
 
-  onAnnualReview() {
-    wx.navigateTo({ url: `/pages/share-card/index?type=map&year=${new Date().getFullYear()}` })
-  },
-
   onGrowthTap() {
     wx.navigateTo({ url: '/pages/growth/index' })
   },

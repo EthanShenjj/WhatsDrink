@@ -59,14 +59,6 @@
     </view>
   </view>
 
-  <brand-card variant="tint" interactive ariaLabel="查看年度回顾" bind:tap="onAnnualReview">
-    <view class="annual-card">
-      <view class="annual-icon"><local-icon name="sparkles" size="38rpx" /></view>
-      <view class="annual-copy-wrap"><text class="annual-title">年度回顾</text><text class="annual-copy">回看这一年的光与路</text></view>
-      <text class="annual-arrow">›</text>
-    </view>
-  </brand-card>
-
   <view class="menu-card card">
     <view wx:for="{{menu}}" wx:key="key" class="menu-row" data-key="{{item.key}}" bindtap="onMenuTap">
       <view class="menu-icon"><local-icon name="{{item.icon}}" size="34rpx" /></view>

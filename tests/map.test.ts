@@ -11,7 +11,6 @@ const makeFootprint = (lat: number, lng: number, id?: string): Footprint => ({
   lng,
   photos: [],
   tags: [],
-  visibility: 'private',
   source: 'manual',
   clientRequestId: 'req',
   createdAt: Date.now(),

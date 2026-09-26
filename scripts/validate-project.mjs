@@ -69,7 +69,6 @@ const requiredCloudFunctions = [
   'travelPlanMutation',
   'timeCapsuleMutation',
   'sendCapsuleReminder',
-  'shareCode',
   'paymentMutation',
   'paymentNotify',
 ]

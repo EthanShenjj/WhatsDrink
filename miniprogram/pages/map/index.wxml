@@ -131,9 +131,6 @@
         <text wx:for="{{growthCities}}" wx:key="key" class="chip is-active">{{item.city}} Lv.{{item.level}} · {{item.places}} 处</text>
       </view>
     </view>
-    <view class="lighting-actions">
-      <button class="secondary-button" bindtap="onLightingExplore">生成点亮地图分享</button>
-    </view>
   </view>
 
   <view wx:if="{{unplacedFootprints.length && mode !== 'lighting'}}" class="unplaced-panel">
@@ -150,13 +147,11 @@
     clusterEnabled="{{clusterEnabled}}"
     filterActive="{{activeFilterCount > 0}}"
     raised="{{modeEmpty && mode !== 'lighting'}}"
-    showShare="{{!modeEmpty}}"
     bind:locate="onLocate"
     bind:search="onSearch"
     bind:ai="onAiTap"
     bind:filter="onFilter"
     bind:settings="onSettings"
-    bind:share="onShare"
     bind:clusterToggle="onMapControlClusterToggle"
   ></map-controls>
 

@@ -206,13 +206,6 @@ Page<PageData, WechatMiniprogram.IAnyObject>({
     wx.navigateTo({ url: `/pages/time-capsule/index?footprintId=${this.data.footprint.id}` })
   },
 
-  onShare() {
-    if (!this.data.footprint) return
-    wx.navigateTo({
-      url: `/pages/share-card/index?footprintId=${this.data.footprint.id}`,
-    })
-  },
-
   onDelete() {
     if (!this.data.footprint) return
     wx.showModal({

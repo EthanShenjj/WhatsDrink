@@ -22,10 +22,5 @@
     <text class="section-title hand-underline">订阅提醒</text>
     <text>时光胶囊的微信提醒需单独授权，拒绝后胶囊仍会保存在应用内，你也可以随时在系统设置中管理授权。</text>
   </view>
-  <view class="privacy-section">
-    <text class="section-title hand-underline">分享保护</text>
-    <text>分享卡默认隐藏详细地址，不展示经纬度，并可继续隐藏日期与短记。分享图片一旦保存或转发到外部，拾光迹无法替你撤回。</text>
-  </view>
-
   <button class="secondary-button privacy-settings-button" bindtap="onOpenSettings">管理系统权限</button>
 </view>

@@ -6,7 +6,6 @@ import type {
   TravelPlanDraft,
   TimeCapsule,
   TimeCapsuleDraft,
-  ShareSnapshot,
   MapSettings,
   GrowthPreferences,
   CreatePaymentOrderResult,
@@ -24,6 +23,7 @@ import { hasTimeCapsuleCapacity } from '../utils/payment'
 let sessionReady = false
 let cloudReady = false
 let loginPromise: Promise<UserProfile> | null = null
+const LEGACY_SHARE_SNAPSHOTS_KEY = 'shiguangji:share-snapshots'
 
 const getStored = <T>(key: string, fallback: T): T => {
   try {
@@ -596,38 +596,6 @@ export const unlockTimeCapsule = async (id: string): Promise<TimeCapsule> => {
   return unlocked
 }
 
-// ─── Share Snapshots ───
-
-export const listShareSnapshots = async (): Promise<ShareSnapshot[]> => {
-  return getStored<ShareSnapshot[]>(STORAGE_KEYS.shareSnapshots, [])
-}
-
-export const saveShareSnapshot = async (snapshot: ShareSnapshot): Promise<void> => {
-  const list = await listShareSnapshots()
-  list.unshift(snapshot)
-  setStored(STORAGE_KEYS.shareSnapshots, list.slice(0, 20))
-}
-
-export const getShareCodePath = async (): Promise<string | undefined> => {
-  if (!USE_CLOUD || !cloudReady) return undefined
-  try {
-    const response = await callCloud<{ base64: string }>('shareCode', {})
-    if (!response.base64) return undefined
-    const filePath = `${wx.env.USER_DATA_PATH}/shiguangji-share-code.png`
-    return await new Promise<string | undefined>((resolve) => {
-      wx.getFileSystemManager().writeFile({
-        filePath,
-        data: response.base64,
-        encoding: 'base64',
-        success: () => resolve(filePath),
-        fail: () => resolve(undefined),
-      })
-    })
-  } catch {
-    return undefined
-  }
-}
-
 // ─── AI Assistant ───
 
 export const generateAIDraft = async (
@@ -652,15 +620,16 @@ export const generateAIDraft = async (
 
 export const clearAllData = async (): Promise<void> => {
   const allFootprints = getStored<Footprint[]>(STORAGE_KEYS.footprints, [])
-  const allSnapshots = getStored<ShareSnapshot[]>(STORAGE_KEYS.shareSnapshots, [])
+  const legacySnapshots = getStored<Array<{ imageUrl?: string }>>(LEGACY_SHARE_SNAPSHOTS_KEY, [])
   if (USE_CLOUD && cloudReady) {
     await callCloud('accountMutation', { action: 'clearAll' })
   }
   await deletePhotos(allFootprints.flatMap((fp) => fp.photos))
-  await deleteLocalFiles(allSnapshots.map((snapshot) => snapshot.imageUrl))
+  await deleteLocalFiles(legacySnapshots.map((snapshot) => snapshot.imageUrl))
   Object.values(STORAGE_KEYS).forEach((key) => {
     if (key !== STORAGE_KEYS.profile) wx.removeStorageSync(key)
   })
+  wx.removeStorageSync(LEGACY_SHARE_SNAPSHOTS_KEY)
   try {
     const app = getApp<IAppOption>()
     app.globalData.footprints = []
@@ -673,16 +642,17 @@ export const clearAllData = async (): Promise<void> => {
 export const deleteAccount = async (): Promise<void> => {
   const profile = getStored<UserProfile | null>(STORAGE_KEYS.profile, null)
   const footprints = getStored<Footprint[]>(STORAGE_KEYS.footprints, [])
-  const snapshots = getStored<ShareSnapshot[]>(STORAGE_KEYS.shareSnapshots, [])
+  const legacySnapshots = getStored<Array<{ imageUrl?: string }>>(LEGACY_SHARE_SNAPSHOTS_KEY, [])
   if (USE_CLOUD && cloudReady) {
     await callCloud('accountMutation', { action: 'deleteAccount' })
   }
   await deleteLocalFiles([
     profile?.avatarUrl,
     ...footprints.flatMap((fp) => fp.photos),
-    ...snapshots.map((snapshot) => snapshot.imageUrl),
+    ...legacySnapshots.map((snapshot) => snapshot.imageUrl),
   ])
   Object.values(STORAGE_KEYS).forEach((key) => wx.removeStorageSync(key))
+  wx.removeStorageSync(LEGACY_SHARE_SNAPSHOTS_KEY)
   sessionReady = false
   cloudReady = false
   loginPromise = null

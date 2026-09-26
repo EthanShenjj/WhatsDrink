@@ -204,10 +204,6 @@
   gap: 12rpx;
 }
 
-.lighting-actions {
-  margin-top: 28rpx;
-}
-
 .map-memory-cue {
   position: absolute;
   left: 32rpx;

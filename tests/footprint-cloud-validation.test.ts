@@ -10,11 +10,10 @@ const { sanitizeFootprint } = require('../cloudfunctions/footprintMutation/valid
 }
 
 describe('cloud footprint validation', () => {
-  it('accepts a private place-only visit without location permission', () => {
+  it('accepts a place-only visit without location permission', () => {
     const saved = sanitizeFootprint({ poiName: '街角老店', photos: [], tags: [] }, 'owner', undefined, 1_798_000_000_000)
     expect(saved.status).toBe('visited')
     expect(saved.poiName).toBe('街角老店')
-    expect(saved.visibility).toBe('private')
     expect(saved.lat).toBeUndefined()
     expect(saved.lng).toBeUndefined()
     expect(saved.visitDate).toMatch(/^\d{4}-\d{2}-\d{2}$/)

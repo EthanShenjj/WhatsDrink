@@ -1,6 +1,5 @@
 export type FootprintStatus = 'visited' | 'wishlist' | 'fulfilled'
 export type FootprintSource = 'manual' | 'ai' | 'import'
-export type FootprintVisibility = 'private' | 'share_only'
 export type MapMode = 'visited' | 'wishlist' | 'lighting'
 
 export interface MarkerStyle {
@@ -28,7 +27,6 @@ export interface Footprint {
   tags: string[]
   note?: string
   markerStyle?: MarkerStyle
-  visibility: FootprintVisibility
   source: FootprintSource
   placeId?: string
   wishId?: string
@@ -259,22 +257,6 @@ export interface WeekDayView {
   weekday: string
   day: number
   isToday: boolean
-}
-
-export interface ShareCardConfig {
-  type: 'place' | 'map'
-  footprintId?: string
-  scope?: string
-  hideAddress: boolean
-  hideDate: boolean
-  hideNote: boolean
-}
-
-export interface ShareSnapshot {
-  id: string
-  type: 'place' | 'map'
-  imageUrl: string
-  createdAt: number
 }
 
 export interface TravelPlan {

@@ -81,7 +81,7 @@ Page<PageData, WechatMiniprogram.IAnyObject>({
       return
     }
     if (!this.data.snapshot?.isPlus) {
-      await this.offerTrial('拾光+ 可以让小拾头像与分享卡同步你的专属颜色。')
+      await this.offerTrial('拾光+ 可以让小拾头像使用你的专属颜色。')
       return
     }
     await this.persistPreferences({ iconColorId: id })
@@ -101,13 +101,6 @@ Page<PageData, WechatMiniprogram.IAnyObject>({
 
   onReportClose() {
     this.setData({ reportVisible: false })
-  },
-
-  onReportShare() {
-    const monthKey = this.data.snapshot?.monthKey
-    if (!monthKey) return
-    this.setData({ reportVisible: false })
-    wx.navigateTo({ url: `/pages/share-card/index?type=map&month=${monthKey}` })
   },
 
   noop() {

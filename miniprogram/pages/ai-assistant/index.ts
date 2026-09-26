@@ -165,7 +165,6 @@ Page({
         tags: this.data.tags,
         note: this.data.note || undefined,
         markerStyle: { color: '#5B6CFF' },
-        visibility: 'private',
         source: 'ai',
         convertedFromWishlist: false,
       })

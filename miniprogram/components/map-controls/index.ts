@@ -23,10 +23,6 @@ Component({
       type: Boolean,
       value: false,
     },
-    showShare: {
-      type: Boolean,
-      value: true,
-    },
   },
   data: {
     buttons: [
@@ -35,7 +31,6 @@ Component({
       // AI 助手入口暂时隐藏，恢复时加回：{ key: 'ai', icon: 'sparkles', label: 'AI 助手', event: 'ai' },
       { key: 'filter', icon: 'filter', label: '筛选', event: 'filter' },
       { key: 'settings', icon: 'settings', label: '设置', event: 'settings' },
-      { key: 'share', icon: 'share', label: '分享', event: 'share' },
     ] as ControlButton[],
   },
   methods: {

@@ -47,13 +47,6 @@
       "memorySize": 256
     },
     {
-      "name": "shareCode",
-      "runtime": "Nodejs20.19",
-      "handler": "index.main",
-      "timeout": 10,
-      "memorySize": 256
-    },
-    {
       "name": "sendCapsuleReminder",
       "runtime": "Nodejs20.19",
       "handler": "index.main",
