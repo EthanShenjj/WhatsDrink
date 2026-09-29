@@ -16,7 +16,12 @@ import {
   getMapSettings,
   saveMapSettings,
 } from '../../services/repository'
-import { clusterFootprints, fitBounds, haversine } from '../../utils/map'
+import { clusterFootprints, fitBounds } from '../../utils/map'
+import {
+  buildCheckinRoute,
+  findNearbyCheckinCandidate,
+  type CheckinCandidate,
+} from '../../utils/checkin'
 import { matchesFilter, computeLighting, computeCityGrowth, buildMemoryDrops, placeKey, usedMoods, usedCategories } from '../../utils/footprint'
 import { todayKey } from '../../utils/date'
 import { moodEmoji } from '../../data/options'
@@ -92,6 +97,9 @@ interface PageData {
   todayDrop: MemoryDrop | null
   nearbyMemory: Footprint | null
   nearbyDistance: number
+  checkinVisible: boolean
+  checkinCandidate: CheckinCandidate | null
+  checkinDistance: number
   statusBarHeight: number
   tabReady: boolean
   markerIdMap: Record<number, string>
@@ -260,6 +268,9 @@ Page<PageData, WechatMiniprogram.IAnyObject>({
     todayDrop: null,
     nearbyMemory: null,
     nearbyDistance: 0,
+    checkinVisible: false,
+    checkinCandidate: null,
+    checkinDistance: 0,
     statusBarHeight: 20,
     tabReady: false,
     markerIdMap: {},
@@ -525,31 +536,74 @@ Page<PageData, WechatMiniprogram.IAnyObject>({
     else mapContext?.getScale({ success: ({ scale }) => updateScale(scale) })
   },
 
-  onLocate() {
+  onCheckin() {
+    wx.showLoading({ title: '正在获取位置', mask: true })
     wx.getLocation({
       type: 'gcj02',
       success: (res) => {
-        const nearby = this.data.footprints
-          .filter((fp) => fp.status === 'visited' && typeof fp.lat === 'number' && typeof fp.lng === 'number')
-          .map((fp) => ({ fp, distance: haversine(res.latitude, res.longitude, fp.lat!, fp.lng!) }))
-          .filter((item) => item.distance <= 1000)
-          .sort((a, b) => a.distance - b.distance)[0]
+        const candidate = findNearbyCheckinCandidate(
+          res.latitude,
+          res.longitude,
+          this.data.footprints,
+        )
+        const nearbyMemory = candidate?.footprint.status === 'visited'
+          ? candidate.footprint
+          : null
+        const distance = candidate ? Math.round(candidate.distance) : 0
         this.setData({
           center: { latitude: res.latitude, longitude: res.longitude },
           scale: 16,
           zoom: 14,
           hasLocationAuth: true,
-          nearbyMemory: nearby?.fp || null,
-          nearbyDistance: nearby ? Math.round(nearby.distance) : 0,
+          nearbyMemory,
+          nearbyDistance: nearbyMemory ? distance : 0,
+          checkinVisible: true,
+          checkinCandidate: candidate,
+          checkinDistance: distance,
         })
         mapContext?.moveToLocation({
           latitude: res.latitude,
           longitude: res.longitude,
+          fail: () => {},
         })
       },
       fail: () => {
         wx.showToast({ title: '请授权位置信息', icon: 'none' })
       },
+      complete: () => wx.hideLoading(),
+    })
+  },
+
+  onCheckinClose() {
+    this.setData({ checkinVisible: false })
+  },
+
+  onCheckinConfirm() {
+    const candidate = this.data.checkinCandidate
+    if (!candidate) return
+    this.setData({ checkinVisible: false })
+    wx.navigateTo({ url: buildCheckinRoute(candidate) })
+  },
+
+  onCheckinChoosePlace() {
+    this.setData({ checkinVisible: false })
+    wx.chooseLocation({
+      success: (res) => {
+        const draft = {
+          poiName: res.name || '当前位置',
+          address: res.address,
+          lat: res.latitude,
+          lng: res.longitude,
+          visitDate: todayKey(),
+          status: 'visited' as const,
+          photos: [] as string[],
+          tags: [] as string[],
+          source: 'manual' as const,
+        }
+        wx.setStorageSync('sgj:quick-place', draft)
+        wx.navigateTo({ url: '/pages/footprint-form/index?from=place&status=visited&checkin=1' })
+      },
+      fail: () => {},
     })
   },
 

@@ -231,6 +231,64 @@
   line-height: 1.45;
 }
 
+.map-checkin-cta {
+  position: absolute;
+  right: 32rpx;
+  bottom: calc(438rpx + env(safe-area-inset-bottom));
+  left: 32rpx;
+  z-index: 34;
+  display: flex;
+  align-items: center;
+  gap: 18rpx;
+  min-height: 96rpx;
+  padding: 14rpx 22rpx;
+  border: 1rpx solid rgba(255, 255, 255, 0.88);
+  border-radius: 28rpx;
+  background: rgba(255, 255, 255, 0.97);
+  box-shadow: 0 16rpx 42rpx rgba(55, 64, 134, 0.2);
+  backdrop-filter: blur(18rpx);
+  pointer-events: auto;
+}
+
+.map-checkin-icon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 68rpx;
+  height: 68rpx;
+  border-radius: 24rpx;
+  background: var(--brand-gradient);
+  box-shadow: 0 8rpx 22rpx rgba(91, 108, 255, 0.26);
+}
+
+.map-checkin-icon local-icon { filter: brightness(0) invert(1); }
+
+.map-checkin-copy {
+  display: flex;
+  min-width: 0;
+  flex: 1;
+  flex-direction: column;
+  gap: 4rpx;
+}
+
+.map-checkin-title {
+  color: var(--ink);
+  font-size: 27rpx;
+  font-weight: 700;
+}
+
+.map-checkin-subtitle {
+  color: var(--muted);
+  font-size: 21rpx;
+}
+
+.map-checkin-arrow {
+  color: var(--brand-primary-deep);
+  font-size: 44rpx;
+  font-weight: 300;
+  line-height: 1;
+}
+
 /* Map empty overlay */
 .map-empty {
   position: absolute;
@@ -384,6 +442,136 @@
   justify-content: space-between;
   margin-top: 16rpx;
 }
+
+/* Current-location check-in sheet */
+.checkin-sheet-layer {
+  position: fixed;
+  z-index: 240;
+  inset: 0;
+}
+
+.checkin-sheet-mask {
+  position: absolute;
+  inset: 0;
+  background: rgba(28, 27, 45, 0.46);
+  animation: detail-mask-in 180ms ease-out both;
+}
+
+.checkin-sheet {
+  position: absolute;
+  right: 0;
+  bottom: 0;
+  left: 0;
+  padding: 16rpx 32rpx 0;
+  border-radius: 40rpx 40rpx 0 0;
+  background: var(--surface);
+  box-shadow: 0 -24rpx 80rpx rgba(28, 27, 45, 0.2);
+  animation: detail-sheet-in 240ms cubic-bezier(0.22, 0.8, 0.35, 1) both;
+}
+
+.checkin-sheet-heading {
+  display: flex;
+  align-items: center;
+  gap: 18rpx;
+  margin-bottom: 24rpx;
+}
+
+.checkin-status-icon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 76rpx;
+  height: 76rpx;
+  border-radius: 26rpx;
+  background: var(--brand-surface-tint);
+  color: var(--brand-primary-deep);
+}
+
+.checkin-sheet-copy {
+  display: flex;
+  flex-direction: column;
+  gap: 4rpx;
+}
+
+.checkin-sheet-title {
+  color: var(--ink);
+  font-size: 34rpx;
+  font-weight: 750;
+}
+
+.checkin-location-status {
+  color: #2f875f;
+  font-size: 23rpx;
+  font-weight: 600;
+}
+
+.checkin-location-status::before { content: '●  '; }
+
+.checkin-place-card {
+  display: flex;
+  flex-direction: column;
+  gap: 8rpx;
+  margin-bottom: 24rpx;
+  padding: 26rpx;
+  border: 1rpx solid rgba(91, 108, 255, 0.2);
+  border-radius: 24rpx;
+  background: linear-gradient(135deg, #f8f9ff, #eff1ff);
+}
+
+.checkin-place-card.is-empty {
+  border-color: var(--line);
+  background: var(--surface-soft);
+}
+
+.checkin-place-eyebrow {
+  color: var(--brand-primary-deep);
+  font-size: 21rpx;
+  font-weight: 700;
+}
+
+.checkin-place-name {
+  color: var(--ink);
+  font-size: 31rpx;
+  font-weight: 700;
+}
+
+.checkin-place-address {
+  color: var(--muted);
+  font-size: 23rpx;
+  line-height: 1.45;
+}
+
+.checkin-distance-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16rpx;
+  margin-top: 8rpx;
+  color: var(--ink-body);
+  font-size: 22rpx;
+}
+
+.checkin-place-type {
+  padding: 5rpx 12rpx;
+  border-radius: 99rpx;
+  background: rgba(91, 108, 255, 0.12);
+  color: var(--brand-primary-deep);
+  font-weight: 600;
+}
+
+.checkin-primary,
+.checkin-secondary {
+  margin-top: 14rpx;
+}
+
+.checkin-cancel {
+  margin-top: 10rpx;
+  background: transparent;
+  color: var(--muted);
+  font-size: 25rpx;
+}
+
+.checkin-cancel::after { border: 0; }
 
 @keyframes detail-mask-in {
   from {

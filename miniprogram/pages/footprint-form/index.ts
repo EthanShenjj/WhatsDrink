@@ -72,6 +72,8 @@ interface PageData {
   successTitle: string
   successDescription: string
   successState: 'journey' | 'highlight' | 'companion'
+  isCheckin: boolean
+  checkinDistance: number
 }
 
 Page<PageData, WechatMiniprogram.IAnyObject>({
@@ -126,12 +128,19 @@ Page<PageData, WechatMiniprogram.IAnyObject>({
     successTitle: '',
     successDescription: '',
     successState: 'journey',
+    isCheckin: false,
+    checkinDistance: 0,
   },
 
   onLoad(query: Record<string, string>) {
     const status: FootprintStatus = query.status === 'wishlist' ? 'wishlist' : 'visited'
     const convertingWishlist = query.convert === '1'
-    wx.setNavigationBarTitle({ title: status === 'wishlist' ? '新增想去' : '新增足迹' })
+    const isCheckin = query.checkin === '1'
+    const checkinDistance = Number.isFinite(Number(query.distance))
+      ? Math.max(0, Math.round(Number(query.distance)))
+      : 0
+    this.setData({ isCheckin, checkinDistance })
+    wx.setNavigationBarTitle({ title: isCheckin ? '到访打卡' : status === 'wishlist' ? '新增想去' : '新增足迹' })
 
     const yesterday = new Date()
     yesterday.setDate(yesterday.getDate() - 1)
@@ -188,7 +197,7 @@ Page<PageData, WechatMiniprogram.IAnyObject>({
             loading: false,
           })
           wx.setNavigationBarTitle({
-            title: convertingWishlist ? '记录这次到访' : revisiting ? '再记一次' : fp.status === 'wishlist' ? '编辑想去' : fp.status === 'fulfilled' ? '编辑已实现愿望' : '编辑足迹',
+            title: isCheckin ? '到访打卡' : convertingWishlist ? '记录这次到访' : revisiting ? '再记一次' : fp.status === 'wishlist' ? '编辑想去' : fp.status === 'fulfilled' ? '编辑已实现愿望' : '编辑足迹',
           })
           this.updateFormState()
           wx.hideLoading()
@@ -527,7 +536,18 @@ Page<PageData, WechatMiniprogram.IAnyObject>({
       if (removedLocalPhotos.length) await deletePhotos(removedLocalPhotos)
       clearDraft()
       this.setData({ id: saved.id, saved: true })
-      if (result) {
+      if (this.data.isCheckin) {
+        const distanceCopy = this.data.checkinDistance > 0
+          ? `定位距离约 ${this.data.checkinDistance} 米，`
+          : ''
+        this.setData({
+          saving: false,
+          successVisible: true,
+          successTitle: '打卡成功',
+          successDescription: `${distanceCopy}已在 ${saved.poiName} 完成本次到访打卡，并加入你的个人足迹。`,
+          successState: result ? 'highlight' : 'companion',
+        })
+      } else if (result) {
         const days = Math.max(0, Math.floor((Date.now() - (result.wish.wishlistCreatedAt || result.wish.createdAt)) / 86_400_000))
         this.setData({
           saving: false,

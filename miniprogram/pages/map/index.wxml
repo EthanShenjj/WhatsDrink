@@ -67,6 +67,23 @@
     />
   </view>
 
+  <view
+    wx:if="{{mode === 'visited' && tabReady}}"
+    class="map-checkin-cta"
+    bindtap="onCheckin"
+    role="button"
+    aria-label="当前位置打卡"
+  >
+    <view class="map-checkin-icon">
+      <local-icon name="locate" size="34rpx" />
+    </view>
+    <view class="map-checkin-copy">
+      <text class="map-checkin-title">当前位置打卡</text>
+      <text class="map-checkin-subtitle">到店后获取位置并记录到访</text>
+    </view>
+    <text class="map-checkin-arrow">›</text>
+  </view>
+
   <view wx:if="{{mode === 'visited' && (nearbyMemory || todayDrop)}}" class="map-memory-cue" bindtap="onMemoryCueTap">
     <text class="map-memory-cue-eyebrow">{{nearbyMemory ? '附近的旧记忆' : '今日掉落'}}</text>
     <text class="map-memory-cue-title">{{nearbyMemory ? '距离 ' + nearbyMemory.poiName + ' 约 ' + nearbyDistance + ' 米' : todayDrop.title}}</text>
@@ -147,7 +164,6 @@
     clusterEnabled="{{clusterEnabled}}"
     filterActive="{{activeFilterCount > 0}}"
     raised="{{modeEmpty && mode !== 'lighting'}}"
-    bind:locate="onLocate"
     bind:search="onSearch"
     bind:ai="onAiTap"
     bind:filter="onFilter"
@@ -191,6 +207,44 @@
         <button class="text-button" bindtap="onDetailClose">收起</button>
         <button class="text-button" bindtap="onDetailTap">查看详情 ›</button>
       </view>
+      <view class="safe-bottom"></view>
+    </view>
+  </view>
+
+  <!-- Current-location check-in confirmation -->
+  <view wx:if="{{checkinVisible}}" class="checkin-sheet-layer" catchtouchmove="preventMove">
+    <view class="checkin-sheet-mask" bindtap="onCheckinClose"></view>
+    <view class="checkin-sheet" role="dialog" aria-modal="true" aria-labelledby="checkin-sheet-title">
+      <view class="detail-sheet-handle"></view>
+      <view class="checkin-sheet-heading">
+        <view class="checkin-status-icon">
+          <local-icon name="locate" size="38rpx" />
+        </view>
+        <view class="checkin-sheet-copy">
+          <text id="checkin-sheet-title" class="checkin-sheet-title">当前位置打卡</text>
+          <text class="checkin-location-status">当前位置已获取</text>
+        </view>
+      </view>
+
+      <view wx:if="{{checkinCandidate}}" class="checkin-place-card">
+        <text class="checkin-place-eyebrow">附近可打卡地点</text>
+        <text class="checkin-place-name">{{checkinCandidate.footprint.poiName}}</text>
+        <text wx:if="{{checkinCandidate.footprint.address}}" class="checkin-place-address">{{checkinCandidate.footprint.address}}</text>
+        <view class="checkin-distance-row">
+          <text>距当前位置约 {{checkinDistance}} 米</text>
+          <text class="checkin-place-type">{{checkinCandidate.action === 'fulfill' ? '到访想去地点' : '再次到访'}}</text>
+        </view>
+      </view>
+
+      <view wx:else class="checkin-place-card is-empty">
+        <text class="checkin-place-eyebrow">附近暂无已保存地点</text>
+        <text class="checkin-place-name">选择当前到访的地点</text>
+        <text class="checkin-place-address">选择后会带入地点与坐标，完成本次到访记录。</text>
+      </view>
+
+      <button wx:if="{{checkinCandidate}}" class="primary-button checkin-primary" bindtap="onCheckinConfirm">确认在此打卡</button>
+      <button class="secondary-button checkin-secondary" bindtap="onCheckinChoosePlace">{{checkinCandidate ? '选择其他地点' : '选择地点打卡'}}</button>
+      <button class="checkin-cancel" bindtap="onCheckinClose">取消</button>
       <view class="safe-bottom"></view>
     </view>
   </view>

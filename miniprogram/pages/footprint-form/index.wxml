@@ -4,6 +4,16 @@
   </view>
 
   <block wx:else>
+    <view wx:if="{{isCheckin}}" class="form-checkin-banner">
+      <view class="form-checkin-banner-icon">
+        <local-icon name="locate" size="32rpx" />
+      </view>
+      <view class="form-checkin-banner-copy">
+        <text class="form-checkin-banner-title">到访打卡</text>
+        <text class="form-checkin-banner-hint">当前位置已获取{{checkinDistance ? ' · 距地点约 ' + checkinDistance + ' 米' : ''}}</text>
+      </view>
+    </view>
+
     <view wx:if="{{status === 'wishlist' || status === 'fulfilled'}}" class="form-wishlist-banner">
       <text class="form-wishlist-tag">{{status === 'fulfilled' ? '已实现' : '想去'}}</text>
       <text class="form-wishlist-hint">{{status === 'fulfilled' ? '原来的心愿会一直留在这里' : '记录一个想去的地点，到访时可一键转为足迹'}}</text>
@@ -246,7 +256,7 @@
         disabled="{{saving || !canSave}}"
         bindtap="onSave"
       >
-        {{saving ? '保存中…' : (convertedFromWishlist ? '保存为去过' : '保存')}}
+        {{saving ? '保存中…' : (isCheckin ? '确认打卡' : (convertedFromWishlist ? '保存为去过' : '保存'))}}
       </button>
       <button
         wx:if="{{isEditing}}"
