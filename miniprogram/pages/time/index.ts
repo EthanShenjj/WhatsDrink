@@ -1,19 +1,21 @@
-import type { Footprint, MonthCell, MemoryDrop, GrowthSnapshot, UserProfile } from '../../domain/types'
-import { listFootprints } from '../../services/repository'
+import type { Footprint, MonthCell, MemoryDrop, GrowthOverview, UserProfile } from '../../domain/types'
+import { getFootprintSnapshot, listFootprints } from '../../services/repository'
 import { groupByDate, sortByVisitDate, buildMemoryDrops } from '../../utils/footprint'
 import {
-  buildMonthGrid,
+  buildMonthGridFromIndex,
   todayKey,
   formatMonthLabel,
   formatVisitDate,
   weekdays,
 } from '../../utils/date'
-import { computeGrowthSnapshot } from '../../utils/growth'
+import { computeGrowthOverview } from '../../utils/growth'
+import { installUpdatePerformanceLogger, recordInteraction } from '../../utils/performance'
 
 interface TimelineGroup {
   key: string
   label: string
   footprints: Footprint[]
+  total: number
 }
 
 interface PageData {
@@ -25,6 +27,7 @@ interface PageData {
   selectedKey: string
   selectedDateLabel: string
   selectedFootprints: Footprint[]
+  selectedFootprintTotal: number
   monthLabel: string
   weekdayList: string[]
   monthFootprintCount: number
@@ -33,13 +36,15 @@ interface PageData {
   memoryImgLoaded: Record<string, boolean>
   loading: boolean
   empty: boolean
-  growth: GrowthSnapshot | null
+  growth: GrowthOverview | null
 }
 
 const app = getApp<IAppOption>()
 const FOOTPRINTS_MAX_AGE_MS = 60_000
 // 时间线分组按页追加，保证首屏节点数与全部记录量解耦
 const TIMELINE_GROUPS_PER_PAGE = 10
+const SELECTED_FOOTPRINTS_PER_PAGE = 20
+const TIMELINE_ITEMS_PER_GROUP = 20
 
 const labelForKey = (key: string, today: string): string =>
   key === today ? '今天' : formatVisitDate(key)
@@ -52,8 +57,13 @@ Page<PageData, WechatMiniprogram.IAnyObject>({
   lastRenderedToday: '',
   visitedFootprints: [] as Footprint[],
   groupedByDate: new Map<string, Footprint[]>(),
+  monthCounts: new Map<string, number>(),
   allTimelineGroups: [] as TimelineGroup[],
   timelineGroupPage: 0,
+  selectedFootprintLimit: SELECTED_FOOTPRINTS_PER_PAGE,
+  isVisible: false,
+  loadSequence: 0,
+  pendingFootprints: null as Footprint[] | null,
 
   data: {
     viewMode: 'calendar',
@@ -64,6 +74,7 @@ Page<PageData, WechatMiniprogram.IAnyObject>({
     selectedKey: todayKey(),
     selectedDateLabel: '今天',
     selectedFootprints: [],
+    selectedFootprintTotal: 0,
     monthLabel: '',
     weekdayList: weekdays,
     monthFootprintCount: 0,
@@ -76,24 +87,51 @@ Page<PageData, WechatMiniprogram.IAnyObject>({
   },
 
   onLoad() {
+    installUpdatePerformanceLogger(this, 'time')
     this.setData({ monthLabel: formatMonthLabel(this.data.year, this.data.month) })
   },
 
   onShow() {
+    this.isVisible = true
     const tabBar = this.getTabBar?.()
     if (tabBar && (tabBar.data as { selected?: number }).selected !== 1) tabBar.setData({ selected: 1 })
     const today = todayKey()
     if (today !== this.data.todayKey) this.setData({ todayKey: today })
+    const cached = getFootprintSnapshot()
+    if (this.pendingFootprints) {
+      const pending = this.pendingFootprints
+      this.pendingFootprints = null
+      this.applyFootprints(pending)
+    } else if (cached && (
+      cached !== this.lastFootprintsSource
+      || this.lastRenderedProfile !== (app.globalData.profile || null)
+      || this.lastRenderedToday !== today
+    )) {
+      this.applyFootprints(cached)
+      this.lastFootprintsSource = cached
+      this.lastRenderedProfile = app.globalData.profile || null
+      this.lastRenderedToday = today
+    }
     this.loadFootprints()
   },
 
+  onHide() {
+    this.isVisible = false
+  },
+
   async loadFootprints() {
+    const sequence = ++this.loadSequence
     let list: Footprint[]
     try {
       list = await listFootprints({ maxAgeMs: FOOTPRINTS_MAX_AGE_MS })
     } catch (err) {
       console.warn('[time] load failed', err)
       this.setData({ loading: false, empty: true })
+      return
+    }
+    if (sequence !== this.loadSequence) return
+    if (!this.isVisible) {
+      this.pendingFootprints = list
       return
     }
     if (list === this.lastFootprintsSource
@@ -111,47 +149,82 @@ Page<PageData, WechatMiniprogram.IAnyObject>({
     const visited = list.filter((fp) => fp.status === 'visited' && Boolean(fp.visitDate))
     this.visitedFootprints = visited
     this.groupedByDate = groupByDate(visited)
-    const allTimelineGroups = [...this.groupedByDate.entries()]
-      .sort(([left], [right]) => right.localeCompare(left))
-      .map(([key, footprints]) => ({
-        key,
-        label: labelForKey(key, this.data.todayKey),
-        footprints: sortByVisitDate(footprints),
-      }))
-    this.allTimelineGroups = allTimelineGroups
-    this.timelineGroupPage = 1
+    this.monthCounts = new Map<string, number>()
+    this.groupedByDate.forEach((items: Footprint[], key: string) => {
+      const monthKey = key.slice(0, 7)
+      this.monthCounts.set(monthKey, (this.monthCounts.get(monthKey) || 0) + items.length)
+    })
+    const allTimelineGroups = this.data.viewMode === 'timeline'
+      ? this.buildTimelineGroups()
+      : []
+    this.allTimelineGroups = this.data.viewMode === 'timeline' ? allTimelineGroups : []
+    this.timelineGroupPage = this.data.viewMode === 'timeline' ? 1 : 0
+    const selectedAll = sortByVisitDate(this.groupedByDate.get(selectedKey) || [])
+    this.selectedFootprintLimit = SELECTED_FOOTPRINTS_PER_PAGE
     this.setData({
-      cells: buildMonthGrid(year, month, visited, today),
-      selectedFootprints: sortByVisitDate(this.groupedByDate.get(selectedKey) || []),
+      cells: buildMonthGridFromIndex(year, month, this.groupedByDate, today),
+      selectedFootprints: selectedAll.slice(0, this.selectedFootprintLimit),
+      selectedFootprintTotal: selectedAll.length,
       selectedDateLabel: labelForKey(selectedKey, this.data.todayKey),
       monthFootprintCount: this.monthFootprintCount(year, month),
-      timelineGroups: allTimelineGroups.slice(0, TIMELINE_GROUPS_PER_PAGE),
+      timelineGroups: this.data.viewMode === 'timeline'
+        ? this.limitTimelineGroups(allTimelineGroups.slice(0, TIMELINE_GROUPS_PER_PAGE))
+        : [],
       memoryDrops: buildMemoryDrops(visited, this.data.todayKey),
       loading: false,
       empty: visited.length === 0,
-      growth: computeGrowthSnapshot(list, app.globalData.profile),
+      growth: computeGrowthOverview(list, app.globalData.profile),
     })
   },
 
   monthFootprintCount(year: number, month: number): number {
     const monthPrefix = `${year}-${String(month + 1).padStart(2, '0')}`
-    return this.visitedFootprints.filter((fp: Footprint) => fp.visitDate?.startsWith(monthPrefix)).length
+    return this.monthCounts.get(monthPrefix) || 0
+  },
+
+  buildTimelineGroups(): TimelineGroup[] {
+    return [...this.groupedByDate.entries()]
+      .sort(([left], [right]) => right.localeCompare(left))
+      .map(([key, footprints]) => {
+        const sorted = sortByVisitDate(footprints)
+        return { key, label: labelForKey(key, this.data.todayKey), footprints: sorted, total: sorted.length }
+      })
+  },
+
+  limitTimelineGroups(groups: TimelineGroup[]): TimelineGroup[] {
+    return groups.map((group) => ({
+      ...group,
+      footprints: group.footprints.slice(0, TIMELINE_ITEMS_PER_GROUP),
+    }))
   },
 
   /** 翻月 / 跳转今天 / 跨月选中：只重算当前视图相关字段 */
   refreshMonthView() {
     const { year, month, selectedKey } = this.data
     this.setData({
-      cells: buildMonthGrid(year, month, this.visitedFootprints, new Date()),
-      selectedFootprints: sortByVisitDate(this.groupedByDate.get(selectedKey) || []),
+      cells: buildMonthGridFromIndex(year, month, this.groupedByDate, new Date()),
+      selectedFootprints: sortByVisitDate(this.groupedByDate.get(selectedKey) || [])
+        .slice(0, this.selectedFootprintLimit),
+      selectedFootprintTotal: (this.groupedByDate.get(selectedKey) || []).length,
       selectedDateLabel: labelForKey(selectedKey, this.data.todayKey),
       monthFootprintCount: this.monthFootprintCount(year, month),
     })
   },
 
   onViewModeTap(e: WechatMiniprogram.TouchEvent) {
+    recordInteraction('time.view-mode')
     const mode = e.currentTarget.dataset.mode as 'calendar' | 'timeline'
     if (mode !== 'calendar' && mode !== 'timeline') return
+    if (mode === this.data.viewMode) return
+    if (mode === 'timeline' && !this.allTimelineGroups.length) {
+      this.allTimelineGroups = this.buildTimelineGroups()
+      this.timelineGroupPage = 1
+      this.setData({
+        viewMode: mode,
+        timelineGroups: this.limitTimelineGroups(this.allTimelineGroups.slice(0, TIMELINE_GROUPS_PER_PAGE)),
+      })
+      return
+    }
     this.setData({ viewMode: mode })
   },
 
@@ -162,6 +235,7 @@ Page<PageData, WechatMiniprogram.IAnyObject>({
   },
 
   goToMonth(delta: number) {
+    recordInteraction('time.month')
     let { year, month } = this.data
     month += delta
     if (month < 0) {
@@ -219,6 +293,7 @@ Page<PageData, WechatMiniprogram.IAnyObject>({
   },
 
   onCellSelect(e: WechatMiniprogram.CustomEvent<{ key: string; inMonth?: boolean }>) {
+    recordInteraction('time.day')
     const key = e.detail.key
     // 点击了相邻月份的补位日期：先翻到对应月份再选中
     const viewPrefix = `${this.data.year}-${String(this.data.month + 1).padStart(2, '0')}`
@@ -235,9 +310,27 @@ Page<PageData, WechatMiniprogram.IAnyObject>({
     }
     this.setData({
       selectedKey: key,
-      selectedFootprints: sortByVisitDate(this.groupedByDate.get(key) || []),
+      selectedFootprints: sortByVisitDate(this.groupedByDate.get(key) || []).slice(0, SELECTED_FOOTPRINTS_PER_PAGE),
+      selectedFootprintTotal: (this.groupedByDate.get(key) || []).length,
       selectedDateLabel: labelForKey(key, this.data.todayKey),
     })
+    this.selectedFootprintLimit = SELECTED_FOOTPRINTS_PER_PAGE
+  },
+
+  onLoadMoreSelected() {
+    const all = sortByVisitDate(this.groupedByDate.get(this.data.selectedKey) || [])
+    this.selectedFootprintLimit = Math.min(all.length, this.selectedFootprintLimit + SELECTED_FOOTPRINTS_PER_PAGE)
+    this.setData({ selectedFootprints: all.slice(0, this.selectedFootprintLimit) })
+  },
+
+  onTimelineGroupMore(e: WechatMiniprogram.TouchEvent) {
+    const key = String(e.currentTarget.dataset.key || '')
+    const visibleIndex = this.data.timelineGroups.findIndex((group) => group.key === key)
+    const source = this.allTimelineGroups.find((group: TimelineGroup) => group.key === key)
+    if (visibleIndex < 0 || !source) return
+    const currentLength = this.data.timelineGroups[visibleIndex].footprints.length
+    const next = source.footprints.slice(0, currentLength + TIMELINE_ITEMS_PER_GROUP)
+    this.setData({ [`timelineGroups[${visibleIndex}].footprints`]: next })
   },
 
   onReachBottom() {
@@ -245,10 +338,10 @@ Page<PageData, WechatMiniprogram.IAnyObject>({
     const start = this.timelineGroupPage * TIMELINE_GROUPS_PER_PAGE
     if (start >= this.allTimelineGroups.length) return
     this.timelineGroupPage += 1
-    const addition = this.allTimelineGroups.slice(
+    const addition = this.limitTimelineGroups(this.allTimelineGroups.slice(
       start,
       this.timelineGroupPage * TIMELINE_GROUPS_PER_PAGE,
-    )
+    ))
     this.setData({ timelineGroups: this.data.timelineGroups.concat(addition) })
   },
 

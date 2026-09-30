@@ -70,6 +70,10 @@
   margin: 0 -32rpx;
 }
 
+.memory-drop-wrap.is-single {
+  margin: 0;
+}
+
 .memory-drop-scroll {
   white-space: nowrap;
 }
@@ -78,6 +82,20 @@
   display: inline-flex;
   gap: 18rpx;
   padding: 0 32rpx;
+}
+
+.memory-drop-wrap.is-single .memory-drop-row {
+  display: flex;
+  width: 100%;
+  padding: 0;
+}
+
+.memory-drop-wrap.is-single .memory-drop-card {
+  width: 100%;
+}
+
+.memory-drop-wrap.is-single .memory-drop-fade {
+  display: none;
 }
 
 /* 右侧渐隐提示横向可滑动 */

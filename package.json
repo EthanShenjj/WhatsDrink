@@ -1,6 +1,6 @@
 {
   "name": "shiguangji-miniprogram",
-  "version": "1.1.0",
+  "version": "1.2.0",
   "private": true,
   "description": "拾光迹 - 个人足迹地图微信小程序",
   "scripts": {
@@ -8,9 +8,11 @@
     "validate:project": "node scripts/validate-project.mjs",
     "test": "vitest run",
     "test:watch": "vitest",
-    "check": "npm run validate:project && npm run typecheck && npm test"
+    "check": "npm run validate:project && npm run typecheck && npm test",
+    "deploy:payment": "node scripts/deploy-payment.mjs"
   },
   "devDependencies": {
+    "@cloudbase/manager-node": "^5.9.0",
     "@types/node": "^24.0.0",
     "miniprogram-api-typings": "^4.1.0",
     "miniprogram-automator": "^0.12.1",

@@ -1,5 +1,5 @@
 import type { Footprint, TravelPlan } from '../../domain/types'
-import { listFootprints, listTravelPlans } from '../../services/repository'
+import { getFootprintSnapshot, listFootprints, listTravelPlans } from '../../services/repository'
 import { sortByCreatedDesc } from '../../utils/footprint'
 
 interface PageData {
@@ -30,13 +30,10 @@ Page<PageData, WechatMiniprogram.IAnyObject>({
 
   async loadAll() {
     this.setData({ loading: true })
-    const cachedAt = app.globalData.footprintsCachedAt || 0
-    let footprints = app.globalData.footprints || []
-    if (!footprints.length || Date.now() - cachedAt > 60_000) {
+    let footprints = getFootprintSnapshot() || app.globalData.footprints || []
+    if (!footprints.length) {
       try {
-        footprints = await listFootprints()
-        app.globalData.footprints = footprints
-        app.globalData.footprintsCachedAt = Date.now()
+        footprints = await listFootprints({ maxAgeMs: 60_000 })
       } catch (err) {
         console.warn('[guide] load footprints failed', err)
       }

@@ -1,3 +1,14 @@
+.tab-bar-backdrop {
+  position: fixed;
+  z-index: 99;
+  right: 0;
+  bottom: 0;
+  left: 0;
+  height: calc(210rpx + env(safe-area-inset-bottom));
+  background: linear-gradient(to top, rgba(247, 248, 255, .98) 0%, rgba(247, 248, 255, .82) 58%, rgba(247, 248, 255, 0) 100%);
+  pointer-events: none;
+}
+
 .tab-bar {
   position: fixed;
   z-index: 100;

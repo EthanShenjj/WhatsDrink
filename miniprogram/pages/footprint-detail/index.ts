@@ -1,5 +1,5 @@
 import type { Footprint } from '../../domain/types'
-import { listFootprints, deleteFootprint, saveFootprint } from '../../services/repository'
+import { getFootprintSnapshot, listFootprints, deleteFootprint, saveFootprint } from '../../services/repository'
 import { placeKey, visitsAtPlace } from '../../utils/footprint'
 import { formatVisitDate } from '../../utils/date'
 import {
@@ -8,6 +8,14 @@ import {
   categoryLabel,
   categoryEmoji,
 } from '../../data/options'
+import { installUpdatePerformanceLogger, recordInteraction } from '../../utils/performance'
+
+interface TicketVisit extends Footprint {
+  ticketNumber: number
+  displayDate: string
+  isCurrent: boolean
+  hasPhoto: boolean
+}
 
 interface PageData {
   id: string
@@ -15,6 +23,10 @@ interface PageData {
   footprint?: Footprint
   photoIndex: number
   relatedVisits: Footprint[]
+  ticketVisits: TicketVisit[]
+  visibleTicketVisits: TicketVisit[]
+  ticketsExpanded: boolean
+  canExpandTickets: boolean
   visitIndex: number
   totalVisits: number
   moodLabel: string
@@ -33,12 +45,17 @@ interface PageData {
 }
 
 Page<PageData, WechatMiniprogram.IAnyObject>({
+  lastSnapshot: null as Footprint[] | null,
   data: {
     id: '',
     loading: true,
     footprint: undefined,
     photoIndex: 0,
     relatedVisits: [],
+    ticketVisits: [],
+    visibleTicketVisits: [],
+    ticketsExpanded: false,
+    canExpandTickets: false,
     visitIndex: 0,
     totalVisits: 1,
     moodLabel: '',
@@ -57,6 +74,7 @@ Page<PageData, WechatMiniprogram.IAnyObject>({
   },
 
   onLoad(query: Record<string, string>) {
+    installUpdatePerformanceLogger(this, 'footprint-detail')
     if (!query.id) {
       wx.showToast({ title: '参数错误', icon: 'none' })
       setTimeout(() => wx.navigateBack(), 600)
@@ -71,16 +89,20 @@ Page<PageData, WechatMiniprogram.IAnyObject>({
 
   onPullDownRefresh() {
     if (this.data.id) {
-      this.loadFootprint(this.data.id).finally(() => wx.stopPullDownRefresh())
+      this.loadFootprint(this.data.id, true).finally(() => wx.stopPullDownRefresh())
     } else {
       wx.stopPullDownRefresh()
     }
   },
 
-  async loadFootprint(id: string) {
-    this.setData({ loading: true })
+  async loadFootprint(id: string, force = false) {
+    if (!this.data.footprint) this.setData({ loading: true })
     try {
-      const all = await listFootprints()
+      const all = force
+        ? await listFootprints()
+        : getFootprintSnapshot() || await listFootprints({ maxAgeMs: 60_000 })
+      if (!force && all === this.lastSnapshot && this.data.footprint?.id === id) return
+      this.lastSnapshot = all
       const fp = all.find((f) => f.id === id)
       if (!fp) {
         wx.showToast({ title: '足迹不存在或已删除', icon: 'none' })
@@ -92,11 +114,23 @@ Page<PageData, WechatMiniprogram.IAnyObject>({
         0,
         related.findIndex((f) => f.id === id),
       )
+      const ticketVisits = related.map((visit, index) => ({
+        ...visit,
+        ticketNumber: related.length - index,
+        displayDate: formatVisitDate(visit.visitDate),
+        isCurrent: visit.id === id,
+        hasPhoto: visit.photos.length > 0,
+      }))
+      const ticketsExpanded = related.length > 3 && visitIndex >= 3
       const locationParts = [fp.province, fp.city, fp.district].filter(Boolean) as string[]
       this.setData({
         footprint: fp,
         loading: false,
         relatedVisits: related,
+        ticketVisits,
+        visibleTicketVisits: ticketsExpanded ? ticketVisits : ticketVisits.slice(0, 3),
+        ticketsExpanded,
+        canExpandTickets: ticketVisits.length > 3,
         visitIndex,
         totalVisits: related.length,
         firstVisit: related[related.length - 1],
@@ -114,7 +148,7 @@ Page<PageData, WechatMiniprogram.IAnyObject>({
         photoIndex: 0,
       })
       wx.setNavigationBarTitle({
-        title: fp.status === 'wishlist' ? '想去详情' : fp.status === 'fulfilled' ? '已实现的愿望' : '地点年轮',
+        title: fp.status === 'wishlist' ? '想去详情' : fp.status === 'fulfilled' ? '已实现的愿望' : '回忆票根',
       })
     } catch (err) {
       this.setData({ loading: false })
@@ -145,6 +179,11 @@ Page<PageData, WechatMiniprogram.IAnyObject>({
     wx.navigateTo({ url: `/pages/footprint-form/index?id=${this.data.footprint.id}` })
   },
 
+  onPhotoEdit() {
+    recordInteraction('detail.photo-edit')
+    this.onEdit()
+  },
+
   onConvertWishlist() {
     if (!this.data.footprint || this.data.footprint.status !== 'wishlist') return
     wx.navigateTo({
@@ -158,15 +197,36 @@ Page<PageData, WechatMiniprogram.IAnyObject>({
   },
 
   onToggleComparison() {
+    recordInteraction('detail.comparison')
     this.setData({ comparisonOpen: !this.data.comparisonOpen })
   },
 
+  onToggleTickets() {
+    const ticketsExpanded = !this.data.ticketsExpanded
+    this.setData({
+      ticketsExpanded,
+      visibleTicketVisits: ticketsExpanded
+        ? this.data.ticketVisits
+        : this.data.ticketVisits.slice(0, 3),
+    })
+  },
+
   async onMarkImportant() {
+    recordInteraction('detail.important')
     const fp = this.data.footprint
     if (!fp || fp.status !== 'visited') return
     try {
-      await saveFootprint({ ...fp, isImportant: !fp.isImportant })
-      await this.loadFootprint(fp.id)
+      const saved = await saveFootprint({ ...fp, isImportant: !fp.isImportant })
+      const updateTicket = (item: TicketVisit): TicketVisit =>
+        item.id === saved.id ? { ...item, ...saved, hasPhoto: saved.photos.length > 0 } : item
+      this.setData({
+        footprint: saved,
+        relatedVisits: this.data.relatedVisits.map((item) => item.id === saved.id ? saved : item),
+        ticketVisits: this.data.ticketVisits.map(updateTicket),
+        visibleTicketVisits: this.data.visibleTicketVisits.map(updateTicket),
+        firstVisit: this.data.firstVisit?.id === saved.id ? saved : this.data.firstVisit,
+        latestVisit: this.data.latestVisit?.id === saved.id ? saved : this.data.latestVisit,
+      })
       wx.showToast({ title: fp.isImportant ? '已取消重要标记' : '已标记重要', icon: 'none' })
     } catch {
       wx.showToast({ title: '标记失败', icon: 'none' })
@@ -177,7 +237,7 @@ Page<PageData, WechatMiniprogram.IAnyObject>({
     const fp = this.data.footprint
     if (!fp || fp.status !== 'visited') return
     try {
-      const all = await listFootprints()
+      const all = getFootprintSnapshot() || await listFootprints({ maxAgeMs: 60_000 })
       if (all.some((item) => item.status === 'wishlist' && placeKey(item) === placeKey(fp))) {
         wx.showToast({ title: '这个地点已在想去清单', icon: 'none' })
         return
@@ -229,13 +289,4 @@ Page<PageData, WechatMiniprogram.IAnyObject>({
     })
   },
 
-  previewPhoto(
-    e: WechatMiniprogram.TouchEvent & { currentTarget: { dataset: { url: string } } },
-  ) {
-    if (!this.data.footprint) return
-    wx.previewImage({
-      urls: this.data.footprint.photos,
-      current: e.currentTarget.dataset.url || this.data.footprint.photos[0],
-    })
-  },
 })

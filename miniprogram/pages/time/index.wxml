@@ -18,7 +18,7 @@
         <text class="time-state-message">{{growth.weeklyMessage}}</text>
         <growth-state-chip state="{{growth.activeColorId}}" label="{{growth.nextGoalText}}" interactive="{{false}}" />
       </view>
-      <ip-mascot state="{{growth.activeColorId}}" expression="companion" size="172rpx" motion="float" label="本周的小拾" />
+      <ip-mascot state="{{growth.activeColorId}}" expression="companion" size="172rpx" motion="none" label="本周的小拾" />
     </view>
   </brand-card>
 
@@ -27,7 +27,7 @@
       <text class="section-title">今日掉落</text>
       <text class="muted">过去的记忆，今天重新遇见</text>
     </view>
-    <view class="memory-drop-wrap">
+    <view class="memory-drop-wrap {{memoryDrops.length === 1 ? 'is-single' : ''}}">
       <scroll-view scroll-x class="memory-drop-scroll" show-scrollbar="{{false}}">
         <view class="memory-drop-row">
           <view wx:for="{{memoryDrops}}" wx:key="id" class="memory-drop-card card" hover-class="press-dim" role="button" data-id="{{item.id}}" bindtap="onMemoryDropTap">
@@ -109,6 +109,11 @@
           footprint="{{item}}"
           bind:tap="onFootprintTap"
         ></footprint-card>
+        <button
+          wx:if="{{selectedFootprints.length < selectedFootprintTotal}}"
+          class="text-button"
+          bindtap="onLoadMoreSelected"
+        >加载更多（{{selectedFootprints.length}} / {{selectedFootprintTotal}}）</button>
       </view>
 
       <ip-feedback
@@ -166,7 +171,7 @@
         <view class="timeline-group-date">
           <view class="timeline-dot"></view>
           <text>{{group.label}}</text>
-          <text class="muted">{{group.footprints.length}} 个地点</text>
+          <text class="muted">{{group.total}} 个地点</text>
         </view>
         <view class="timeline-group-cards">
           <footprint-card
@@ -176,6 +181,12 @@
             footprint="{{footprint}}"
             bind:tap="onFootprintTap"
           ></footprint-card>
+          <button
+            wx:if="{{group.footprints.length < group.total}}"
+            class="text-button"
+            data-key="{{group.key}}"
+            bindtap="onTimelineGroupMore"
+          >加载这一天的更多记录</button>
         </view>
       </view>
     </view>

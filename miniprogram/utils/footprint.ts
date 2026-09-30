@@ -94,7 +94,7 @@ export const buildMemoryDrops = (footprints: Footprint[], today: string, limit =
       return age > 0 && age <= 30 && fp.visitDate!.slice(5) !== today.slice(5)
     })
     .sort((a, b) => dailyRank(a.id) - dailyRank(b.id) || a.id.localeCompare(b.id))
-    .map((fp) => ({ id: fp.id, footprint: fp, kind: 'recent' as const, title: `前些天在 ${fp.poiName}，你留下了这段回忆` }))
+    .map((fp) => ({ id: fp.id, footprint: fp, kind: 'recent' as const, title: `前些天在${fp.poiName}，你留下了这段回忆` }))
   return [...anniversaries, ...recent].slice(0, limit)
 }
 

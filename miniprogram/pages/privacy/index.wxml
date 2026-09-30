@@ -8,7 +8,7 @@
   </view>
   <view class="privacy-section">
     <text class="section-title hand-underline">为什么需要</text>
-    <text>这些数据只用于识别用户、保存个人记录，以及在地图、日历和时间线中展示你的私人回忆。MVP 不提供公开个人主页。</text>
+    <text>这些数据只用于识别用户、保存个人记录，以及在地图、日历和时间线中展示你的私人回忆。目前不提供公开个人主页，你的记录仅自己可见。</text>
   </view>
   <view class="privacy-section">
     <text class="section-title hand-underline">你可以控制</text>

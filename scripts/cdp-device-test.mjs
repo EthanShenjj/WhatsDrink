@@ -210,9 +210,9 @@ async function testDevice(dev) {
   await startIde()
   await openProjectWindow()
 
-  // 等渲染层出现 + 逻辑层可用
+  // 等渲染层出现 + 逻辑层可用（冷启动首次编译可能超过 2 分钟）
   let logic = null
-  const dl = Date.now() + 120000
+  const dl = Date.now() + 240000
   while (Date.now() < dl) {
     const ts = await cdpTargets()
     const logicT = ts.find((t) => t.url.includes('/appservice/'))
@@ -220,7 +220,7 @@ async function testDevice(dev) {
     if (logicT && renderT) {
       logic = await Cdp.connect(logicT.webSocketDebuggerUrl)
       try {
-        if ((await logic.eval('typeof wx')) === 'object') break
+        if ((await logic.eval('typeof wx === "object" && typeof wx.getSystemInfoSync === "function" && typeof wx.switchTab === "function"')) === true) break
       } catch {}
       logic.close()
       logic = null
@@ -236,7 +236,21 @@ async function testDevice(dev) {
   })
   console.log('[sim] 逻辑层就绪')
 
-  report.systemInfo = await logic.eval('wx.getSystemInfoSync()')
+  report.systemInfo = await (async () => {
+    for (let i = 0; i < 8; i++) {
+      try {
+        return await logic.eval('wx.getSystemInfoSync()')
+      } catch {
+        logic.close()
+        logic = null
+        await sleep(2500)
+        const ts = await cdpTargets()
+        const logicT = ts.find((t) => t.url.includes('/appservice/'))
+        if (logicT) logic = await Cdp.connect(logicT.webSocketDebuggerUrl)
+      }
+    }
+    throw new Error('getSystemInfoSync 重试后仍不可用')
+  })()
   console.log('[sys]', JSON.stringify({
     platform: report.systemInfo.platform,
     windowWidth: report.systemInfo.windowWidth,
@@ -304,7 +318,14 @@ async function testDevice(dev) {
       if (p.isMap && !fpId) {
         try {
           fpId = (await logic.eval(
-            `(getCurrentPages().find(pg => pg.route === 'pages/map/index')?.data?.footprints || [])[0]?.id || ''`,
+            `(() => {
+              const page = getCurrentPages().find(pg => pg.route === 'pages/map/index');
+              return page?.data?.selectedFootprint?.id
+                || page?.data?.todayDrop?.footprint?.id
+                || page?.data?.unplacedFootprints?.[0]?.id
+                || getApp().globalData?.footprints?.[0]?.id
+                || '';
+            })()`,
           )) || ''
           if (fpId) {
             console.log('[data] 足迹 id =', fpId)
@@ -313,9 +334,9 @@ async function testDevice(dev) {
         } catch {}
       }
 
-      // 截图：渲染层 webview（重试 3 次,页面目标可能在过渡期消失/更换）
+      // 截图：渲染层 webview（页面目标可能在过渡期消失/更换，给慢机型更长恢复窗口）
       let shotOk = false
-      for (let attempt = 0; attempt < 3 && !shotOk; attempt++) {
+      for (let attempt = 0; attempt < 6 && !shotOk; attempt++) {
         const ts = await cdpTargets()
         const renderT = ts.find((t) => t.type === 'webview' && t.url.includes(want))
         if (!renderT) {
@@ -351,7 +372,10 @@ async function testDevice(dev) {
 
 // ---------- 主流程 ----------
 mkdirSync(OUT_ROOT, { recursive: true })
-const all = {}
+let all = {}
+try {
+  all = JSON.parse(readFileSync(path.join(OUT_ROOT, 'report.json'), 'utf8'))
+} catch {}
 for (const dev of devices) {
   try {
     all[dev.key] = await testDevice(dev)

@@ -26,6 +26,8 @@ const emptyDerived: FootprintCardDerived = {
   statusLabel: '',
 }
 
+const lastPhotos = new WeakMap<object, string>()
+
 Component({
   properties: {
     footprint: {
@@ -44,6 +46,7 @@ Component({
   observers: {
     footprint(fp: Footprint | null) {
       if (!fp) {
+        lastPhotos.delete(this)
         this.setData({ derived: emptyDerived, imgLoaded: false })
         return
       }
@@ -57,7 +60,7 @@ Component({
         .filter(Boolean)
         .join(' · ')
       this.setData({
-        imgLoaded: false,
+        imgLoaded: photo === lastPhotos.get(this) ? this.data.imgLoaded : false,
         derived: {
           photo,
           dateLabel: formatVisitDate(fp.visitDate),
@@ -70,6 +73,7 @@ Component({
           statusLabel: fp.status === 'wishlist' ? '心愿种子' : fp.status === 'fulfilled' ? '愿望开花' : '已到访',
         },
       })
+      lastPhotos.set(this, photo)
     },
   },
   methods: {
@@ -83,6 +87,11 @@ Component({
       const fp = this.properties.footprint as Footprint | undefined
       if (!fp?.id) return
       this.triggerEvent('tap', { id: fp.id, footprint: fp })
+    },
+  },
+  lifetimes: {
+    detached() {
+      lastPhotos.delete(this)
     },
   },
 })

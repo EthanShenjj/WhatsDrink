@@ -8,6 +8,8 @@ const todayStr = (): string => {
   return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`
 }
 
+const closeTimers = new WeakMap<object, number>()
+
 Component({
   properties: {
     visible: {
@@ -30,7 +32,6 @@ Component({
   data: {
     rendered: false,
     closing: false,
-    closeTimerId: 0,
     localFilter: {} as FilterState,
     provinces: ALL_PROVINCES,
     cities: [] as string[],
@@ -42,21 +43,31 @@ Component({
   },
   observers: {
     visible(visible: boolean) {
-      if (this.data.closeTimerId) {
-        clearTimeout(this.data.closeTimerId)
-        this.setData({ closeTimerId: 0 })
+      const currentTimer = closeTimers.get(this)
+      if (currentTimer) {
+        clearTimeout(currentTimer)
+        closeTimers.delete(this)
       }
       if (visible) {
-        this.setData({ rendered: true, closing: false })
-        this.syncFromCurrent()
+        const f = { ...((this.data.currentFilter as FilterState) || {}) }
+        const cities = f.province ? citiesOfProvince(f.province) : []
+        this.setData({
+          rendered: true,
+          closing: false,
+          localFilter: f,
+          cities,
+          provinceIndex: f.province ? Math.max(0, ALL_PROVINCES.indexOf(f.province)) : 0,
+          cityIndex: f.city ? Math.max(0, cities.indexOf(f.city)) : 0,
+        })
         return
       }
       if (!this.data.rendered || this.data.closing) return
       this.setData({ closing: true })
-      const timerId = setTimeout(() => {
-        this.setData({ closeTimerId: 0, rendered: false, closing: false })
+      const timer = setTimeout(() => {
+        closeTimers.delete(this)
+        this.setData({ rendered: false, closing: false })
       }, 260) as unknown as number
-      this.setData({ closeTimerId: timerId })
+      closeTimers.set(this, timer)
     },
     moods(moods: string[]) {
       const opts =
@@ -71,6 +82,13 @@ Component({
           ? CATEGORY_OPTIONS.filter((c) => cats.includes(c.value))
           : CATEGORY_OPTIONS
       this.setData({ categoryOptions: opts })
+    },
+  },
+  lifetimes: {
+    detached() {
+      const timer = closeTimers.get(this)
+      if (timer) clearTimeout(timer)
+      closeTimers.delete(this)
     },
   },
   methods: {

@@ -1,10 +1,13 @@
-import type { Footprint, GrowthSnapshot, LightingStats, UserProfile } from '../../domain/types'
+import type { Footprint, GrowthOverview, LightingStats, UserProfile } from '../../domain/types'
 import {
   ensureProfile,
+  getFootprintSnapshot,
   listFootprints,
 } from '../../services/repository'
+import { APP_VERSION } from '../../services/config'
 import { computeLighting } from '../../utils/footprint'
-import { computeGrowthSnapshot } from '../../utils/growth'
+import { computeGrowthOverview } from '../../utils/growth'
+import { installUpdatePerformanceLogger, recordInteraction } from '../../utils/performance'
 
 interface MenuRow {
   key: string
@@ -17,7 +20,7 @@ interface PageData {
   profile: UserProfile | null
   isLoggedIn: boolean
   stats: LightingStats | null
-  growth: GrowthSnapshot | null
+  growth: GrowthOverview | null
   menu: MenuRow[]
   version: string
   loading: boolean
@@ -28,29 +31,45 @@ const app = getApp<IAppOption>()
 const MENU: MenuRow[] = [
   { key: 'membership', label: '拾光+ 与购买记录', icon: 'sparkles' },
   { key: 'settings', label: '地图设置', icon: 'settings' },
-  { key: 'explore', label: '探索与轻攻略', hint: 'P1', icon: 'compass' },
+  { key: 'explore', label: '探索与轻攻略', icon: 'compass' },
   { key: 'capsule', label: '时光胶囊', icon: 'clock' },
-  { key: 'about', label: '关于拾光迹', icon: 'sparkles' },
+  { key: 'about', label: '关于拾光迹', icon: 'info' },
 ]
 
 Page<PageData, WechatMiniprogram.IAnyObject>({
+  isVisible: false,
+  loadSequence: 0,
+  lastFootprints: null as Footprint[] | null,
+  lastProfile: null as UserProfile | null,
   data: {
     profile: null,
     isLoggedIn: false,
     stats: null,
     growth: null,
     menu: MENU,
-    version: '1.0.0',
+    version: APP_VERSION,
     loading: true,
   },
 
+  onLoad() {
+    installUpdatePerformanceLogger(this, 'mine')
+  },
+
   onShow() {
+    this.isVisible = true
     const tabBar = this.getTabBar?.()
     if (tabBar && (tabBar.data as { selected?: number }).selected !== 3) tabBar.setData({ selected: 3 })
+    const cached = getFootprintSnapshot()
+    if (cached && app.globalData.profile) this.applyProfileAndStats(app.globalData.profile, cached)
     this.loadProfileAndStats()
   },
 
+  onHide() {
+    this.isVisible = false
+  },
+
   async loadProfileAndStats() {
+    const sequence = ++this.loadSequence
     if (!this.data.profile) this.setData({ loading: true })
     try {
       const profile = await ensureProfile()
@@ -64,13 +83,22 @@ Page<PageData, WechatMiniprogram.IAnyObject>({
         console.warn('[mine] load footprints failed', err)
         list = app.globalData.footprints || []
       }
-      const stats = computeLighting(list)
-      const growth = computeGrowthSnapshot(list, profile)
-      this.setData({ profile, isLoggedIn, stats, growth, loading: false })
+      if (sequence !== this.loadSequence || !this.isVisible) return
+      this.applyProfileAndStats(profile, list)
     } catch (err) {
       console.warn('[mine] load failed', err)
       this.setData({ loading: false })
     }
+  },
+
+  applyProfileAndStats(profile: UserProfile, list: Footprint[]) {
+    if (list === this.lastFootprints && profile === this.lastProfile) return
+    this.lastFootprints = list
+    this.lastProfile = profile
+    const isLoggedIn = Boolean(profile.nickname && profile.avatarUrl)
+    const stats = computeLighting(list)
+    const growth = computeGrowthOverview(list, profile)
+    this.setData({ profile, isLoggedIn, stats, growth, loading: false })
   },
 
   onProfileTap() {
@@ -86,6 +114,7 @@ Page<PageData, WechatMiniprogram.IAnyObject>({
   },
 
   onMenuTap(e: WechatMiniprogram.TouchEvent) {
+    recordInteraction('mine.menu')
     const key = String(e.currentTarget.dataset.key || '')
     switch (key) {
       case 'membership':

@@ -21,7 +21,7 @@
       </view>
     </view>
     <button class="primary-button ai-primary" loading="{{generating}}" disabled="{{generating}}" bindtap="onGenerateDraft">
-      <local-icon name="sparkles" size="34rpx" />
+      <local-icon name="{{generating ? 'sparkles' : 'sparkles-white'}}" size="34rpx" />
       <text>{{generating ? '正在整理…' : '生成可编辑草稿'}}</text>
     </button>
   </block>

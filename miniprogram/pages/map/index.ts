@@ -7,7 +7,7 @@ import type {
   ClusterMarker,
   CityGrowth,
   MemoryDrop,
-  GrowthSnapshot,
+  GrowthOverview,
 } from '../../domain/types'
 import {
   listFootprints,
@@ -16,17 +16,18 @@ import {
   getMapSettings,
   saveMapSettings,
 } from '../../services/repository'
-import { clusterFootprints, fitBounds } from '../../utils/map'
+import { clusterFootprints, fitBounds, footprintsForMapMode, markerPhotoForZoom } from '../../utils/map'
 import {
   buildCheckinRoute,
   findNearbyCheckinCandidate,
   type CheckinCandidate,
 } from '../../utils/checkin'
 import { matchesFilter, computeLighting, computeCityGrowth, buildMemoryDrops, placeKey, usedMoods, usedCategories } from '../../utils/footprint'
-import { todayKey } from '../../utils/date'
+import { formatVisitDate, todayKey } from '../../utils/date'
 import { moodEmoji } from '../../data/options'
 import { MAP_STYLE_IDS, MAP_STYLE_SUBKEY } from '../../services/config'
-import { computeGrowthSnapshot } from '../../utils/growth'
+import { computeGrowthOverview } from '../../utils/growth'
+import { installUpdatePerformanceLogger, recordInteraction } from '../../utils/performance'
 
 interface MapMarker {
   id: number
@@ -36,13 +37,19 @@ interface MapMarker {
   width: number
   height: number
   iconPath: string
-  callout: {
+  photo?: string
+  callout?: {
     content: string
     color: string
     fontSize: number
     bgColor: string
     padding: number
     borderRadius: number
+    display: 'BYCLICK' | 'ALWAYS'
+  }
+  customCallout?: {
+    anchorX: number
+    anchorY: number
     display: 'BYCLICK' | 'ALWAYS'
   }
   markerId?: string
@@ -53,6 +60,15 @@ interface MapMarker {
 interface FilterChip {
   key: keyof FilterState
   label: string
+}
+
+interface UnplacedFootprintItem {
+  id: string
+  poiName: string
+  photo: string
+  dateLabel: string
+  statusLabel: string
+  isWishlist: boolean
 }
 
 interface GrowthCircle {
@@ -71,7 +87,7 @@ interface GrowthCircle {
 interface PageData {
   mode: MapMode
   markers: MapMarker[]
-  unplacedFootprints: Footprint[]
+  unplacedFootprints: UnplacedFootprintItem[]
   filterVisible: boolean
   currentFilter: FilterState
   moods: string[]
@@ -105,7 +121,7 @@ interface PageData {
   checkinDistance: number
   statusBarHeight: number
   tabReady: boolean
-  growth: GrowthSnapshot | null
+  growth: GrowthOverview | null
 }
 
 interface MarkerIndex {
@@ -118,7 +134,7 @@ interface ModeView {
   modeList: Footprint[]
   fields: {
     modeEmpty: boolean
-    unplacedFootprints: Footprint[]
+    unplacedFootprints: UnplacedFootprintItem[]
     modeEmptyTitle: string
     modeEmptyDescription: string
   }
@@ -158,6 +174,7 @@ const buildMarker = (
   visitCount = 1,
 ): MapMarker => {
   const isWishlist = mode === 'wishlist' || fp.status !== 'visited'
+  const photo = markerPhotoForZoom(fp, zoom)
   const emoji = fp.status === 'fulfilled' ? '🌸' : isWishlist ? '🌱' : fp.markerStyle?.emoji || moodEmoji(fp.mood) || '📍'
   const label = settings.markerStyle === 'emoji'
     ? `${emoji}${zoom >= 12 ? ` ${fp.poiName}` : ''}`
@@ -169,23 +186,43 @@ const buildMarker = (
     latitude: fp.lat as number,
     longitude: fp.lng as number,
     title: fp.poiName,
-    width: 32,
-    height: 40,
+    width: photo ? 24 : 32,
+    height: photo ? 30 : 40,
     iconPath: MARKER_ICON_BY_COLOR[(fp.status === 'fulfilled' ? '#F4B93F' : fp.markerStyle?.color || (isWishlist ? '#F4B93F' : '#5B6CFF')).toLowerCase()]
       || BRAND_MARKER_ICON,
-    callout: {
-      content: label,
-      color: settings.theme === 'night' ? '#F7F8FF' : '#17182B',
-      fontSize: 12,
-      bgColor: settings.theme === 'night' ? '#17182B' : '#FFFFFF',
-      padding: 8,
-      borderRadius: 12,
-      display: settings.markerStyle === 'label' && zoom >= 12 ? 'ALWAYS' : 'BYCLICK',
-    },
+    photo: photo || undefined,
+    ...(photo
+      ? {
+          customCallout: {
+            anchorX: 0,
+            anchorY: 0,
+            display: 'ALWAYS' as const,
+          },
+        }
+      : {
+          callout: {
+            content: label,
+            color: settings.theme === 'night' ? '#F7F8FF' : '#17182B',
+            fontSize: 12,
+            bgColor: settings.theme === 'night' ? '#17182B' : '#FFFFFF',
+            padding: 8,
+            borderRadius: 12,
+            display: settings.markerStyle === 'label' && zoom >= 12 ? 'ALWAYS' as const : 'BYCLICK' as const,
+          },
+        }),
     markerId: fp.id,
     isCluster: false,
   }
 }
+
+const buildUnplacedFootprintItem = (fp: Footprint): UnplacedFootprintItem => ({
+  id: fp.id,
+  poiName: fp.poiName,
+  photo: fp.photos?.[0] || '',
+  dateLabel: formatVisitDate(fp.visitDate),
+  statusLabel: fp.status === 'wishlist' ? '想去' : fp.status === 'fulfilled' ? '已实现' : '已到访',
+  isWishlist: fp.status !== 'visited',
+})
 
 const buildClusterMarker = (
   cluster: ClusterMarker,
@@ -278,6 +315,9 @@ Page<PageData, WechatMiniprogram.IAnyObject>({
   dataVersion: 0,
   markerCacheKey: '',
   markerCache: null as MarkerIndex | null,
+  isVisible: false,
+  loadSequence: 0,
+  pendingFootprints: null as Footprint[] | null,
 
   data: {
     mode: 'visited',
@@ -320,12 +360,14 @@ Page<PageData, WechatMiniprogram.IAnyObject>({
   },
 
   onLoad() {
+    installUpdatePerformanceLogger(this, 'map')
     const sysInfo = wx.getWindowInfo()
     this.setData({ statusBarHeight: sysInfo.statusBarHeight || 20 })
     this.initData()
   },
 
   onShow() {
+    this.isVisible = true
     const tabBar = this.getTabBar?.()
     if (tabBar) {
       if ((tabBar.data as { selected?: number }).selected !== 0) tabBar.setData({ selected: 0 })
@@ -350,7 +392,15 @@ Page<PageData, WechatMiniprogram.IAnyObject>({
     }
     // onLoad is already fetching the first screen. Repeating the cache refresh here
     // causes a second request and several full native-map redraws during tab entry.
-    if (!this.data.loading) this.refreshFromCache()
+    if (this.pendingFootprints) {
+      const pending = this.pendingFootprints
+      this.pendingFootprints = null
+      this.applyFootprints(pending)
+    } else if (!this.data.loading) this.refreshFromCache()
+  },
+
+  onHide() {
+    this.isVisible = false
   },
 
   onReady() {
@@ -371,8 +421,14 @@ Page<PageData, WechatMiniprogram.IAnyObject>({
   },
 
   async refreshFromCache() {
+    const sequence = ++this.loadSequence
     try {
       const list = await listFootprints({ maxAgeMs: FOOTPRINTS_MAX_AGE_MS })
+      if (sequence !== this.loadSequence) return
+      if (!this.isVisible) {
+        this.pendingFootprints = list
+        return
+      }
       this.applyFootprints(list)
     } catch (err) {
       console.warn('[map] refresh failed', err)
@@ -380,9 +436,15 @@ Page<PageData, WechatMiniprogram.IAnyObject>({
   },
 
   async loadFootprints(showLoading: boolean, fit = false) {
+    const sequence = ++this.loadSequence
     if (showLoading) wx.showLoading({ title: '加载中', mask: true })
     try {
       const list = await listFootprints()
+      if (sequence !== this.loadSequence) return
+      if (!this.isVisible) {
+        this.pendingFootprints = list
+        return
+      }
       this.applyFootprints(list, { fit })
     } catch (err) {
       console.warn('[map] load footprints failed', err)
@@ -418,7 +480,7 @@ Page<PageData, WechatMiniprogram.IAnyObject>({
       empty: list.length === 0,
       activeFilterCount: chips.length,
       activeFilterChips: chips,
-      growth: computeGrowthSnapshot(list, app.globalData.profile),
+      growth: computeGrowthOverview(list, app.globalData.profile),
       ...view.fields,
     })
     if (fit) this.fitToFootprints(view.modeList)
@@ -437,7 +499,7 @@ Page<PageData, WechatMiniprogram.IAnyObject>({
       modeList,
       fields: {
         modeEmpty: modeList.length === 0,
-        unplacedFootprints: unplaced,
+        unplacedFootprints: unplaced.map(buildUnplacedFootprintItem),
         modeEmptyTitle: copy.title,
         modeEmptyDescription: copy.description,
       },
@@ -474,13 +536,6 @@ Page<PageData, WechatMiniprogram.IAnyObject>({
   /** 标记构建带缓存：数据版本、模式、聚合开关、缩放档位与设置都没变时直接复用 */
   buildMarkers(force = false): MarkerIndex | null {
     const { mode, settings, clusterEnabled } = this.data
-    if (mode === 'lighting') {
-      if (!force && this.markerCacheKey === 'lighting' && this.markerCache) return null
-      const index: MarkerIndex = { markers: [], markerIdMap: {}, clusterMarkers: {} }
-      this.markerCacheKey = 'lighting'
-      this.markerCache = index
-      return index
-    }
     const key = [
       this.dataVersion,
       mode,
@@ -491,11 +546,7 @@ Page<PageData, WechatMiniprogram.IAnyObject>({
     ].join('|')
     if (!force && key === this.markerCacheKey && this.markerCache) return null
 
-    const target = this.filteredFootprints.filter((fp: Footprint) => {
-      if (mode === 'visited') return fp.status === 'visited'
-      if (mode === 'wishlist') return fp.status !== 'visited'
-      return true
-    })
+    const target = footprintsForMapMode(this.filteredFootprints, mode)
     const validForMap = target.filter(
       (fp: Footprint) => typeof fp.lat === 'number' && typeof fp.lng === 'number',
     )
@@ -585,6 +636,7 @@ Page<PageData, WechatMiniprogram.IAnyObject>({
   },
 
   onModeTap(e: WechatMiniprogram.TouchEvent) {
+    recordInteraction('map.mode')
     const mode = e.currentTarget.dataset.mode as MapMode
     if (mode === this.data.mode) return
     this.closeDetailSheet()
@@ -594,6 +646,7 @@ Page<PageData, WechatMiniprogram.IAnyObject>({
   onMarkerTap(
     e: WechatMiniprogram.CustomEvent<{ markerId: number }>,
   ) {
+    recordInteraction('map.marker')
     const markerId = e.detail.markerId
     const cache = this.markerCache
     if (!cache) return
@@ -644,6 +697,7 @@ Page<PageData, WechatMiniprogram.IAnyObject>({
   },
 
   onCheckin() {
+    recordInteraction('map.checkin')
     wx.showLoading({ title: '正在获取位置', mask: true })
     wx.getLocation({
       type: 'gcj02',
@@ -748,6 +802,7 @@ Page<PageData, WechatMiniprogram.IAnyObject>({
   },
 
   onFilter() {
+    recordInteraction('map.filter')
     this.setData({ filterVisible: true })
     this.syncTabBarForSheets()
   },
@@ -806,8 +861,8 @@ Page<PageData, WechatMiniprogram.IAnyObject>({
     wx.navigateTo({ url: `/pages/footprint-detail/index?id=${fp.id}` })
   },
 
-  onUnplacedTap(e: WechatMiniprogram.CustomEvent<{ id: string }>) {
-    const id = e.detail.id
+  onUnplacedTap(e: WechatMiniprogram.TouchEvent) {
+    const id = String(e.currentTarget.dataset.id || '')
     if (id) wx.navigateTo({ url: `/pages/footprint-detail/index?id=${id}` })
   },
 
@@ -819,7 +874,10 @@ Page<PageData, WechatMiniprogram.IAnyObject>({
   syncTabBarForSheets() {
     const { detailVisible, checkinVisible, filterVisible } = this.data
     const tabBar = this.getTabBar?.()
-    if (tabBar) tabBar.setData({ hidden: detailVisible || checkinVisible || filterVisible })
+    const hidden = detailVisible || checkinVisible || filterVisible
+    if (tabBar && (tabBar.data as { hidden?: boolean }).hidden !== hidden) {
+      tabBar.setData({ hidden })
+    }
   },
 
   /** 详情半屏退场：播完下滑动画再卸载 */

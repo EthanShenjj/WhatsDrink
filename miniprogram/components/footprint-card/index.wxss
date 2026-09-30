@@ -17,6 +17,16 @@
   border-radius: var(--radius-md);
 }
 
+.fp-card.is-no-photo {
+  min-height: 148rpx;
+  align-items: center;
+  gap: 20rpx;
+  padding: 24rpx 26rpx;
+  border: 1rpx solid rgba(91, 108, 255, .07);
+  background: linear-gradient(145deg, #FFFFFF 0%, #FBFAFF 100%);
+  box-shadow: 0 10rpx 30rpx rgba(68, 76, 145, .08);
+}
+
 .fp-thumb {
   position: relative;
   display: flex;
@@ -37,6 +47,23 @@
   border-radius: var(--radius-sm);
 }
 
+.is-no-photo .fp-thumb {
+  flex-basis: 92rpx;
+  width: 92rpx;
+  height: 92rpx;
+  border: 1rpx solid rgba(111, 104, 210, .1);
+  border-radius: 28rpx;
+  background: linear-gradient(145deg, #F0F1FF, #E8E7FA);
+  box-shadow: inset 0 1rpx 0 rgba(255, 255, 255, .8);
+}
+
+.is-compact.is-no-photo .fp-thumb {
+  flex-basis: 76rpx;
+  width: 76rpx;
+  height: 76rpx;
+  border-radius: 22rpx;
+}
+
 .fp-thumb-img {
   width: 100%;
   height: 100%;
@@ -51,10 +78,12 @@
 }
 
 .fp-thumb-icon {
-  width: 56rpx;
-  height: 56rpx;
-  opacity: 0.4;
+  width: 38rpx;
+  height: 38rpx;
+  opacity: .48;
 }
+
+.fp-thumb-emoji { font-size: 42rpx; line-height: 1; }
 
 .fp-status-badge {
   position: absolute;
@@ -83,6 +112,8 @@
   gap: 12rpx;
 }
 
+.is-no-photo .fp-body { justify-content: center; gap: 9rpx; }
+
 .fp-head {
   display: flex;
   align-items: flex-start;
@@ -107,6 +138,8 @@
   font-size: 28rpx;
   -webkit-line-clamp: 1;
 }
+
+.is-no-photo .fp-title { -webkit-line-clamp: 2; }
 
 .fp-date {
   flex-shrink: 0;
@@ -137,6 +170,12 @@
   white-space: nowrap;
 }
 
+.fp-no-photo-meta { display: flex; min-width: 0; align-items: center; gap: 12rpx; }
+.fp-inline-status { flex: 0 0 auto; padding: 4rpx 12rpx; border-radius: 99rpx; background: #EEECF8; color: #625D78; font-size: 19rpx; font-weight: 600; }
+.is-wishlist .fp-inline-status { background: var(--amber-soft); color: var(--amber-deep); }
+.fp-inline-location { display: flex; min-width: 0; align-items: center; gap: 5rpx; color: var(--muted); font-size: 20rpx; }
+.fp-inline-location .fp-meta-text { max-width: 260rpx; }
+
 .fp-tags {
   display: flex;
   flex-wrap: wrap;
@@ -164,6 +203,9 @@
   font-size: 22rpx;
   line-height: 1.2;
 }
+
+.is-no-photo .fp-chip { padding: 3rpx 11rpx; font-size: 18rpx; }
+.is-no-photo .fp-chip-emoji { font-size: 19rpx; }
 
 .fp-note {
   display: -webkit-box;

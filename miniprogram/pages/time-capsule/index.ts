@@ -49,7 +49,7 @@ Page({
     try {
       const [capsules, footprints, profile] = await Promise.all([
         listTimeCapsules(),
-        listFootprints(),
+        listFootprints({ maxAgeMs: 60_000 }),
         ensureProfile(),
       ])
       const unlocked = await Promise.all(capsules.map(async (capsule) => {

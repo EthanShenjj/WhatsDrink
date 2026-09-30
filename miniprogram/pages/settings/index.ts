@@ -14,6 +14,7 @@ const THEME_OPTIONS: Array<{ value: MapSettings['theme']; label: string; hint: s
 ]
 
 Page({
+  persistTimer: 0,
   data: {
     settings: getMapSettings(),
     markerOptions: MARKER_OPTIONS,
@@ -22,23 +23,37 @@ Page({
 
   selectMarker(e: WechatMiniprogram.TouchEvent) {
     const markerStyle = e.currentTarget.dataset.value as MapSettings['markerStyle']
+    if (markerStyle === this.data.settings.markerStyle) return
     this.setData({ 'settings.markerStyle': markerStyle })
     this.persist()
   },
 
   selectTheme(e: WechatMiniprogram.TouchEvent) {
     const theme = e.currentTarget.dataset.value as MapSettings['theme']
+    if (theme === this.data.settings.theme) return
     this.setData({ 'settings.theme': theme })
     this.persist()
   },
 
   toggleCluster(e: WechatMiniprogram.SwitchChange) {
+    if (e.detail.value === this.data.settings.clusterEnabled) return
     this.setData({ 'settings.clusterEnabled': e.detail.value })
     this.persist()
   },
 
   persist() {
+    if (this.persistTimer) clearTimeout(this.persistTimer)
+    this.persistTimer = setTimeout(() => {
+      this.persistTimer = 0
+      saveMapSettings(this.data.settings)
+      wx.showToast({ title: '已保存', icon: 'none', duration: 800 })
+    }, 180) as unknown as number
+  },
+
+  onUnload() {
+    if (!this.persistTimer) return
+    clearTimeout(this.persistTimer)
+    this.persistTimer = 0
     saveMapSettings(this.data.settings)
-    wx.showToast({ title: '已保存', icon: 'none', duration: 800 })
   },
 })

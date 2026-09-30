@@ -1,4 +1,4 @@
-import type { Footprint, ClusterMarker } from '../domain/types'
+import type { Footprint, ClusterMarker, MapMode } from '../domain/types'
 
 const EARTH_RADIUS = 6378137
 const MAX_LAT = 85.0511
@@ -17,6 +17,15 @@ export const haversine = (
     Math.sin(dLat / 2) ** 2 +
     Math.cos(toRad(lat1)) * Math.cos(toRad(lat2)) * Math.sin(dLng / 2) ** 2
   return EARTH_RADIUS * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a))
+}
+
+/** 近景地图用足迹首图作为标记；远景保持轻量图钉，避免照片互相遮挡。 */
+export const markerPhotoForZoom = (footprint: Pick<Footprint, 'photos'>, zoom: number): string =>
+  zoom >= 12 ? footprint.photos?.[0] || '' : ''
+
+export const footprintsForMapMode = (footprints: Footprint[], mode: MapMode): Footprint[] => {
+  return footprints.filter((footprint) =>
+    mode === 'wishlist' ? footprint.status !== 'visited' : footprint.status === 'visited')
 }
 
 const latToPixel = (lat: number, zoom: number): number => {

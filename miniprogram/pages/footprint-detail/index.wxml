@@ -59,22 +59,45 @@
           class="detail-gallery-item"
         >
           <image
+            wx:if="{{index >= photoIndex - 1 && index <= photoIndex + 1}}"
             class="detail-gallery-image"
             src="{{item}}"
             mode="aspectFill"
-            data-url="{{item}}"
-            bindtap="previewPhoto"
+            bindtap="onPhotoEdit"
+            lazy-load
           />
+          <view wx:else class="detail-gallery-image"></view>
         </swiper-item>
       </swiper>
+      <view class="detail-gallery-edit" aria-hidden="true">
+        <local-icon name="edit" size="26rpx" />
+        <text>编辑照片</text>
+      </view>
       <view wx:if="{{footprint.photos.length > 1}}" class="detail-gallery-counter">
         <text>{{photoIndex + 1}} / {{footprint.photos.length}}</text>
       </view>
     </view>
 
-    <view wx:elif="{{isVisit}}" class="detail-photo-placeholder">
-      <local-icon name="camera" size="56rpx" />
-      <text class="muted">这次没有照片</text>
+    <view
+      wx:elif="{{isVisit}}"
+      class="detail-cover-empty"
+      hover-class="detail-cover-empty--pressed"
+      role="button"
+      aria-label="添加这次回忆的照片"
+      bindtap="onPhotoEdit"
+    >
+      <view class="detail-cover-copy">
+        <text class="detail-cover-kicker">这次的回忆封面</text>
+        <text class="detail-cover-title">小拾替你守着这一刻</text>
+        <view class="detail-cover-action">
+          <local-icon name="camera" size="28rpx" />
+          <text>点击添加照片</text>
+        </view>
+      </view>
+      <view class="detail-cover-mascot">
+        <view class="detail-cover-halo"></view>
+        <ip-mascot state="journey" expression="collect" size="188rpx" motion="none" label="守护这段回忆的小拾" />
+      </view>
     </view>
 
     <!-- 主体信息 -->
@@ -82,6 +105,7 @@
       <view class="detail-header">
         <view class="detail-marker-dot" style="background: {{footprint.markerStyle.color || '#5B6CFF'}};">
           <text wx:if="{{footprint.markerStyle.emoji}}" class="detail-marker-emoji">{{footprint.markerStyle.emoji}}</text>
+          <local-icon wx:else name="location-white" size="32rpx" />
         </view>
         <view class="detail-header-text">
           <text class="detail-poi-name">{{footprint.poiName}}</text>
@@ -139,20 +163,54 @@
 
     <view wx:if="{{relatedVisits.length}}" class="place-ring card">
       <view class="place-ring-heading">
-        <text class="section-title">地点年轮</text>
-        <text class="muted">来过 {{relatedVisits.length}} 次</text>
+        <view class="place-ring-heading-copy">
+          <text class="section-title">回忆票根</text>
+          <text class="place-ring-subtitle">这个地方，收藏了 {{relatedVisits.length}} 次抵达</text>
+        </view>
+        <view class="place-ring-count">{{relatedVisits.length}} 张</view>
       </view>
       <text class="place-ring-summary">第一次 {{firstVisit.visitDate}} · 最近一次 {{latestVisit.visitDate}}</text>
-      <view class="place-ring-list">
-        <view wx:for="{{relatedVisits}}" wx:key="id" class="place-ring-entry" role="button" data-id="{{item.id}}" bindtap="selectVisit">
-          <view class="place-ring-dot"></view>
-          <image wx:if="{{item.photos.length}}" class="place-ring-photo" src="{{item.photos[0]}}" mode="aspectFill" />
-          <view class="place-ring-entry-body">
-            <text class="place-ring-date">{{item.visitDate}} {{item.isImportant ? '· 很重要的一刻' : ''}}</text>
-            <text wx:if="{{item.note}}" class="place-ring-note">{{item.note}}</text>
+      <view class="memory-ticket-list">
+        <view
+          wx:for="{{visibleTicketVisits}}"
+          wx:key="id"
+          class="memory-ticket {{item.isCurrent ? 'is-current' : ''}}"
+          hover-class="memory-ticket-pressed"
+          hover-stay-time="80"
+          role="button"
+          aria-label="第 {{item.ticketNumber}} 次到访，{{item.displayDate}}{{item.isCurrent ? '，正在查看' : ''}}"
+          data-id="{{item.id}}"
+          bindtap="selectVisit"
+        >
+          <view class="memory-ticket-main">
+            <view class="memory-ticket-media">
+              <image wx:if="{{item.hasPhoto}}" class="memory-ticket-photo" src="{{item.photos[0]}}" mode="aspectFill" lazy-load />
+              <view wx:else class="memory-ticket-mascot">
+                <image src="/assets/growth/journey.webp" mode="aspectFit" />
+              </view>
+            </view>
+            <view class="memory-ticket-copy">
+              <view class="memory-ticket-meta">
+                <text class="memory-ticket-date">{{item.displayDate}}</text>
+                <text wx:if="{{item.isCurrent}}" class="memory-ticket-current">正在看</text>
+              </view>
+              <text class="memory-ticket-place">{{item.poiName}}</text>
+              <text class="memory-ticket-note">{{item.note || '这一次，回忆留在了路上'}}</text>
+              <view wx:if="{{item.isImportant}}" class="memory-ticket-stamp">珍藏时刻</view>
+            </view>
+          </view>
+          <view class="memory-ticket-stub">
+            <view class="memory-ticket-notch is-top"></view>
+            <view class="memory-ticket-notch is-bottom"></view>
+            <text class="memory-ticket-stub-label">VISIT</text>
+            <text class="memory-ticket-number">{{item.ticketNumber}}</text>
+            <text class="memory-ticket-stub-unit">第 {{item.ticketNumber}} 次</text>
           </view>
         </view>
       </view>
+      <button wx:if="{{canExpandTickets}}" class="text-button memory-ticket-toggle" bindtap="onToggleTickets">
+        {{ticketsExpanded ? '收起票根' : '展开全部 ' + relatedVisits.length + ' 张'}}
+      </button>
       <button wx:if="{{relatedVisits.length > 1}}" class="secondary-button place-ring-compare" bindtap="onToggleComparison">{{comparisonOpen ? '收起变化' : '看看变化'}}</button>
       <view wx:if="{{comparisonOpen && relatedVisits.length > 1}}" class="place-ring-comparison">
         <view class="place-ring-compare-side">

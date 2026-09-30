@@ -1,6 +1,10 @@
 import { describe, expect, it } from 'vitest'
 import type { Footprint, UserProfile } from '../miniprogram/domain/types'
-import { computeGrowthSnapshot } from '../miniprogram/utils/growth'
+import {
+  computeGrowthOverview,
+  computeGrowthSnapshot,
+  hasDistantPairDeferred,
+} from '../miniprogram/utils/growth'
 
 const at = (value: string): number => new Date(`${value}T12:00:00`).getTime()
 
@@ -87,5 +91,40 @@ describe('小拾成长计划', () => {
 
     expect(active.activeColorId).toBe('explore')
     expect(expired.activeColorId).toBe(expired.weeklyColorId)
+  })
+
+  it('reports an active Pro year separately while keeping Plus benefits active', () => {
+    const now = at('2026-09-24')
+    const snapshot = computeGrowthSnapshot([], makeProfile({
+      growth: {
+        plusUntil: now + 372 * 86_400_000,
+        proUntil: now + 372 * 86_400_000,
+      },
+    }), now)
+
+    expect(snapshot.isPlus).toBe(true)
+    expect(snapshot.isPro).toBe(true)
+    expect(snapshot.proDaysLeft).toBe(372)
+  })
+
+  it('builds a lightweight overview for navigation surfaces', () => {
+    const overview = computeGrowthOverview([
+      makeFootprint('1', '2026-09-20'),
+      makeFootprint('2', '2026-09-21'),
+      makeFootprint('3', '2026-09-22'),
+    ], makeProfile(), at('2026-09-24'))
+
+    expect(overview.weeklyColorId).toBe('discover')
+    expect(overview.nextGoalTarget).toBeGreaterThan(0)
+    expect('hiddenStates' in overview).toBe(false)
+  })
+
+  it('checks distant locations without blocking one long synchronous scan', async () => {
+    const visits = [
+      makeFootprint('chengdu', '2026-09-20', { lat: 30.5728, lng: 104.0668 }),
+      makeFootprint('shanghai', '2026-09-21', { lat: 31.2304, lng: 121.4737 }),
+    ]
+
+    await expect(hasDistantPairDeferred(visits, 1000, 1)).resolves.toBe(true)
   })
 })

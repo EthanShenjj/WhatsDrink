@@ -14,14 +14,19 @@
     </view>
   </brand-card>
 
-  <view class="membership-card {{growth.isPlus ? 'is-active' : ''}}" hover-class="press-dim" bindtap="onMembershipTap" role="button" aria-label="查看拾光加付费方案">
-    <view class="membership-symbol"><local-icon name="sparkles" size="38rpx" /></view>
+  <view class="membership-card {{growth.isPlus ? 'is-active' : ''}} {{growth.isPro ? 'is-pro' : ''}}" hover-class="press-dim" bindtap="onMembershipTap" role="button" aria-label="查看拾光付费方案">
+    <view class="membership-symbol" aria-hidden="true">
+      <view class="membership-sparkles">
+        <text class="membership-sparkle-main">✦</text>
+        <text class="membership-sparkle-small">✦</text>
+      </view>
+    </view>
     <view class="membership-copy">
       <view class="membership-title-row">
-        <text class="membership-title">{{growth.isPlus ? '拾光+ 已开通' : '开通拾光+'}}</text>
-        <text class="membership-pill">{{growth.isPlus ? '已生效' : '31 天 ¥6 起'}}</text>
+        <text class="membership-title">{{growth.isPro ? '拾光 Pro 已开通' : (growth.isPlus ? '拾光+ 已开通' : '开通拾光会员')}}</text>
+        <text class="membership-pill">{{growth.isPro ? '年度 PRO' : (growth.isPlus ? '已生效' : '31 天 ¥6 起')}}</text>
       </view>
-      <text class="membership-note">{{growth.isPlus ? ('当前权益剩余 ' + growth.plusDaysLeft + ' 天') : '专属主题 · 无限时光胶囊 · 单次购买不自动续费'}}</text>
+      <text class="membership-note">{{growth.isPro ? ('Pro 剩余 ' + growth.proDaysLeft + ' 天 · 新功能优先体验') : (growth.isPlus ? ('当前权益剩余 ' + growth.plusDaysLeft + ' 天') : '专属主题 · 无限时光胶囊 · Pro 新能力')}}</text>
     </view>
     <text class="membership-arrow">›</text>
   </view>
@@ -30,7 +35,7 @@
     <view class="growth-card-copy">
       <view class="growth-label-row">
         <text class="growth-label">小拾成长计划</text>
-        <text wx:if="{{growth.isPlus}}" class="growth-plus">拾光+</text>
+        <text wx:if="{{growth.isPlus}}" class="growth-plus">{{growth.isPro ? '拾光 PRO' : '拾光+'}}</text>
       </view>
       <text class="growth-title">{{growth.weeklyTitle}}</text>
       <text class="growth-message">{{growth.weeklyMessage}}</text>
@@ -39,7 +44,7 @@
         <text class="growth-goal-arrow">查看成长 ›</text>
       </view>
     </view>
-    <ip-mascot state="{{growth.activeColorId}}" expression="companion" size="190rpx" motion="float" label="当前状态的小拾" />
+    <ip-mascot state="{{growth.activeColorId}}" expression="companion" size="190rpx" motion="none" label="当前状态的小拾" />
   </view>
 
   <view class="stats-card card">
@@ -54,7 +59,7 @@
     </view>
     <view class="stats-secondary">
       <text>{{stats.photoCount || 0}} 张照片</text>
-      <text>{{stats.provinces || 0}} 个省/州</text>
+      <text>{{stats.provinces || 0}} 个省份</text>
       <text>{{stats.fulfilledWishCount || 0}} 个愿望实现</text>
     </view>
   </view>

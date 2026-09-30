@@ -40,6 +40,15 @@ export const buildMonthGrid = (
     footprintMap.set(key, list)
   }
 
+  return buildMonthGridFromIndex(year, month, footprintMap, today)
+}
+
+export const buildMonthGridFromIndex = (
+  year: number,
+  month: number,
+  footprintMap: Map<string, Footprint[]>,
+  today = new Date(),
+): MonthCell[] => {
   const first = new Date(year, month, 1)
   const mondayOffset = first.getDay() === 0 ? 6 : first.getDay() - 1
   const start = new Date(year, month, 1 - mondayOffset)

@@ -7,8 +7,6 @@ export const MAP_STYLE_SUBKEY = ''
 export const MAP_STYLE_IDS = { clean: 1, journal: 2, night: 3 } as const
 // Fill with the approved WeChat subscription template ID when reminders are enabled.
 export const CAPSULE_TEMPLATE_ID = ''
-// 会员到期提醒的一次性订阅模板 ID，与服务端 MEMBERSHIP_TEMPLATE_ID 保持一致后开启。
-export const MEMBERSHIP_TEMPLATE_ID = ''
 // 与服务端 sendMembershipReminder 的 MEMBERSHIP_REMIND_DAYS 默认值一致，仅用于提示文案。
 export const MEMBERSHIP_REMIND_DAYS = 3
 

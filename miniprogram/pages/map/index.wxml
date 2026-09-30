@@ -20,7 +20,15 @@
     bindtap="onMapTap"
     bindmarkertap="onMarkerTap"
     bindregionchange="onRegionChange"
-  ></map>
+  >
+    <cover-view slot="callout">
+      <block wx:for="{{markers}}" wx:key="id">
+        <cover-view wx:if="{{item.photo}}" marker-id="{{item.id}}" class="photo-marker-callout">
+          <cover-image class="photo-marker-image" src="{{item.photo}}" />
+        </cover-view>
+      </block>
+    </cover-view>
+  </map>
 
   <!-- Top safe area + mode switcher -->
   <view class="map-topbar">
@@ -96,14 +104,41 @@
   </view>
 
   <view wx:if="{{unplacedFootprints.length && mode !== 'lighting'}}" class="unplaced-panel">
-    <text class="unplaced-title">未标注位置 · {{unplacedFootprints.length}}</text>
+    <view class="unplaced-head">
+      <text class="unplaced-title">待补充位置</text>
+      <text class="unplaced-count">{{unplacedFootprints.length}}</text>
+    </view>
     <scroll-view scroll-y class="unplaced-list">
-      <footprint-card wx:for="{{unplacedFootprints}}" wx:key="id" footprint="{{item}}" compact bind:tap="onUnplacedTap" />
+      <view
+        wx:for="{{unplacedFootprints}}"
+        wx:key="id"
+        class="unplaced-row"
+        hover-class="press-dim"
+        data-id="{{item.id}}"
+        bindtap="onUnplacedTap"
+        role="button"
+        aria-label="为 {{item.poiName}} 补充位置"
+      >
+        <view class="unplaced-thumb">
+          <image wx:if="{{item.photo}}" class="unplaced-photo" src="{{item.photo}}" mode="aspectFill" lazy-load />
+          <view wx:else class="unplaced-placeholder">
+            <local-icon name="image" size="34rpx" />
+          </view>
+        </view>
+        <view class="unplaced-copy">
+          <text class="unplaced-name">{{item.poiName}}</text>
+          <view class="unplaced-meta">
+            <text class="unplaced-status {{item.isWishlist ? 'is-wishlist' : ''}}">{{item.statusLabel}}</text>
+            <text wx:if="{{item.dateLabel}}" class="unplaced-date">{{item.dateLabel}}</text>
+          </view>
+        </view>
+        <text class="unplaced-arrow">›</text>
+      </view>
     </scroll-view>
   </view>
 
   <view wx:if="{{modeEmpty && !loading && mode !== 'lighting'}}" class="map-empty">
-    <ip-mascot state="{{growth.activeColorId || 'journey'}}" expression="think" size="104rpx" motion="float" label="正在等你出发的小拾" />
+    <ip-mascot state="{{growth.activeColorId || 'journey'}}" expression="think" size="104rpx" motion="none" label="正在等你出发的小拾" />
     <view class="map-empty-copy">
       <text class="map-empty-title">{{modeEmptyTitle}}</text>
       <text class="map-empty-description">{{modeEmptyDescription}}</text>

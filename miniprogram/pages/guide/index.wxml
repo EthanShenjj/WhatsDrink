@@ -3,7 +3,7 @@
     <text class="eyebrow">WISHLIST & PLANS</text>
     <view class="guide-title-row">
       <text class="display-title">攻略</text>
-      <button class="guide-plan-button" bindtap="onGeneratePlan">
+      <button wx:if="{{wishlist.length}}" class="guide-plan-button" bindtap="onGeneratePlan">
         <local-icon name="add-white" size="28rpx" />
         <text>生成攻略</text>
       </button>
@@ -46,7 +46,7 @@
       wx:elif="{{!loading}}"
       title="心愿地图还是空的"
       description="在地图上把想去的地方加进来，组成你的旅行清单"
-      state="discover"
+      state="journey"
       expression="explore"
       actionText="去地图添加"
       bind:action="onAddWishlist"
@@ -102,8 +102,6 @@
       description="从自己的想去清单挑选地点，排成一份轻行程"
       state="journey"
       expression="depart"
-      actionText="生成攻略"
-      bind:action="onGeneratePlan"
     ></empty-state>
 
     <view wx:else class="loading-block"><text>加载中…</text></view>

@@ -66,12 +66,27 @@ const findOrder = async (outTradeNo) => {
   return result.data[0]
 }
 
-const fulfillOrder = async ({ outTradeNo, wxOrderId, openid, platformProductId }) => {
+const fulfillOrder = async ({
+  outTradeNo,
+  openid,
+  platformProductId,
+  channelOrderId,
+  wxpayTransactionId,
+  paidAt,
+}) => {
   const found = await findOrder(outTradeNo)
   if (found._openid !== openid) throw new Error('订单用户不一致')
   if (found.platformProductId !== platformProductId) throw new Error('订单商品不一致')
   if (found.status === 'fulfilled') {
-    if (found.wxOrderId && found.wxOrderId !== wxOrderId) throw new Error('平台订单号冲突')
+    const metadata = {
+      ...(!found.channelOrderId && channelOrderId ? { channelOrderId } : {}),
+      ...(!found.wxpayTransactionId && wxpayTransactionId ? { wxpayTransactionId } : {}),
+    }
+    if (Object.keys(metadata).length) {
+      await db.collection('payment_orders').doc(found._id).update({
+        data: { ...metadata, updatedAt: Date.now() },
+      })
+    }
     return
   }
   if (found.status === 'refunded') throw new Error('退款订单不能发货')
@@ -104,9 +119,10 @@ const fulfillOrder = async ({ outTradeNo, wxOrderId, openid, platformProductId }
 
     await transaction.collection('payment_orders').doc(found._id).update({
       data: {
-        wxOrderId,
+        ...(channelOrderId ? { channelOrderId } : {}),
+        ...(wxpayTransactionId ? { wxpayTransactionId } : {}),
         status: 'fulfilled',
-        paidAt: now,
+        paidAt: Number.isFinite(paidAt) ? paidAt : now,
         fulfilledAt: now,
         entitlementStartsAt: startsAt,
         entitlementEndsAt: endsAt,
@@ -136,9 +152,6 @@ const fulfillOrder = async ({ outTradeNo, wxOrderId, openid, platformProductId }
 const refundOrder = async ({ outTradeNo, wxOrderId, refundFee }) => {
   const found = await findOrder(outTradeNo)
   if (found.status === 'refunded') return
-  if (found.wxOrderId && wxOrderId && found.wxOrderId !== wxOrderId) {
-    throw new Error('退款平台订单号不一致')
-  }
   if (Number(refundFee) !== Number(found.amountFen)) {
     await db.collection('payment_orders').doc(found._id).update({
       data: {
@@ -182,7 +195,12 @@ const refundOrder = async ({ outTradeNo, wxOrderId, refundFee }) => {
     }
 
     await transaction.collection('payment_orders').doc(found._id).update({
-      data: { status: 'refunded', refundedAt: now, updatedAt: now },
+      data: {
+        ...(wxOrderId ? { wxOrderId } : {}),
+        status: 'refunded',
+        refundedAt: now,
+        updatedAt: now,
+      },
     })
     if (entitlement) {
       await transaction.collection('user_entitlements').doc(entitlement._id).update({
@@ -209,11 +227,14 @@ exports.main = async (event) => {
     if (eventName === 'xpay_goods_deliver_notify') {
       const outTradeNo = xmlValue(xml, 'OutTradeNo')
       if (!outTradeNo) throw new Error('发货通知缺少业务订单号')
+      const paidTimeSeconds = Number(xmlValue(xml, 'PaidTime'))
       await fulfillOrder({
         outTradeNo,
-        wxOrderId: xmlValue(xml, 'MchOrderNo'),
         openid: xmlValue(xml, 'OpenId'),
         platformProductId: xmlValue(xml, 'ProductId'),
+        channelOrderId: xmlValue(xml, 'MchOrderNo'),
+        wxpayTransactionId: xmlValue(xml, 'TransactionId'),
+        paidAt: paidTimeSeconds > 0 ? paidTimeSeconds * 1000 : undefined,
       })
       return response(successXml())
     }

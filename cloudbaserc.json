@@ -94,5 +94,22 @@
       "memorySize": 256,
       "installDependency": true
     }
-  ]
+  ],
+  "gateway": {
+    "routes": [
+      {
+        "path": "/payment-notify",
+        "target": "function:paymentNotify",
+        "enableAuth": false,
+        "enablePathTransmission": false,
+        "qpsPolicy": {
+          "qpsTotal": 100,
+          "qpsPerClient": {
+            "limitBy": "ClientIP",
+            "limitValue": 20
+          }
+        }
+      }
+    ]
+  }
 }

@@ -1,3 +1,5 @@
+const lastIconSources = new WeakMap<object, string>()
+
 Component({
   properties: {
     name: {
@@ -18,18 +20,26 @@ Component({
   },
   observers: {
     name(value: string) {
+      const iconSrc = value ? `/assets/icons/${value}.svg` : ''
+      if (iconSrc === lastIconSources.get(this)) return
+      lastIconSources.set(this, iconSrc)
       this.setData({
-        iconSrc: value ? `/assets/icons/${value}.svg` : '',
+        iconSrc,
       })
     },
   },
   lifetimes: {
     attached() {
-      if (this.data.name) {
+      if (this.data.name && !this.data.iconSrc) {
+        const iconSrc = `/assets/icons/${this.data.name}.svg`
+        lastIconSources.set(this, iconSrc)
         this.setData({
-          iconSrc: `/assets/icons/${this.data.name}.svg`,
+          iconSrc,
         })
       }
+    },
+    detached() {
+      lastIconSources.delete(this)
     },
   },
 })

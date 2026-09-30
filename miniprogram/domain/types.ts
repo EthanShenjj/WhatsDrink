@@ -152,6 +152,8 @@ export interface CreatePaymentOrderResult {
 export interface MembershipAccount {
   profile: UserProfile
   orders: PaymentOrder[]
+  /** 服务端启用的会员到期提醒模板；为空时客户端隐藏提醒入口 */
+  reminderTemplateId?: string
   /** 服务端仍保留的到期提醒一次性订阅授权条数 */
   reminderAuthorizations?: number
 }

@@ -35,8 +35,8 @@ const PRODUCTS = {
 const hmac = (key, value) =>
   crypto.createHmac('sha256', key).update(value, 'utf8').digest('hex')
 
-// 虚拟支付环境：0 现网（默认）、1 沙箱。签名里的 env 必须与所用 AppKey 的环境一致，
-// 切换时需同步替换 .env.payment 里的 VIRTUAL_PAY_APP_KEY。
+// 真机支付使用现网环境；沙箱仅用于开发者工具内调试，真机会被微信拒绝。
+// AppKey 必须与 env 成对：1 + 沙箱 AppKey，0 + 现网 AppKey。
 const virtualPayEnv = () => (String(process.env.VIRTUAL_PAY_ENV || '').trim() === '1' ? 1 : 0)
 
 let accessTokenCache = { value: '', expiresAt: 0 }
@@ -68,6 +68,23 @@ const postJson = (url, body) => new Promise((resolve, reject) => {
   request.on('timeout', () => request.destroy(new Error('微信支付接口请求超时')))
   request.on('error', reject)
   request.end(body)
+})
+
+const getJson = (url) => new Promise((resolve, reject) => {
+  const request = https.get(url, { timeout: 8000 }, (response) => {
+    let data = ''
+    response.setEncoding('utf8')
+    response.on('data', (chunk) => { data += chunk })
+    response.on('end', () => {
+      try {
+        resolve(JSON.parse(data))
+      } catch {
+        reject(new Error('微信登录接口返回了无法解析的数据'))
+      }
+    })
+  })
+  request.on('timeout', () => request.destroy(new Error('微信登录接口请求超时')))
+  request.on('error', reject)
 })
 
 const getAccessToken = async () => {
@@ -306,11 +323,18 @@ const saveReminderSubscription = async (openid, templateId, enabled) => {
 
 const exchangeSessionKey = async (code, expectedOpenid) => {
   if (!code) throw new Error('微信登录凭证不能为空')
-  const result = await cloud.openapi.auth.code2Session({ jsCode: code })
-  const errCode = result.errCode ?? result.errcode ?? 0
-  if (errCode) throw new Error(result.errMsg || result.errmsg || '微信登录凭证无效')
-  const openid = result.openid || result.openId
-  const sessionKey = result.sessionKey || result.session_key
+  const appid = String(process.env.WECHAT_APP_ID || '').trim()
+  const secret = String(process.env.WECHAT_APP_SECRET || '').trim()
+  if (!appid || !secret) throw new Error('支付登录尚未配置 AppID 与 AppSecret')
+  const result = await getJson(
+    `https://api.weixin.qq.com/sns/jscode2session?appid=${encodeURIComponent(appid)}`
+      + `&secret=${encodeURIComponent(secret)}`
+      + `&js_code=${encodeURIComponent(code)}&grant_type=authorization_code`,
+  )
+  const errCode = Number(result.errcode || 0)
+  if (errCode) throw new Error(result.errmsg || '微信登录凭证无效')
+  const openid = result.openid
+  const sessionKey = result.session_key
   if (!openid || openid !== expectedOpenid) throw new Error('登录用户与支付用户不一致')
   if (!sessionKey) throw new Error('未取得支付用户会话密钥')
   return sessionKey
@@ -357,6 +381,7 @@ exports.main = async (event) => {
         data: {
           profile: profileForClient(OPENID, profile),
           orders: reconciledOrders.map(orderForClient),
+          ...(templateId ? { reminderTemplateId: templateId } : {}),
           reminderAuthorizations,
         },
       }

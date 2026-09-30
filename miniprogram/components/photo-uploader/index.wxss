@@ -40,6 +40,17 @@
   height: 26rpx;
 }
 
+.photo-uploading {
+  position: absolute;
+  right: 8rpx;
+  bottom: 8rpx;
+  padding: 5rpx 10rpx;
+  border-radius: 99rpx;
+  background: rgba(23, 24, 43, 0.72);
+  color: #fff;
+  font-size: 18rpx;
+}
+
 .photo-add {
   display: flex;
   flex-direction: column;

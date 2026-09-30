@@ -155,9 +155,18 @@ button::after {
 }
 
 .primary-button[disabled],
-.amber-button[disabled],
+.amber-button[disabled] {
+  background: #E4E6F0;
+  box-shadow: none;
+  color: #686D82;
+  opacity: 1;
+}
+
 .secondary-button[disabled] {
-  opacity: 0.5;
+  background: #ECEEF6;
+  box-shadow: none;
+  color: #858A9E;
+  opacity: 1;
 }
 
 .secondary-button {

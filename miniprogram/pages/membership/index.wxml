@@ -78,11 +78,11 @@
 
   <view class="policy-card card">
     <text class="policy-title">购买与数据说明</text>
-    <text>· 这是单次购买，不会自动扣费，到期后可自主续购。</text>
-    <text>· 开启到期提醒后，到期前 {{remindDaysLabel}} 天会收到一条微信提醒，可随时关闭。</text>
+    <text>· 本商品为一次性购买的时长卡，不是自动续费订阅；支付时一次性收取所选方案全额，到期后可自主续购。</text>
+    <text>· 授权到期提醒后，我们将在到期前 {{remindDaysLabel}} 天尝试发送一条微信提醒，实际送达以微信为准，可随时关闭。</text>
     <text>· Pro 年卡包含拾光+权益；未来功能与 AI 能力以上线时的实际说明为准。</text>
-    <text>· 权益到期后，已创建的足迹与照片仍可查看和导出。</text>
-    <text>· Android 等终端退款由开发者处理；iOS 退款需通过 App Store 申请。</text>
+    <text>· 权益到期后，已创建的足迹与照片仍可查看，不会因会员到期而删除。</text>
+    <text>· 退款渠道以支付终端为准：Android 等终端请联系客服处理；iOS 订单需通过 App Store 申请并由 Apple 审核。</text>
   </view>
 
   <view class="order-section">

@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { clusterFootprints, fitBounds, haversine } from '../miniprogram/utils/map'
+import { clusterFootprints, fitBounds, footprintsForMapMode, haversine, markerPhotoForZoom } from '../miniprogram/utils/map'
 import type { Footprint } from '../miniprogram/domain/types'
 
 const makeFootprint = (lat: number, lng: number, id?: string): Footprint => ({
@@ -26,6 +26,27 @@ describe('haversine', () => {
     const dist = haversine(30.01, 104.01, 30.02, 104.02)
     expect(dist).toBeGreaterThan(1000)
     expect(dist).toBeLessThan(2000)
+  })
+})
+
+describe('markerPhotoForZoom', () => {
+  it('uses the footprint photo for close map views', () => {
+    expect(markerPhotoForZoom({ photos: ['cloud://photo.jpg'] }, 12)).toBe('cloud://photo.jpg')
+  })
+
+  it('keeps distant map views on lightweight pins', () => {
+    expect(markerPhotoForZoom({ photos: ['cloud://photo.jpg'] }, 9)).toBe('')
+    expect(markerPhotoForZoom({ photos: [] }, 16)).toBe('')
+  })
+})
+
+describe('footprintsForMapMode', () => {
+  it('keeps visited footprints visible on the lighting map', () => {
+    const visited = { ...makeFootprint(31.2, 121.4, 'visited'), photos: ['cloud://photo.jpg'] }
+    const wishlist = { ...makeFootprint(31.3, 121.5, 'wishlist'), status: 'wishlist' as const }
+
+    expect(footprintsForMapMode([visited, wishlist], 'lighting').map((item) => item.id))
+      .toEqual(['visited'])
   })
 })
 

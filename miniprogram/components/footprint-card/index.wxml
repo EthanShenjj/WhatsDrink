@@ -1,6 +1,6 @@
 <view
   wx:if="{{footprint}}"
-  class="fp-card {{compact ? 'is-compact' : ''}} {{footprint.status !== 'visited' ? 'is-wishlist' : ''}}"
+  class="fp-card {{compact ? 'is-compact' : ''}} {{footprint.status !== 'visited' ? 'is-wishlist' : ''}} {{derived.photo ? 'has-photo' : 'is-no-photo'}}"
   hover-class="press-dim"
   bindtap="onTap"
   role="button"
@@ -17,9 +17,10 @@
       binderror="onImgError"
     />
     <view wx:else class="fp-thumb-placeholder">
-      <image class="fp-thumb-icon" src="/assets/icons/image.svg" mode="aspectFit" />
+      <text wx:if="{{derived.categoryEmoji || derived.moodEmoji}}" class="fp-thumb-emoji">{{derived.categoryEmoji || derived.moodEmoji}}</text>
+      <image wx:else class="fp-thumb-icon" src="/assets/icons/location.svg" mode="aspectFit" />
     </view>
-    <view class="fp-status-badge">{{derived.statusLabel}}</view>
+    <view wx:if="{{derived.photo}}" class="fp-status-badge">{{derived.statusLabel}}</view>
   </view>
 
   <view class="fp-body">
@@ -28,7 +29,15 @@
       <text wx:if="{{derived.dateLabel}}" class="fp-date">{{derived.dateLabel}}</text>
     </view>
 
-    <view wx:if="{{derived.locationLabel}}" class="fp-meta">
+    <view wx:if="{{!derived.photo}}" class="fp-no-photo-meta">
+      <text class="fp-inline-status">{{derived.statusLabel}}</text>
+      <view wx:if="{{derived.locationLabel}}" class="fp-inline-location">
+        <image class="fp-meta-icon" src="/assets/icons/location.svg" mode="aspectFit" />
+        <text class="fp-meta-text">{{derived.locationLabel}}</text>
+      </view>
+    </view>
+
+    <view wx:if="{{derived.photo && derived.locationLabel}}" class="fp-meta">
       <image class="fp-meta-icon" src="/assets/icons/location.svg" mode="aspectFit" />
       <text class="fp-meta-text">{{derived.locationLabel}}</text>
     </view>

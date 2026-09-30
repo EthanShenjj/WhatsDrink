@@ -29,7 +29,10 @@ Page({
 
   async onLoad(query: Record<string, string>) {
     try {
-      const [footprints, plans] = await Promise.all([listFootprints(), listTravelPlans()])
+      const [footprints, plans] = await Promise.all([
+        listFootprints({ maxAgeMs: 60_000 }),
+        listTravelPlans(),
+      ])
       const wishlist = footprints.filter((fp) => fp.status === 'wishlist')
       const plan = query.id ? plans.find((item) => item.id === query.id) : undefined
       if (query.id && !plan) wx.showToast({ title: '计划不存在', icon: 'none' })

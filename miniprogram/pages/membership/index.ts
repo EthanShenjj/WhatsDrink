@@ -5,7 +5,7 @@ import type {
   UserProfile,
   VirtualPaymentData,
 } from '../../domain/types'
-import { MEMBERSHIP_REMIND_DAYS, MEMBERSHIP_TEMPLATE_ID } from '../../services/config'
+import { MEMBERSHIP_REMIND_DAYS } from '../../services/config'
 import {
   createPaymentOrder,
   getMembershipAccount,
@@ -48,6 +48,7 @@ interface PageData {
   activeExpiryLabel: string
   membershipExpiring: boolean
   hasExpiredMembership: boolean
+  reminderTemplateId: string
   reminderAvailable: boolean
   reminderEnabled: boolean
   reminderBusy: boolean
@@ -72,7 +73,7 @@ const productViews: ProductView[] = PAYMENT_PRODUCTS.map((product) => ({
   ...product,
   priceLabel: formatPrice(product.priceFen),
   perMonthLabel: product.days > 100
-    ? `${product.tier === 'pro' ? '含拾光+ · ' : ''}约 ¥${(product.priceFen / 100 / 12).toFixed(1)}/月`
+    ? `${product.tier === 'pro' ? '含拾光+ · ' : ''}一次性支付，折合约 ¥${(product.priceFen / 100 / 12).toFixed(1)}/月`
     : '一次购买，31 天有效',
 }))
 
@@ -92,6 +93,24 @@ const requestVirtualPayment = (payData: VirtualPaymentData): Promise<void> =>
 
 const delay = (milliseconds: number): Promise<void> =>
   new Promise((resolve) => setTimeout(resolve, milliseconds))
+
+const paymentFailureMessage = (error: WechatMiniprogram.VirtualPaymentError & Error): string => {
+  if (/PAYMENT_ILLEGAL_IN_SANDBOX/i.test(error.errMsg || error.message || '')) {
+    return '当前支付环境不支持在手机上购买，请稍后再试。'
+  }
+  if (error.errCode === -15006 || /PAY_SIG_INVALID/i.test(error.errMsg || error.message || '')) {
+    return '支付环境与密钥不匹配，请稍后再试。'
+  }
+  if (error.errCode === -604100) {
+    return '微信支付登录服务暂时不可用，请稍后再试。'
+  }
+  if (error.errCode === -15008) return '微信支付签约尚未完成，请稍后再试。'
+  if (error.errCode === -15010 || error.errCode === -15014 || error.errCode === -15018) {
+    return '当前会员商品尚未发布生效，请稍后再试。'
+  }
+  if (error.errCode === -15020 || error.errCode === -15021) return '操作较频繁，请稍后再试。'
+  return error.message || error.errMsg || '请稍后重试'
+}
 
 const supportsPayment = (): boolean => {
   if (!wx.canIUse('requestVirtualPayment')) {
@@ -138,7 +157,8 @@ Page<PageData, WechatMiniprogram.IAnyObject>({
     activeExpiryLabel: '',
     membershipExpiring: false,
     hasExpiredMembership: false,
-    reminderAvailable: Boolean(MEMBERSHIP_TEMPLATE_ID),
+    reminderTemplateId: '',
+    reminderAvailable: false,
     reminderEnabled: false,
     reminderBusy: false,
     remindDaysLabel: String(MEMBERSHIP_REMIND_DAYS),
@@ -182,6 +202,8 @@ Page<PageData, WechatMiniprogram.IAnyObject>({
         activeExpiryLabel,
         membershipExpiring,
         hasExpiredMembership: !isPlus && orders.some((order) => order.status === 'fulfilled'),
+        reminderTemplateId: account.reminderTemplateId || '',
+        reminderAvailable: Boolean(account.reminderTemplateId),
         reminderEnabled: (account.reminderAuthorizations || 0) > 0,
         loading: false,
         refreshing: false,
@@ -195,18 +217,20 @@ Page<PageData, WechatMiniprogram.IAnyObject>({
   },
 
   requestReminderAuthorization(): Promise<boolean> {
-    if (!MEMBERSHIP_TEMPLATE_ID) return Promise.resolve(false)
+    const templateId = this.data.reminderTemplateId
+    if (!templateId) return Promise.resolve(false)
     return new Promise((resolve) => {
       wx.requestSubscribeMessage({
-        tmplIds: [MEMBERSHIP_TEMPLATE_ID],
-        success: (result) => resolve(result[MEMBERSHIP_TEMPLATE_ID] === 'accept'),
+        tmplIds: [templateId],
+        success: (result) => resolve(result[templateId] === 'accept'),
         fail: () => resolve(false),
       })
     })
   },
 
   async onReminderToggle(event: WechatMiniprogram.SwitchChange) {
-    if (this.data.reminderBusy || !MEMBERSHIP_TEMPLATE_ID) return
+    const templateId = this.data.reminderTemplateId
+    if (this.data.reminderBusy || !templateId) return
     const enabled = Boolean(event.detail.value)
     this.setData({ reminderBusy: true, reminderEnabled: enabled })
     try {
@@ -215,7 +239,7 @@ Page<PageData, WechatMiniprogram.IAnyObject>({
         wx.showToast({ title: '未授权提醒，可随时再次开启', icon: 'none' })
         return
       }
-      const result = await saveReminderSubscription(MEMBERSHIP_TEMPLATE_ID, enabled)
+      const result = await saveReminderSubscription(templateId, enabled)
       this.setData({ reminderEnabled: result.enabled && result.count > 0 })
       wx.showToast({
         title: enabled ? `到期前 ${MEMBERSHIP_REMIND_DAYS} 天会提醒你` : '已关闭到期提醒',
@@ -273,7 +297,7 @@ Page<PageData, WechatMiniprogram.IAnyObject>({
       } else {
         wx.showModal({
           title: '暂时无法购买',
-          content: paymentError.message || paymentError.errMsg || '请稍后重试',
+          content: paymentFailureMessage(paymentError),
           showCancel: false,
         })
       }

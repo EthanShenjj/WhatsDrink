@@ -14,7 +14,9 @@
       role="button"
       aria-label="预览照片"
     />
+    <view wx:if="{{item.pending}}" class="photo-uploading">上传中</view>
     <view
+      wx:if="{{!item.pending}}"
       class="photo-remove"
       data-index="{{item.index}}"
       catchtap="onRemove"

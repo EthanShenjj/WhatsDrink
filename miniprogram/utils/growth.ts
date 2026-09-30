@@ -5,6 +5,7 @@ import type {
   GrowthExpressionView,
   GrowthHiddenStateView,
   GrowthPreferences,
+  GrowthOverview,
   GrowthSnapshot,
   UserProfile,
 } from '../domain/types'
@@ -17,6 +18,10 @@ const DAY = 86_400_000
 const snapshotMemo = new WeakMap<
   Footprint[],
   { profile: UserProfile | null | undefined; day: number; result: GrowthSnapshot }
+>()
+const overviewMemo = new WeakMap<
+  Footprint[],
+  { profile: UserProfile | null | undefined; day: number; result: GrowthOverview }
 >()
 
 const COLORS: Array<Omit<GrowthColorView, 'unlocked'>> = [
@@ -125,10 +130,105 @@ const selectState = (params: {
 export const isGrowthPlusActive = (preferences?: GrowthPreferences, now = Date.now()): boolean =>
   Boolean(preferences?.plusUntil && preferences.plusUntil > now)
 
+export const isGrowthProActive = (preferences?: GrowthPreferences, now = Date.now()): boolean =>
+  Boolean(preferences?.proUntil && preferences.proUntil > now)
+
+export const computeGrowthOverview = (
+  footprints: Footprint[],
+  profile?: UserProfile | null,
+  now?: number,
+): GrowthOverview => {
+  const memoizable = now === undefined
+  const effectiveNow = now ?? Date.now()
+  const day = Math.floor(effectiveNow / DAY)
+  if (memoizable) {
+    const cached = overviewMemo.get(footprints)
+    if (cached && cached.day === day && cached.profile === profile) return cached.result
+  }
+
+  const visits = footprints.filter((item) => item.status === 'visited')
+  const fulfilled = footprints.filter((item) => item.status === 'fulfilled')
+  const recentStart = effectiveNow - 7 * DAY
+  const recent = visits.filter((item) => {
+    const time = visitTime(item)
+    return time >= recentStart && time <= effectiveNow
+  })
+  const older = visits.filter((item) => visitTime(item) < recentStart)
+  const fulfilledCount = fulfilled.length
+    + visits.filter((item) => item.convertedFromWishlist && !item.wishId).length
+  const recentFulfilled = fulfilled.some(
+    (item) => (item.fulfilledAt || item.updatedAt || item.createdAt) >= recentStart,
+  )
+  const activeWeeks = longestWeeklyStreak(visits)
+  const recentActiveWeeks = new Set(
+    visits
+      .filter((item) => visitTime(item) >= effectiveNow - 21 * DAY)
+      .map((item) => weekKeyOf(visitTime(item))),
+  ).size
+  const uniqueCities = new Set(visits.map((item) => item.city).filter(Boolean))
+  const uniqueCategories = new Set(visits.map((item) => item.category).filter(Boolean))
+  const weeklyColorId = selectState({
+    visitCount: recent.length,
+    hasNew: hasNewDimension(recent, older),
+    hasFulfilled: recentFulfilled,
+    activeWeeks: recentActiveWeeks,
+  })
+  const unlockedColorIds = new Set<GrowthColorId>(['journey'])
+  if (visits.length >= 3) unlockedColorIds.add('explore')
+  if (uniqueCities.size >= 2 || uniqueCategories.size >= 2) unlockedColorIds.add('discover')
+  if (fulfilledCount > 0 || visits.length >= 10) unlockedColorIds.add('highlight')
+  if (activeWeeks >= 3) unlockedColorIds.add('companion')
+  if (longestPlaceGap(visits) >= 180) unlockedColorIds.add('dawn')
+  const isPlus = isGrowthPlusActive(profile?.growth, effectiveNow)
+  const isPro = isGrowthProActive(profile?.growth, effectiveNow)
+  const lockedColor = profile?.growth?.lockedColorId
+  const activeColorId = isPlus && lockedColor && unlockedColorIds.has(lockedColor)
+    ? lockedColor
+    : weeklyColorId
+  const plusDaysLeft = isPlus
+    ? Math.max(1, Math.ceil(((profile?.growth?.plusUntil || effectiveNow) - effectiveNow) / DAY))
+    : 0
+  const proDaysLeft = isPro
+    ? Math.max(1, Math.ceil(((profile?.growth?.proUntil || effectiveNow) - effectiveNow) / DAY))
+    : 0
+  const nextGoal = recent.length < 3
+    ? { text: `再记录 ${3 - recent.length} 个地方，点亮探索橙`, progress: recent.length, target: 3 }
+    : uniqueCities.size < 2
+      ? { text: '再走进 1 座新城市，点亮发现青蓝', progress: uniqueCities.size, target: 2 }
+      : activeWeeks < 3
+        ? { text: `再坚持 ${3 - activeWeeks} 周，点亮陪伴粉`, progress: activeWeeks, target: 3 }
+        : { text: '去实现一个想去，让小拾迎来高光', progress: fulfilledCount > 0 ? 1 : 0, target: 1 }
+  const weeklyColor = COLORS.find((item) => item.id === weeklyColorId) || COLORS[0]
+  const result: GrowthOverview = {
+    weeklyColorId,
+    activeColorId,
+    weeklyTitle: `本周状态 · ${weeklyColor.name}`,
+    weeklyMessage: weeklyColorId === 'journey'
+      ? '小拾正在等你一起出发。'
+      : weeklyColorId === 'highlight'
+        ? '这一周，你把一个想去变成了去过。'
+        : weeklyColorId === 'discover'
+          ? '这一周，你走进了新的地方。'
+          : weeklyColorId === 'explore'
+            ? '这一周，你一直在往新的地方走。'
+            : '稳定的记录，让生活慢慢有了形状。',
+    nextGoalText: nextGoal.text,
+    nextGoalProgress: nextGoal.progress,
+    nextGoalTarget: nextGoal.target,
+    isPlus,
+    plusDaysLeft,
+    isPro,
+    proDaysLeft,
+  }
+  if (memoizable) overviewMemo.set(footprints, { profile, day, result })
+  return result
+}
+
 export const computeGrowthSnapshot = (
   footprints: Footprint[],
   profile?: UserProfile | null,
   now?: number,
+  options: { skipDistance?: boolean } = {},
 ): GrowthSnapshot => {
   // 显式传入 now 的调用（测试、回溯视图）不走记忆化
   const memoizable = now === undefined
@@ -178,9 +278,13 @@ export const computeGrowthSnapshot = (
   const dawnUnlocked = longestPlaceGap(visits) >= 180
   const monthViewed = profile?.growth?.viewedMonthlyReports?.includes(currentMonth) || false
   const isPlus = isGrowthPlusActive(profile?.growth, effectiveNow)
+  const isPro = isGrowthProActive(profile?.growth, effectiveNow)
   const lockedColor = profile?.growth?.lockedColorId
   const plusDaysLeft = isPlus
     ? Math.max(1, Math.ceil(((profile?.growth?.plusUntil || effectiveNow) - effectiveNow) / DAY))
+    : 0
+  const proDaysLeft = isPro
+    ? Math.max(1, Math.ceil(((profile?.growth?.proUntil || effectiveNow) - effectiveNow) / DAY))
     : 0
 
   const unlockedColorIds = new Set<GrowthColorId>(['journey'])
@@ -203,9 +307,13 @@ export const computeGrowthSnapshot = (
   ]
 
   let maxDistance = 0
-  for (let i = 0; i < visits.length; i += 1) {
-    for (let j = i + 1; j < visits.length; j += 1) {
-      maxDistance = Math.max(maxDistance, distanceKm(visits[i], visits[j]))
+  if (!options.skipDistance) {
+    distanceScan: for (let i = 0; i < visits.length; i += 1) {
+      for (let j = i + 1; j < visits.length; j += 1) {
+        maxDistance = Math.max(maxDistance, distanceKm(visits[i], visits[j]))
+        // 成就只关心是否达到 1000km；达到后不再扫描剩余组合。
+        if (maxDistance >= 1000) break distanceScan
+      }
     }
   }
   const cityCounts = new Map<string, number>()
@@ -279,6 +387,8 @@ export const computeGrowthSnapshot = (
     nextGoalTarget: nextGoal.target,
     isPlus,
     plusDaysLeft,
+    isPro,
+    proDaysLeft,
     colors,
     expressions,
     hiddenStates,
@@ -287,6 +397,40 @@ export const computeGrowthSnapshot = (
     monthCityCount: new Set(monthVisits.map((item) => item.city).filter(Boolean)).size,
     fulfilledCount,
   }
-  if (memoizable) snapshotMemo.set(footprints, { profile, day, result: snapshot })
+  if (memoizable && !options.skipDistance) snapshotMemo.set(footprints, { profile, day, result: snapshot })
   return snapshot
+}
+
+/** 在成长详情页分帧检查远方成就，避免一次长循环阻塞点击。 */
+export const hasDistantPairDeferred = (
+  footprints: Footprint[],
+  thresholdKm = 1000,
+  budgetMs = 8,
+): Promise<boolean> => {
+  const visits = footprints.filter((item) =>
+    item.status === 'visited' && typeof item.lat === 'number' && typeof item.lng === 'number')
+  let left = 0
+  let right = 1
+  return new Promise((resolve) => {
+    const scan = () => {
+      const startedAt = Date.now()
+      while (left < visits.length - 1) {
+        while (right < visits.length) {
+          if (distanceKm(visits[left], visits[right]) >= thresholdKm) {
+            resolve(true)
+            return
+          }
+          right += 1
+          if (Date.now() - startedAt >= budgetMs) {
+            setTimeout(scan, 0)
+            return
+          }
+        }
+        left += 1
+        right = left + 1
+      }
+      resolve(false)
+    }
+    scan()
+  })
 }

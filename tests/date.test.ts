@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { dateKey, todayKey, buildMonthGrid, formatVisitDate, daysUntil, addDays } from '../miniprogram/utils/date'
+import { dateKey, todayKey, buildMonthGrid, buildMonthGridFromIndex, formatVisitDate, daysUntil, addDays } from '../miniprogram/utils/date'
 import type { Footprint } from '../miniprogram/domain/types'
 
 describe('dateKey', () => {
@@ -65,6 +65,24 @@ describe('buildMonthGrid', () => {
     const grid = buildMonthGrid(2026, 8, []) // Sep 2026
     // Sep 1, 2026 is a Tuesday, so the grid should start on Mon Aug 31
     expect(grid[0].key).toBe('2026-08-31')
+  })
+
+  it('reuses a prebuilt date index', () => {
+    const footprint: Footprint = {
+      id: 'indexed', userId: 'u', status: 'visited', poiName: 'Indexed',
+      visitDate: '2026-09-12', photos: [], tags: [], source: 'manual',
+      clientRequestId: 'indexed-request', createdAt: 0, updatedAt: 0,
+    }
+    const grid = buildMonthGridFromIndex(
+      2026,
+      8,
+      new Map([['2026-09-12', [footprint]]]),
+      new Date('2026-09-12T12:00:00'),
+    )
+    const cell = grid.find((item) => item.key === '2026-09-12')
+
+    expect(cell?.footprintCount).toBe(1)
+    expect(cell?.isToday).toBe(true)
   })
 })
 

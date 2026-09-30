@@ -26,7 +26,7 @@
         <view class="poi-copy"><text class="poi-title">{{item.poiName}}</text><text class="poi-meta">{{item.city || item.province || '未标注地区'}}</text></view>
       </view>
     </view>
-    <empty-state wx:else title="还没有可选地点" description="先在地图上收藏想去的地方，再回来规划。" state="discover" expression="explore" />
+    <empty-state wx:else title="还没有可选地点" description="先在地图上收藏想去的地方，再回来规划。" state="journey" expression="explore" />
   </view>
 
   <button class="secondary-button plan-generate" bindtap="onGenerate" disabled="{{!selectedIds.length}}">按天安排地点</button>

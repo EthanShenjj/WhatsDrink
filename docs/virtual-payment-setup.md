@@ -7,10 +7,14 @@
 填写 `.env.payment`（复制 `.env.payment.example`，文件已被 Git 忽略）后执行：
 
 ```bash
-npm run deploy:payment
+# 手机真机与正式发布
+npm run deploy:payment -- --target=production
+
+# 仅开发者工具内沙箱调试
+npm run deploy:payment -- --target=sandbox
 ```
 
-脚本会自动完成：创建三个集合与索引、部署 `accountMutation` / `paymentMutation` / `paymentNotify` / `sendMembershipReminder` 并写入环境变量、注册到期提醒定时器。凭证优先用 `.env.payment` 里的 CAM 密钥，否则复用 `cloudbase login` 的本机授权登录态。HTTP 网关路由、小程序后台消息推送与虚拟支付商品仍需手动完成（脚本结束会打印清单）。可以先 `npm run deploy:payment -- --dry-run` 预览计划。
+脚本会自动完成：创建三个集合与索引、部署 `accountMutation` / `paymentMutation` / `paymentNotify` / `sendMembershipReminder` 并写入环境变量、注册到期提醒定时器，收敛云函数调用权限，并创建 `/payment-notify` HTTP 网关路由。凭证优先用 `.env.payment` 里的 CAM 密钥，否则复用 `cloudbase login` 的本机授权登录态。小程序后台消息推送绑定与虚拟支付商品发布仍需手动完成（脚本结束会打印清单）。可以先用 `npm run deploy:payment -- --target=production --dry-run` 预览现网部署计划。
 
 ## 1. 微信后台商品
 
@@ -44,8 +48,8 @@ npm run deploy:payment
 | 环境变量 | 必填 | 说明 |
 |---|---|---|
 | `VIRTUAL_PAY_OFFER_ID` | 是 | 虚拟支付 OfferID |
-| `VIRTUAL_PAY_APP_KEY` | 是 | 虚拟支付 AppKey，必须与所选环境（现网/沙箱）匹配 |
-| `VIRTUAL_PAY_ENV` | 否 | 支付环境：`0` 现网（默认）、`1` 沙箱。切换时 `VIRTUAL_PAY_APP_KEY` 要同步换成对应环境的 AppKey，否则签名校验失败 |
+| `VIRTUAL_PAY_APP_KEY_PRODUCTION` | 现网部署必填 | 现网 AppKey，仅由 `--target=production` 读取 |
+| `VIRTUAL_PAY_APP_KEY_SANDBOX` | 沙箱部署必填 | 沙箱 AppKey，仅由 `--target=sandbox` 读取 |
 | `WECHAT_APP_ID` | 是 | 小程序 AppID，用于查单兜底 |
 | `WECHAT_APP_SECRET` | 是 | 小程序 AppSecret，用于查单兜底 |
 | `VIRTUAL_PAY_PRODUCT_PLUS_31D` | 否 | 31 天卡后台道具 ID，默认 `plus_31d_v1` |
@@ -55,12 +59,14 @@ npm run deploy:payment
 
 云函数权限设为 `auth != null`。AppKey 和 AppSecret 只能存在于云函数环境变量中，不要提交到 Git，也不要返回给客户端。
 
-沙箱联调：把 `VIRTUAL_PAY_ENV` 设为 `1` 并使用沙箱 AppKey 重新 `npm run deploy:payment`，沙箱道具支付走测试结算、不产生真实扣款；转现网验收前记得改回 `0` 并换回现网 AppKey。
+旧版 `.env.payment` 的 `VIRTUAL_PAY_APP_KEY` + `VIRTUAL_PAY_ENV` 仍可迁移使用，但部署脚本只会在旧环境值与 `--target` 完全一致时接受；建议分别改为上表的现网/沙箱专用变量。
+
+沙箱仅适合开发者工具内调试。手机真机预览或体验版使用沙箱会报 `PAYMENT_ILLEGAL_IN_SANDBOX`。部署脚本会根据 `--target` 自动写入 `VIRTUAL_PAY_ENV` 并选择对应 AppKey，不再允许手工拼错环境与密钥。现网真机购买会产生真实交易；iOS 真机还需开通苹果 IAP 支付。
 
 `paymentMutation` 负责：
 
 - 根据服务端商品白名单创建唯一订单。
-- 通过 `auth.code2Session` 获得本次支付签名所需的 session key。
+- 通过微信官方 `sns/jscode2session` 接口获得本次支付签名所需的 session key。
 - 生成 `signData`、`paySig` 和 `signature`。
 - 查询用户自己的购买记录，附带到期提醒的剩余授权条数。
 - `saveReminderSubscription`：记录或删除会员到期提醒的一次性订阅授权（写入 `reminder_subscriptions`，同一用户最多保留 3 条未使用授权）。
@@ -74,7 +80,7 @@ npm run deploy:payment
 |---|---|---|
 | `PAYMENT_MESSAGE_TOKEN` | 是 | 自定义随机 Token，必须与 MP 消息推送配置一致 |
 
-该函数按事件云函数部署（`cloudbaserc.json` 中为 `type: "Event"`），再为它添加 HTTP 网关触发；不要按需要 `scf_bootstrap` 的独立 HTTP Web 服务部署。云函数调用权限设为 `false`，仅允许 HTTP 入口。代码会使用 Token、timestamp、nonce 校验微信消息签名。
+该函数按事件云函数部署（`cloudbaserc.json` 中为 `type: "Event"`），部署脚本会创建 `/payment-notify` HTTP 网关路由；不要按需要 `scf_bootstrap` 的独立 HTTP Web 服务部署。云函数调用权限设为 `false`，仅允许 HTTP 入口。代码会使用 Token、timestamp、nonce 校验微信消息签名。
 
 在“小程序后台 → 开发与服务 → 开发管理 → 消息推送”中：
 
@@ -96,7 +102,7 @@ npm run deploy:payment
 
 在「小程序后台 → 订阅消息 → 我的模板」申领一个含「会员名称(thing)、到期时间(time)、提示(thing)」三类字段的模板，然后：
 
-1. 把模板 ID 填入 `.env.payment` 的 `MEMBERSHIP_TEMPLATE_ID` 与 `miniprogram/services/config.ts` 的 `MEMBERSHIP_TEMPLATE_ID`，重跑 `npm run deploy:payment`。
+1. 把模板 ID 填入 `.env.payment` 的 `MEMBERSHIP_TEMPLATE_ID`，重跑 `npm run deploy:payment`。客户端会从 `paymentMutation` 读取模板 ID，无需在小程序代码中重复填写。
 2. 模板字段名如与默认 `thing1/time2/thing3` 不同，通过 `MEMBERSHIP_TITLE_FIELD` / `MEMBERSHIP_DATE_FIELD` / `MEMBERSHIP_NOTE_FIELD` 配置。
 3. 时间字段必须是中文日期（如 `2026年10月3日`），函数已按此格式发送，改成其他格式会报 47003。
 
@@ -104,7 +110,7 @@ npm run deploy:payment
 
 | 环境变量 | 必填 | 说明 |
 |---|---|---|
-| `MEMBERSHIP_TEMPLATE_ID` | 是 | 与 paymentMutation 及客户端配置一致的模板 ID；不配则函数直接跳过 |
+| `MEMBERSHIP_TEMPLATE_ID` | 是 | 与 paymentMutation 使用同一环境变量；客户端会从服务端读取，不配则函数直接跳过 |
 | `MEMBERSHIP_REMIND_DAYS` | 否 | 到期前多少天内提醒，默认 3 天 |
 | `MEMBERSHIP_TITLE_FIELD` / `MEMBERSHIP_DATE_FIELD` / `MEMBERSHIP_NOTE_FIELD` | 否 | 模板字段映射，默认 `thing1` / `time2` / `thing3` |
 | `MEMBERSHIP_PAGE` | 否 | 点击提醒跳转路径，默认 `pages/membership/index` |

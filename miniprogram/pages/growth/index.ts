@@ -5,7 +5,8 @@ import {
   saveGrowthPreferences,
   startGrowthTrial,
 } from '../../services/repository'
-import { computeGrowthSnapshot } from '../../utils/growth'
+import { computeGrowthSnapshot, hasDistantPairDeferred } from '../../utils/growth'
+import { installUpdatePerformanceLogger, recordInteraction } from '../../utils/performance'
 
 interface PageData {
   profile: UserProfile | null
@@ -16,11 +17,14 @@ interface PageData {
   iconColorId: GrowthColorId
   reportVisible: boolean
   unlockedColorCount: number
+  distanceCalculating: boolean
 }
 
 const app = getApp<IAppOption>()
 
 Page<PageData, WechatMiniprogram.IAnyObject>({
+  isVisible: false,
+  loadSequence: 0,
   data: {
     profile: null,
     snapshot: null,
@@ -30,17 +34,32 @@ Page<PageData, WechatMiniprogram.IAnyObject>({
     iconColorId: 'journey',
     reportVisible: false,
     unlockedColorCount: 0,
+    distanceCalculating: false,
+  },
+
+  onLoad() {
+    installUpdatePerformanceLogger(this, 'growth')
   },
 
   onShow() {
+    this.isVisible = true
     this.loadGrowth()
   },
 
+  onHide() {
+    this.isVisible = false
+  },
+
   async loadGrowth() {
+    const sequence = ++this.loadSequence
     this.setData({ loading: true })
     try {
-      const [profile, footprints] = await Promise.all([ensureProfile(), listFootprints()])
-      const snapshot = computeGrowthSnapshot(footprints, profile)
+      const [profile, footprints] = await Promise.all([
+        ensureProfile(),
+        listFootprints({ maxAgeMs: 60_000 }),
+      ])
+      const snapshot = computeGrowthSnapshot(footprints, profile, undefined, { skipDistance: true })
+      if (sequence !== this.loadSequence || !this.isVisible) return
       app.globalData.profile = profile
       this.setData({
         profile,
@@ -49,7 +68,18 @@ Page<PageData, WechatMiniprogram.IAnyObject>({
         progressPercent: Math.min(100, Math.round(snapshot.nextGoalProgress / snapshot.nextGoalTarget * 100)),
         iconColorId: profile.growth?.iconColorId || snapshot.activeColorId,
         unlockedColorCount: snapshot.colors.filter((item) => item.unlocked).length,
+        distanceCalculating: true,
       })
+      const hasDistantPair = await hasDistantPairDeferred(footprints)
+      if (sequence !== this.loadSequence || !this.isVisible) return
+      const current = this.data.snapshot
+      if (current) {
+        this.setData({
+          'snapshot.hiddenStates': current.hiddenStates.map((item) =>
+            item.id === 'distance' ? { ...item, unlocked: hasDistantPair } : item),
+          distanceCalculating: false,
+        })
+      }
     } catch (error) {
       console.warn('[growth] load failed', error)
       this.setData({ loading: false })
@@ -58,6 +88,7 @@ Page<PageData, WechatMiniprogram.IAnyObject>({
   },
 
   async onColorTap(event: WechatMiniprogram.TouchEvent) {
+    recordInteraction('growth.color')
     const id = String(event.currentTarget.dataset.id || '') as GrowthColorId
     const color = this.data.snapshot?.colors.find((item) => item.id === id)
     if (!color?.unlocked) {
@@ -90,13 +121,15 @@ Page<PageData, WechatMiniprogram.IAnyObject>({
   },
 
   async onMonthlyReport() {
+    recordInteraction('growth.report')
     const snapshot = this.data.snapshot
     if (!snapshot) return
     const viewed = this.data.profile?.growth?.viewedMonthlyReports || []
-    if (!viewed.includes(snapshot.monthKey)) {
-      await this.persistPreferences({ viewedMonthlyReports: [...viewed, snapshot.monthKey] })
-    }
     this.setData({ reportVisible: true })
+    if (!viewed.includes(snapshot.monthKey)) {
+      this.persistPreferences({ viewedMonthlyReports: [...viewed, snapshot.monthKey] })
+        .catch(() => undefined)
+    }
   },
 
   onReportClose() {
@@ -156,8 +189,12 @@ Page<PageData, WechatMiniprogram.IAnyObject>({
     this.setData({ saving: true })
     try {
       const profile = await saveGrowthPreferences(patch)
-      const footprints = await listFootprints()
-      const snapshot = computeGrowthSnapshot(footprints, profile)
+      const footprints = await listFootprints({ maxAgeMs: 60_000 })
+      const snapshot = computeGrowthSnapshot(footprints, profile, undefined, { skipDistance: true })
+      const distanceUnlocked = this.data.snapshot?.hiddenStates
+        .find((item) => item.id === 'distance')?.unlocked || false
+      snapshot.hiddenStates = snapshot.hiddenStates.map((item) =>
+        item.id === 'distance' ? { ...item, unlocked: distanceUnlocked } : item)
       app.globalData.profile = profile
       this.setData({
         profile,

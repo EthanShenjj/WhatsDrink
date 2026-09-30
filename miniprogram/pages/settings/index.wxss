@@ -9,8 +9,8 @@
 
 .settings-grid {
   display: grid;
-  grid-template-columns: repeat(2, 1fr);
-  gap: 16rpx;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 12rpx;
   margin-top: 24rpx;
 }
 
@@ -18,7 +18,7 @@
   display: flex;
   align-items: center;
   flex-direction: column;
-  padding: 24rpx 12rpx;
+  padding: 24rpx 6rpx;
   border: 2rpx solid transparent;
   border-radius: var(--radius-md);
   background: var(--surface-soft);

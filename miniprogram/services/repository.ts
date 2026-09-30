@@ -23,6 +23,7 @@ import { hasTimeCapsuleCapacity } from '../utils/payment'
 let sessionReady = false
 let cloudReady = false
 let loginPromise: Promise<UserProfile> | null = null
+let profileCache: UserProfile | null = null
 const LEGACY_SHARE_SNAPSHOTS_KEY = 'shiguangji:share-snapshots'
 
 const getStored = <T>(key: string, fallback: T): T => {
@@ -37,9 +38,40 @@ const setStored = <T>(key: string, value: T): void => {
   wx.setStorageSync(key, value)
 }
 
-const syncFootprintCache = (list: Footprint[]): void => {
-  setStored(STORAGE_KEYS.footprints, list)
-  rememberFootprints(list)
+const setStoredAsync = <T>(key: string, value: T): Promise<void> =>
+  new Promise((resolve, reject) => {
+    if (typeof wx.setStorage !== 'function') {
+      try {
+        setStored(key, value)
+        resolve()
+      } catch (error) {
+        reject(error)
+      }
+      return
+    }
+    wx.setStorage({ key, data: value, success: () => resolve(), fail: reject })
+  })
+
+// 足迹列表体积会随照片和记录数增长。串行持久化可避免连续保存时多次同步
+// JSON 序列化阻塞点击线程，也确保旧写入不会晚于新写入落盘。
+let footprintWriteQueue: Promise<void> = Promise.resolve()
+
+const syncFootprintCache = (list: Footprint[]): Promise<void> => {
+  const snapshot = [...list]
+  rememberFootprints(snapshot)
+  footprintWriteQueue = footprintWriteQueue
+    .catch(() => undefined)
+    .then(() => setStoredAsync(STORAGE_KEYS.footprints, snapshot))
+  return footprintWriteQueue
+}
+
+const persistCloudSnapshot = async (list: Footprint[]): Promise<void> => {
+  try {
+    await syncFootprintCache(list)
+  } catch (error) {
+    // 云端操作已经成功时不能因本地缓存写入失败向用户报告业务失败。
+    console.warn('[repository] footprint cache persistence failed', error)
+  }
 }
 
 // 仅更新内存缓存与 globalData，不回写存储：用于本地兜底读取，避免大列表的重复同步 IO
@@ -55,17 +87,28 @@ const rememberFootprints = (list: Footprint[]): void => {
   }
 }
 
+const rememberProfile = (profile: UserProfile): UserProfile => {
+  profileCache = profile
+  try {
+    getApp<IAppOption>().globalData.profile = profile
+  } catch {
+    // Unit contexts can use the repository without an initialized App.
+  }
+  return profile
+}
+
 const migrateLegacyDefaultProfile = (profile: UserProfile): UserProfile =>
   profile.nickname === '饮品记录者' && !profile.avatarUrl
     ? { ...profile, nickname: '拾光者' }
     : profile
 
 const ensureLocalProfile = (): UserProfile => {
+  if (profileCache) return profileCache
   const existing = getStored<UserProfile | null>(STORAGE_KEYS.profile, null)
   if (existing) {
     const profile = migrateLegacyDefaultProfile(existing)
     if (profile !== existing) setStored(STORAGE_KEYS.profile, profile)
-    return profile
+    return rememberProfile(profile)
   }
   const now = Date.now()
   const profile: UserProfile = {
@@ -76,7 +119,7 @@ const ensureLocalProfile = (): UserProfile => {
     updatedAt: now,
   }
   setStored(STORAGE_KEYS.profile, profile)
-  return profile
+  return rememberProfile(profile)
 }
 
 const callCloud = async <T>(name: string, data: object): Promise<T> => {
@@ -132,7 +175,7 @@ export const loginForAccess = async (): Promise<UserProfile> => {
       cloudReady = true
       sessionReady = true
       setStored(STORAGE_KEYS.profile, profile)
-      return profile
+      return rememberProfile(profile)
     } catch {
       sessionReady = true
       return ensureLocalProfile()
@@ -155,7 +198,7 @@ export const saveProfile = async (
       patch,
     })
     setStored(STORAGE_KEYS.profile, profile)
-    return profile
+    return rememberProfile(profile)
   }
   const current = await ensureProfile()
   const next = { ...current, ...patch, updatedAt: Date.now() }
@@ -163,7 +206,7 @@ export const saveProfile = async (
     await deleteLocalFiles([current.avatarUrl])
   }
   setStored(STORAGE_KEYS.profile, next)
-  return next
+  return rememberProfile(next)
 }
 
 export const saveGrowthPreferences = async (
@@ -175,7 +218,7 @@ export const saveGrowthPreferences = async (
       patch,
     })
     setStored(STORAGE_KEYS.profile, profile)
-    return profile
+    return rememberProfile(profile)
   }
   const current = await ensureProfile()
   const next: UserProfile = {
@@ -184,14 +227,14 @@ export const saveGrowthPreferences = async (
     updatedAt: Date.now(),
   }
   setStored(STORAGE_KEYS.profile, next)
-  return next
+  return rememberProfile(next)
 }
 
 export const startGrowthTrial = async (): Promise<UserProfile> => {
   if (USE_CLOUD && cloudReady) {
     const profile = await callCloud<UserProfile>('accountMutation', { action: 'startGrowthTrial' })
     setStored(STORAGE_KEYS.profile, profile)
-    return profile
+    return rememberProfile(profile)
   }
   const current = await ensureProfile()
   if (current.growth?.trialStartedAt) return current
@@ -206,7 +249,7 @@ export const startGrowthTrial = async (): Promise<UserProfile> => {
     updatedAt: now,
   }
   setStored(STORAGE_KEYS.profile, next)
-  return next
+  return rememberProfile(next)
 }
 
 // ─── Membership & Virtual Payment ───
@@ -222,11 +265,7 @@ const loginCode = (): Promise<string> =>
 const syncMembershipAccount = (account: MembershipAccount): MembershipAccount => {
   setStored(STORAGE_KEYS.profile, account.profile)
   setStored(STORAGE_KEYS.paymentOrders, account.orders)
-  try {
-    getApp<IAppOption>().globalData.profile = account.profile
-  } catch {
-    // Unit contexts can use the repository without an initialized App.
-  }
+  rememberProfile(account.profile)
   return account
 }
 
@@ -283,6 +322,23 @@ export const getPaymentOrder = async (outTradeNo: string): Promise<PaymentOrder>
   return order
 }
 
+// 到期提醒依赖一次性订阅授权：授权记录保存在云端 reminder_subscriptions，
+// 关闭开关会删除未使用的授权，已发出的提醒无法撤回。
+export const saveReminderSubscription = async (
+  templateId: string,
+  enabled: boolean,
+): Promise<{ enabled: boolean; count: number }> => {
+  if (USE_CLOUD && !cloudReady) await loginForAccess()
+  if (!USE_CLOUD || !cloudReady) {
+    throw new Error('到期提醒需要登录已部署的云开发环境')
+  }
+  return callCloud<{ enabled: boolean; count: number }>('paymentMutation', {
+    action: 'saveReminderSubscription',
+    templateId,
+    enabled,
+  })
+}
+
 const listCloudFootprints = (): Promise<Footprint[]> =>
   callCloud<Footprint[]>('footprintMutation', { action: 'list' })
 
@@ -307,7 +363,7 @@ export const listFootprints = async (
       if (USE_CLOUD && cloudReady) {
         try {
           const cloud = await listCloudFootprints()
-          syncFootprintCache(cloud)
+          await persistCloudSnapshot(cloud)
           return cloud
         } catch {
           // fall back to local
@@ -322,6 +378,11 @@ export const listFootprints = async (
   }
   return footprintsInFlight
 }
+
+/** 同步读取当前内存快照，供页面在点击后立即渲染；没有缓存时返回 null。 */
+export const getFootprintSnapshot = (): Footprint[] | null => footprintListCache
+
+export const getProfileSnapshot = (): UserProfile | null => profileCache
 
 export const getFootprint = async (id: string): Promise<Footprint | undefined> => {
   if (footprintListCache) {
@@ -353,19 +414,19 @@ export const saveFootprint = async (draft: FootprintDraft): Promise<Footprint> =
       action: draft.id ? 'update' : 'create',
       footprint,
     })
-    const cached = getStored<Footprint[]>(STORAGE_KEYS.footprints, [])
-    const idx = cached.findIndex((fp) => fp.id === saved.id)
-    if (idx >= 0) cached[idx] = saved
-    else cached.unshift(saved)
-    syncFootprintCache(cached)
+    const cached = footprintListCache || readStoredFootprints()
+    const next = cached.some((fp) => fp.id === saved.id)
+      ? cached.map((fp) => fp.id === saved.id ? saved : fp)
+      : [saved, ...cached]
+    await persistCloudSnapshot(next)
     return saved
   }
 
   const list = await listFootprints()
-  const idx = list.findIndex((fp) => fp.id === footprint.id)
-  if (idx >= 0) list[idx] = footprint
-  else list.unshift(footprint)
-  syncFootprintCache(list)
+  const next = list.some((fp) => fp.id === footprint.id)
+    ? list.map((fp) => fp.id === footprint.id ? footprint : fp)
+    : [footprint, ...list]
+  await syncFootprintCache(next)
   return footprint
 }
 
@@ -384,11 +445,11 @@ export const deleteFootprint = async (id: string): Promise<void> => {
   }
   if (USE_CLOUD && cloudReady) {
     await callCloud('footprintMutation', { action: 'delete', id })
-    const cached = getStored<Footprint[]>(STORAGE_KEYS.footprints, [])
-    syncFootprintCache(updateAfterDelete(cached))
+    const cached = footprintListCache || readStoredFootprints()
+    await persistCloudSnapshot(updateAfterDelete(cached))
     return
   }
-  syncFootprintCache(updateAfterDelete(await listFootprints()))
+  await syncFootprintCache(updateAfterDelete(await listFootprints()))
 }
 
 export const fulfillWishlistFootprint = async (
@@ -413,8 +474,8 @@ export const fulfillWishlistFootprint = async (
       id: wishId,
       visit: visitDraft,
     })
-    const cached = getStored<Footprint[]>(STORAGE_KEYS.footprints, [])
-    syncFootprintCache([result.visit, ...cached.map((item) => item.id === wishId ? result.wish : item)])
+    const cached = footprintListCache || readStoredFootprints()
+    await persistCloudSnapshot([result.visit, ...cached.map((item) => item.id === wishId ? result.wish : item)])
     return result
   }
   const now = Date.now()
@@ -434,7 +495,7 @@ export const fulfillWishlistFootprint = async (
     updatedAt: now,
   }
   const list = await listFootprints()
-  syncFootprintCache([visit, ...list.map((item) => item.id === wishId ? fulfilledWish : item)])
+  await syncFootprintCache([visit, ...list.map((item) => item.id === wishId ? fulfilledWish : item)])
   return { wish: fulfilledWish, visit }
 }
 
@@ -455,7 +516,25 @@ export const uploadPhoto = async (tempFilePath: string): Promise<string> => {
 }
 
 export const uploadPhotos = async (tempPaths: string[]): Promise<string[]> =>
-  Promise.all(tempPaths.map((p) => uploadPhoto(p)))
+  runWithConcurrency(tempPaths, 2, uploadPhoto)
+
+const runWithConcurrency = async <T, R>(
+  items: T[],
+  limit: number,
+  worker: (item: T) => Promise<R>,
+): Promise<R[]> => {
+  const results = new Array<R>(items.length)
+  let cursor = 0
+  const runners = Array.from({ length: Math.min(limit, items.length) }, async () => {
+    while (cursor < items.length) {
+      const index = cursor
+      cursor += 1
+      results[index] = await worker(items[index])
+    }
+  })
+  await Promise.all(runners)
+  return results
+}
 
 export const deletePhotos = async (paths: string[]): Promise<void> => {
   if (USE_CLOUD && cloudReady) {
@@ -655,6 +734,7 @@ export const generateAIDraft = async (
 // ─── Account ───
 
 export const clearAllData = async (): Promise<void> => {
+  await footprintWriteQueue.catch(() => undefined)
   const allFootprints = getStored<Footprint[]>(STORAGE_KEYS.footprints, [])
   const legacySnapshots = getStored<Array<{ imageUrl?: string }>>(LEGACY_SHARE_SNAPSHOTS_KEY, [])
   if (USE_CLOUD && cloudReady) {
@@ -678,6 +758,7 @@ export const clearAllData = async (): Promise<void> => {
 }
 
 export const deleteAccount = async (): Promise<void> => {
+  await footprintWriteQueue.catch(() => undefined)
   const profile = getStored<UserProfile | null>(STORAGE_KEYS.profile, null)
   const footprints = getStored<Footprint[]>(STORAGE_KEYS.footprints, [])
   const legacySnapshots = getStored<Array<{ imageUrl?: string }>>(LEGACY_SHARE_SNAPSHOTS_KEY, [])
@@ -696,6 +777,7 @@ export const deleteAccount = async (): Promise<void> => {
   sessionReady = false
   cloudReady = false
   loginPromise = null
+  profileCache = null
 }
 
 // ─── Draft persistence ───

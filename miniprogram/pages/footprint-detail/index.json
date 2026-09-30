@@ -2,6 +2,7 @@
   "navigationBarTitleText": "足迹详情",
   "usingComponents": {
     "local-icon": "/components/local-icon/index",
-    "empty-state": "/components/empty-state/index"
+    "empty-state": "/components/empty-state/index",
+    "ip-mascot": "/components/ip-mascot/index"
   }
 }

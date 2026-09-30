@@ -31,8 +31,17 @@ const readJson = (file) => {
 
 const appJson = readJson(path.join(miniprogram, 'app.json'))
 const cloudBaseConfig = readJson(path.join(root, 'cloudbaserc.json'))
+const packageJson = readJson(path.join(root, 'package.json'))
 readJson(path.join(root, 'project.config.json'))
 readJson(path.join(miniprogram, 'sitemap.json'))
+
+const appConfigSource = fs.readFileSync(path.join(miniprogram, 'services', 'config.ts'), 'utf8')
+const appVersion = appConfigSource.match(/export const APP_VERSION = ['"]([^'"]+)['"]/)?.[1]
+if (!appVersion) {
+  errors.push('miniprogram/services/config.ts: 缺少 APP_VERSION')
+} else if (appVersion !== packageJson?.version) {
+  errors.push(`应用版本号不一致：APP_VERSION=${appVersion}，package.json=${packageJson?.version || '未设置'}`)
+}
 
 for (const page of appJson?.pages || []) {
   for (const extension of ['ts', 'json', 'wxml', 'wxss']) {
@@ -70,6 +79,7 @@ const requiredCloudFunctions = [
   'travelPlanMutation',
   'timeCapsuleMutation',
   'sendCapsuleReminder',
+  'sendMembershipReminder',
   'paymentMutation',
   'paymentNotify',
 ]

@@ -2,7 +2,7 @@ import type { FootprintDraft, FootprintStatus } from '../../domain/types'
 import {
   saveFootprint,
   fulfillWishlistFootprint,
-  listFootprints,
+  getFootprintSnapshot,
   deleteFootprint,
   getFootprint,
   uploadPhoto,
@@ -20,6 +20,7 @@ import {
   MARKER_EMOJIS,
   moodLabel,
 } from '../../data/options'
+import { installUpdatePerformanceLogger, recordInteraction } from '../../utils/performance'
 
 interface PageData {
   id?: string
@@ -135,23 +136,24 @@ Page<PageData, WechatMiniprogram.IAnyObject>({
   },
 
   onLoad(query: Record<string, string>) {
+    installUpdatePerformanceLogger(this, 'footprint-form')
     const status: FootprintStatus = query.status === 'wishlist' ? 'wishlist' : 'visited'
     const convertingWishlist = query.convert === '1'
     const isCheckin = query.checkin === '1'
     const checkinDistance = Number.isFinite(Number(query.distance))
       ? Math.max(0, Math.round(Number(query.distance)))
       : 0
-    this.setData({ isCheckin, checkinDistance })
-    wx.setNavigationBarTitle({ title: isCheckin ? '到访打卡' : status === 'wishlist' ? '新增想去' : '新增足迹' })
-
     const yesterday = new Date()
     yesterday.setDate(yesterday.getDate() - 1)
     this.setData({
+      isCheckin,
+      checkinDistance,
       dateShortcuts: [
         { label: '今天', value: todayKey() },
         { label: '昨天', value: dateKey(yesterday) },
       ],
     })
+    wx.setNavigationBarTitle({ title: isCheckin ? '到访打卡' : status === 'wishlist' ? '新增想去' : '新增足迹' })
 
     const revisiting = Boolean(query.revisit)
     const sourceId = query.id || query.revisit
@@ -343,6 +345,7 @@ Page<PageData, WechatMiniprogram.IAnyObject>({
   },
 
   onChooseLocation() {
+    recordInteraction('form.location')
     wx.chooseLocation({
       success: (res) => {
         this.setData({
@@ -431,23 +434,35 @@ Page<PageData, WechatMiniprogram.IAnyObject>({
     this.setData({ markerEmoji: value === this.data.markerEmoji ? '' : value })
   },
 
-  uploadPhotos(tempPaths: string[]) {
+  async uploadPhotos(tempPaths: string[]) {
     if (!tempPaths.length) return
     wx.showLoading({ title: '上传中…', mask: true })
-    return Promise.all(tempPaths.map((p) => uploadPhoto(p)))
-      .then((uploaded) => {
-        this.setData({ photos: [...this.data.photos, ...uploaded] })
-        this.updateFormState()
-      })
-      .catch(() => {
-        const pending = [...new Set([...this.data.pendingUploads, ...tempPaths])]
-        this.setData({ pendingUploads: pending, uploadFailedCount: pending.length })
-        wx.showToast({ title: '上传失败，可点击重试', icon: 'none' })
-      })
-      .finally(() => wx.hideLoading())
+    this.setData({ pendingUploads: tempPaths, uploadFailedCount: 0 })
+    const uploaded: string[] = []
+    const failed: string[] = []
+    try {
+      for (let index = 0; index < tempPaths.length; index += 2) {
+        const batch = tempPaths.slice(index, index + 2)
+        const results = await Promise.allSettled(batch.map((path) => uploadPhoto(path)))
+        results.forEach((result, resultIndex) => {
+          if (result.status === 'fulfilled') uploaded.push(result.value)
+          else failed.push(batch[resultIndex])
+        })
+        this.setData({
+          photos: [...this.data.photos, ...uploaded.splice(0)],
+          pendingUploads: [...failed, ...tempPaths.slice(index + batch.length)],
+        })
+      }
+      this.setData({ pendingUploads: failed, uploadFailedCount: failed.length })
+      this.updateFormState()
+      if (failed.length) wx.showToast({ title: '部分照片上传失败，可点击重试', icon: 'none' })
+    } finally {
+      wx.hideLoading()
+    }
   },
 
   onPhotoAdd() {
+    recordInteraction('form.photo')
     const remaining = 9 - this.data.photos.length - this.data.pendingUploads.length
     if (remaining <= 0) {
       wx.showToast({ title: '最多 9 张照片', icon: 'none' })
@@ -470,12 +485,7 @@ Page<PageData, WechatMiniprogram.IAnyObject>({
     if (!tempPaths.length) return
     this.setData({ uploadRetrying: true })
     this.uploadPhotos(tempPaths)
-      ?.then(() => {
-        this.setData({ pendingUploads: [], uploadFailedCount: 0, uploadRetrying: false })
-      })
-      ?.catch(() => {
-        this.setData({ uploadRetrying: false })
-      })
+      .finally(() => this.setData({ uploadRetrying: false }))
   },
 
   onPhotoRemove(e: WechatMiniprogram.CustomEvent<{ index: number }>) {
@@ -490,6 +500,7 @@ Page<PageData, WechatMiniprogram.IAnyObject>({
   },
 
   async onSave() {
+    recordInteraction('form.save')
     if (this.data.saving) return
     if (!this.data.poiName.trim()) {
       wx.showToast({ title: '请填写地点', icon: 'none' })
@@ -497,6 +508,10 @@ Page<PageData, WechatMiniprogram.IAnyObject>({
     }
     if (this.data.status === 'visited' && !this.data.visitDate) {
       wx.showToast({ title: '请选择日期', icon: 'none' })
+      return
+    }
+    if (this.data.pendingUploads.length || this.data.uploadRetrying) {
+      wx.showToast({ title: '请等待照片上传完成', icon: 'none' })
       return
     }
     this.setData({ saving: true })
@@ -535,7 +550,7 @@ Page<PageData, WechatMiniprogram.IAnyObject>({
       const removedLocalPhotos = this.data.originalPhotos.filter(
         (path) => path.startsWith('wxfile://') && !this.data.photos.includes(path),
       )
-      if (removedLocalPhotos.length) await deletePhotos(removedLocalPhotos)
+      if (removedLocalPhotos.length) deletePhotos(removedLocalPhotos).catch(() => undefined)
       clearDraft()
       this.setData({ id: saved.id, saved: true })
       wx.vibrateShort({ type: 'light', fail: () => {} })
@@ -560,7 +575,7 @@ Page<PageData, WechatMiniprogram.IAnyObject>({
           successState: 'highlight',
         })
       } else {
-        const all = await listFootprints().catch(() => [saved])
+        const all = getFootprintSnapshot() || [saved]
         const count = visitsAtPlace(all, saved).length
         this.setData({
           saving: false,

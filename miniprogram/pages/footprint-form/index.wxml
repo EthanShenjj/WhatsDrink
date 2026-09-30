@@ -105,6 +105,7 @@
         </view>
         <photo-uploader
           photos="{{photos}}"
+          pending="{{pendingUploads}}"
           max="{{9}}"
           bind:add="onPhotoAdd"
           bind:remove="onPhotoRemove"

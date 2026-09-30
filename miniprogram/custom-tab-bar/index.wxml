@@ -1,3 +1,4 @@
+<view wx:if="{{!hidden}}" class="tab-bar-backdrop" aria-hidden="true"></view>
 <view wx:if="{{!hidden}}" class="tab-bar">
   <view
     wx:for="{{list}}"

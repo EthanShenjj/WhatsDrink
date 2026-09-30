@@ -2,7 +2,8 @@
 // 一键部署支付订阅栈：集合 + 索引 + 四个云函数及其环境变量。
 //
 // 用法：
-//   npm run deploy:payment [-- --dry-run]
+//   npm run deploy:payment -- --target=production [--dry-run]
+//   npm run deploy:payment -- --target=sandbox [--dry-run]
 //
 // 密钥来源（二选一）：
 //   1. .env.payment（推荐，已被 .gitignore 忽略），参考 .env.payment.example
@@ -12,11 +13,14 @@
 // 脚本结束后会打印剩余的手动步骤清单。
 
 import fs from 'node:fs'
+import os from 'node:os'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
 
 const projectRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..')
 const dryRun = process.argv.includes('--dry-run')
+const targetArg = process.argv.find((arg) => arg.startsWith('--target='))
+const paymentTarget = targetArg ? targetArg.slice('--target='.length).trim() : ''
 // --only=name1,name2：只部署指定云函数（集合与索引始终执行），用于密钥未配齐时先上其余部分
 const onlyArg = process.argv.find((arg) => arg.startsWith('--only='))
 const onlyFunctions = onlyArg ? onlyArg.slice('--only='.length).split(',').map((name) => name.trim()) : null
@@ -51,12 +55,15 @@ const functionRootPath = cloudbaserc.functionRoot || 'cloudfunctions'
 const functionConfig = Object.fromEntries(
   (cloudbaserc.functions || []).map((fn) => [fn.name, fn]),
 )
+const paymentNotifyRoute = (cloudbaserc.gateway?.routes || [])
+  .find((route) => route.target === 'function:paymentNotify')?.path || '/payment-notify'
 
 const FUNCTIONS = [
   {
     name: 'accountMutation',
     envKeys: [],
     requiredEnvKeys: [],
+    invokeRule: 'auth != null',
   },
   {
     name: 'paymentMutation',
@@ -72,11 +79,13 @@ const FUNCTIONS = [
       'MEMBERSHIP_TEMPLATE_ID',
     ],
     requiredEnvKeys: ['VIRTUAL_PAY_OFFER_ID', 'VIRTUAL_PAY_APP_KEY', 'WECHAT_APP_ID', 'WECHAT_APP_SECRET'],
+    invokeRule: 'auth != null',
   },
   {
     name: 'paymentNotify',
     envKeys: ['PAYMENT_MESSAGE_TOKEN'],
     requiredEnvKeys: ['PAYMENT_MESSAGE_TOKEN'],
+    invokeRule: false,
   },
   {
     name: 'sendMembershipReminder',
@@ -91,6 +100,7 @@ const FUNCTIONS = [
     ],
     // 模板未配置时函数会自动跳过发送，因此 MEMBERSHIP_TEMPLATE_ID 不是硬性要求
     requiredEnvKeys: [],
+    invokeRule: false,
   },
 ]
 
@@ -126,6 +136,57 @@ const fail = (message) => {
   process.exit(1)
 }
 
+let paymentEnvCache
+const paymentRuntimeEnv = () => {
+  if (paymentEnvCache) return paymentEnvCache
+  if (paymentTarget !== 'production' && paymentTarget !== 'sandbox') {
+    fail('请显式选择支付目标：--target=production（真机现网）或 --target=sandbox（仅开发者工具）')
+  }
+  const appKeyEnvName = paymentTarget === 'production'
+    ? 'VIRTUAL_PAY_APP_KEY_PRODUCTION'
+    : 'VIRTUAL_PAY_APP_KEY_SANDBOX'
+  const expectedLegacyEnv = paymentTarget === 'production' ? '0' : '1'
+  const legacyAppKey = env('VIRTUAL_PAY_APP_KEY')
+  const legacyEnv = env('VIRTUAL_PAY_ENV')
+  const appKey = env(appKeyEnvName)
+    || (legacyAppKey && legacyEnv === expectedLegacyEnv ? legacyAppKey : '')
+  if (!appKey) {
+    fail(`${paymentTarget === 'production' ? '现网' : '沙箱'}部署缺少 ${appKeyEnvName}`)
+  }
+  if (!env(appKeyEnvName)) {
+    log(`  ↳ 兼容旧配置 VIRTUAL_PAY_APP_KEY + VIRTUAL_PAY_ENV=${expectedLegacyEnv}；建议迁移到 ${appKeyEnvName}`)
+  }
+  paymentEnvCache = {
+    VIRTUAL_PAY_ENV: paymentTarget === 'production' ? '0' : '1',
+    VIRTUAL_PAY_APP_KEY: appKey,
+  }
+  return paymentEnvCache
+}
+
+const cloudBaseCliCredential = () => {
+  const authPath = path.join(os.homedir(), '.config', '.cloudbase', 'auth.json')
+  if (!fs.existsSync(authPath)) return null
+  try {
+    const auth = JSON.parse(fs.readFileSync(authPath, 'utf8'))
+    const credential = auth?.credential || {}
+    const rawExpiresAt = Number(credential.tmpExpired || credential.expired || 0)
+    const expiresAt = rawExpiresAt > 0 && rawExpiresAt < 1e12 ? rawExpiresAt * 1000 : rawExpiresAt
+    if (
+      !credential.tmpSecretId
+      || !credential.tmpSecretKey
+      || !credential.tmpToken
+      || (expiresAt && expiresAt <= Date.now() + 60000)
+    ) return null
+    return {
+      secretId: credential.tmpSecretId,
+      secretKey: credential.tmpSecretKey,
+      token: credential.tmpToken,
+    }
+  } catch {
+    return null
+  }
+}
+
 const resolveCredential = async () => {
   if (env('TENCENTCLOUD_SECRETID') && env('TENCENTCLOUD_SECRETKEY')) {
     log('· 使用 .env.payment / 环境变量中的 CAM 密钥')
@@ -134,6 +195,11 @@ const resolveCredential = async () => {
       secretKey: env('TENCENTCLOUD_SECRETKEY'),
       token: env('TENCENTCLOUD_SESSIONTOKEN') || undefined,
     }
+  }
+  const cliCredential = cloudBaseCliCredential()
+  if (cliCredential) {
+    log('· 使用 CloudBase CLI 3 本机授权登录态')
+    return cliCredential
   }
   const { checkAndGetCredential } = await import('@cloudbase/toolbox')
   const credential = await checkAndGetCredential()
@@ -147,9 +213,13 @@ const resolveCredential = async () => {
 const buildFunctionEnv = (spec) => {
   const values = {}
   for (const key of spec.envKeys) {
+    if (spec.name === 'paymentMutation' && (key === 'VIRTUAL_PAY_ENV' || key === 'VIRTUAL_PAY_APP_KEY')) {
+      continue
+    }
     const value = env(key)
     if (value) values[key] = value
   }
+  if (spec.name === 'paymentMutation') Object.assign(values, paymentRuntimeEnv())
   const missing = spec.requiredEnvKeys.filter((key) => !values[key])
   if (missing.length) {
     fail(`${spec.name} 缺少必需的环境变量：${missing.join('、')}（请在 .env.payment 中填写）`)
@@ -231,36 +301,106 @@ const deployFunction = async (manager, spec) => {
   }
 }
 
+const ensureFunctionPermissions = async (manager, specs) => {
+  log('· 云函数调用权限')
+  if (dryRun) {
+    for (const spec of specs) {
+      log(`  ↳ ${spec.name}: ${spec.invokeRule === false ? '禁止客户端调用' : spec.invokeRule}`)
+    }
+    return
+  }
+  const current = await manager.permission.describeResourcePermission({ resourceType: 'function' })
+  const serialized = current.Data?.PermissionList?.[0]?.SecurityRule || '{}'
+  let rules
+  try {
+    rules = JSON.parse(serialized)
+  } catch {
+    rules = {}
+  }
+  if (!rules['*']) rules['*'] = { invoke: false }
+  for (const spec of specs) rules[spec.name] = { invoke: spec.invokeRule }
+  await manager.permission.modifyResourcePermission({
+    resourceType: 'function',
+    permission: 'CUSTOM',
+    securityRule: JSON.stringify(rules),
+  })
+  for (const spec of specs) {
+    log(`  ↳ ${spec.name}: ${spec.invokeRule === false ? '禁止客户端调用' : spec.invokeRule}`)
+  }
+}
+
+const ensurePaymentNotifyAccess = async (manager) => {
+  log(`· 支付通知 HTTP 路由 ${paymentNotifyRoute}`)
+  if (dryRun) return
+  const existing = await manager.access.getAccessList({ path: paymentNotifyRoute })
+  const route = (existing.APISet || []).find((item) => item.Path === paymentNotifyRoute)
+  if (!route) {
+    await manager.access.createAccess({
+      path: paymentNotifyRoute,
+      name: 'paymentNotify',
+      type: 1,
+      auth: false,
+    })
+  } else if (route.EnableAuth) {
+    await manager.access.switchPathAuth({ apiIds: [route.APIId], auth: false })
+  }
+  if (!existing.EnableService) await manager.access.switchAuth(true)
+  const domains = await manager.access.getDomainList()
+  if (domains.DefaultDomain) {
+    log(`  ↳ 微信消息推送 URL：https://${domains.DefaultDomain}${paymentNotifyRoute}`)
+  }
+}
+
 const printManualSteps = () => {
   log(`
 剩余手动步骤（API 无法完成）：
   1. 小程序后台「支付与交易 → 虚拟支付 → 道具管理」创建并发布三个道具（见 docs/virtual-payment-setup.md）。
-  2. 小程序后台「开发管理 → 消息推送」配置 URL/Token：URL 填 paymentNotify 的 HTTP 访问地址，
-     Token 与 PAYMENT_MESSAGE_TOKEN 一致，明文模式。如尚未创建 paymentNotify 的 HTTP 网关路由，先在
-     云开发控制台「云函数 → paymentNotify → HTTP 访问服务」开启，并把云函数调用权限设为 false。
+  2. 小程序后台「开发管理 → 消息推送」配置 URL/Token：URL 使用上方输出的 paymentNotify 地址，
+     Token 与 PAYMENT_MESSAGE_TOKEN 一致，消息加密方式选择明文模式。
   3. 若使用到期提醒：在「订阅消息」申领会员到期提醒模板，把模板 ID 同步到 .env.payment 的
-     MEMBERSHIP_TEMPLATE_ID 与 miniprogram/services/config.ts，然后重跑本脚本。
+     MEMBERSHIP_TEMPLATE_ID，然后重跑本脚本；客户端会自动从服务端读取该模板 ID。
   4. 发布小程序版本后，用最低金额真实支付一次，核对订单、权益到账与微信侧结算。`)
 }
 
 const main = async () => {
-  if (dryRun) log('（dry-run 模式：只打印计划，不做任何修改）')
-  log(`目标环境：${envId}`)
-  const credential = await resolveCredential()
-  const { default: CloudBase } = await import('@cloudbase/manager-node')
-  const manager = CloudBase.init({ ...credential, envId })
-  await ensureCollections(manager)
   const specs = FUNCTIONS.filter((spec) => !onlyFunctions || onlyFunctions.includes(spec.name))
   if (onlyFunctions) {
     const unknown = onlyFunctions.filter((name) => !FUNCTIONS.some((spec) => spec.name === name))
     if (unknown.length) fail(`未知的云函数：${unknown.join('、')}（可选：${FUNCTIONS.map((spec) => spec.name).join('、')}）`)
+  }
+  if (specs.some((spec) => spec.name === 'paymentMutation')) paymentRuntimeEnv()
+  if (dryRun) log('（dry-run 模式：只打印计划，不做任何修改）')
+  log(`目标环境：${envId}`)
+  if (specs.some((spec) => spec.name === 'paymentMutation')) {
+    log(`支付目标：${paymentTarget === 'production' ? '现网真机' : '沙箱开发者工具'}`)
+  }
+  if (dryRun) {
+    await ensureCollections(null)
+    for (const spec of specs) await deployFunction(null, spec)
+    await ensureFunctionPermissions(null, specs)
+    if (specs.some((spec) => spec.name === 'paymentNotify')) {
+      await ensurePaymentNotifyAccess(null)
+    }
+    printManualSteps()
+    log('dry-run 完成。')
+    return
+  }
+  const credential = await resolveCredential()
+  const { default: CloudBase } = await import('@cloudbase/manager-node')
+  const manager = CloudBase.init({ ...credential, envId })
+  await ensureCollections(manager)
+  if (onlyFunctions) {
     log(`仅部署：${specs.map((spec) => spec.name).join('、')}`)
   }
   for (const spec of specs) {
     await deployFunction(manager, spec)
   }
+  await ensureFunctionPermissions(manager, specs)
+  if (specs.some((spec) => spec.name === 'paymentNotify')) {
+    await ensurePaymentNotifyAccess(manager)
+  }
   printManualSteps()
-  log(dryRun ? 'dry-run 完成。' : '支付订阅栈部署完成。')
+  log('支付订阅栈部署完成。')
 }
 
 main().catch((error) => fail(error.message || error))
