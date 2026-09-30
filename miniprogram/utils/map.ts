@@ -60,23 +60,52 @@ export const clusterFootprints = (
   )
   if (valid.length <= 1) return valid
 
+  interface Point {
+    id: string
+    x: number
+    y: number
+    fp: Footprint
+  }
+  // 网格桶索引：桶宽即聚合半径，近邻只可能落在所在桶及相邻 8 桶内，
+  // 每点不再全量扫描其余点（O(n²) → O(n·桶均摊)）。
+  const buckets = new Map<string, Point[]>()
+  const points: Point[] = valid.map((fp) => {
+    const point: Point = {
+      id: fp.id,
+      x: lngToPixel(fp.lng!, zoom),
+      y: latToPixel(fp.lat!, zoom),
+      fp,
+    }
+    const key = `${Math.floor(point.x / gridSize)}:${Math.floor(point.y / gridSize)}`
+    const bucket = buckets.get(key)
+    if (bucket) bucket.push(point)
+    else buckets.set(key, [point])
+    return point
+  })
+
   const clusters: ClusterMarker[] = []
   const visited = new Set<string>()
-  const pixelCoords = valid.map((fp) => ({
-    id: fp.id,
-    x: lngToPixel(fp.lng!, zoom),
-    y: latToPixel(fp.lat!, zoom),
-    footprint: fp,
-  }))
 
-  for (const current of pixelCoords) {
+  for (const current of points) {
     if (visited.has(current.id)) continue
-    const nearby = pixelCoords.filter(
-      (other) =>
-        !visited.has(other.id) &&
-        Math.abs(other.x - current.x) < gridSize &&
-        Math.abs(other.y - current.y) < gridSize,
-    )
+    const col = Math.floor(current.x / gridSize)
+    const row = Math.floor(current.y / gridSize)
+    const nearby: Point[] = []
+    for (let dCol = -1; dCol <= 1; dCol += 1) {
+      for (let dRow = -1; dRow <= 1; dRow += 1) {
+        const bucket = buckets.get(`${col + dCol}:${row + dRow}`)
+        if (!bucket) continue
+        for (const other of bucket) {
+          if (
+            !visited.has(other.id) &&
+            Math.abs(other.x - current.x) < gridSize &&
+            Math.abs(other.y - current.y) < gridSize
+          ) {
+            nearby.push(other)
+          }
+        }
+      }
+    }
     if (nearby.length === 1) {
       visited.add(current.id)
       continue
@@ -88,8 +117,8 @@ export const clusterFootprints = (
       continue
     }
 
-    const sumLat = nearby.reduce((s, n) => s + n.footprint.lat!, 0)
-    const sumLng = nearby.reduce((s, n) => s + n.footprint.lng!, 0)
+    const sumLat = nearby.reduce((s, n) => s + n.fp.lat!, 0)
+    const sumLng = nearby.reduce((s, n) => s + n.fp.lng!, 0)
     clusters.push({
       id: clusters.length,
       latitude: sumLat / nearby.length,

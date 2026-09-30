@@ -39,6 +39,13 @@ const setStored = <T>(key: string, value: T): void => {
 
 const syncFootprintCache = (list: Footprint[]): void => {
   setStored(STORAGE_KEYS.footprints, list)
+  rememberFootprints(list)
+}
+
+// 仅更新内存缓存与 globalData，不回写存储：用于本地兜底读取，避免大列表的重复同步 IO
+const rememberFootprints = (list: Footprint[]): void => {
+  footprintListCache = list
+  footprintListCachedAt = Date.now()
   try {
     const app = getApp<IAppOption>()
     app.globalData.footprints = list
@@ -279,21 +286,50 @@ export const getPaymentOrder = async (outTradeNo: string): Promise<PaymentOrder>
 const listCloudFootprints = (): Promise<Footprint[]> =>
   callCloud<Footprint[]>('footprintMutation', { action: 'list' })
 
-export const listFootprints = async (): Promise<Footprint[]> => {
-  if (USE_CLOUD && cloudReady) {
-    try {
-      const cloud = await listCloudFootprints()
-      syncFootprintCache(cloud)
-      return cloud
-    } catch {
-      // fall back to local
-    }
+// 内存级足迹缓存：配合 maxAgeMs 供多个页面复用同一次全量请求
+let footprintListCache: Footprint[] | null = null
+let footprintListCachedAt = 0
+// 多页面同时触发刷新时共享同一个进行中的请求，避免重复云调用
+let footprintsInFlight: Promise<Footprint[]> | null = null
+
+const readStoredFootprints = (): Footprint[] =>
+  getStored<Footprint[]>(STORAGE_KEYS.footprints, [])
+
+export const listFootprints = async (
+  options: { maxAgeMs?: number } = {},
+): Promise<Footprint[]> => {
+  const maxAgeMs = options.maxAgeMs ?? 0
+  if (footprintListCache && maxAgeMs > 0 && Date.now() - footprintListCachedAt < maxAgeMs) {
+    return footprintListCache
   }
-  return getStored<Footprint[]>(STORAGE_KEYS.footprints, [])
+  if (!footprintsInFlight) {
+    footprintsInFlight = (async () => {
+      if (USE_CLOUD && cloudReady) {
+        try {
+          const cloud = await listCloudFootprints()
+          syncFootprintCache(cloud)
+          return cloud
+        } catch {
+          // fall back to local
+        }
+      }
+      const local = readStoredFootprints()
+      rememberFootprints(local)
+      return local
+    })().finally(() => {
+      footprintsInFlight = null
+    })
+  }
+  return footprintsInFlight
 }
 
-export const getFootprint = async (id: string): Promise<Footprint | undefined> =>
-  (await listFootprints()).find((fp) => fp.id === id)
+export const getFootprint = async (id: string): Promise<Footprint | undefined> => {
+  if (footprintListCache) {
+    const cached = footprintListCache.find((fp) => fp.id === id)
+    if (cached) return cached
+  }
+  return (await listFootprints()).find((fp) => fp.id === id)
+}
 
 export const saveFootprint = async (draft: FootprintDraft): Promise<Footprint> => {
   const now = Date.now()
@@ -630,6 +666,8 @@ export const clearAllData = async (): Promise<void> => {
     if (key !== STORAGE_KEYS.profile) wx.removeStorageSync(key)
   })
   wx.removeStorageSync(LEGACY_SHARE_SNAPSHOTS_KEY)
+  footprintListCache = null
+  footprintListCachedAt = 0
   try {
     const app = getApp<IAppOption>()
     app.globalData.footprints = []
@@ -653,6 +691,8 @@ export const deleteAccount = async (): Promise<void> => {
   ])
   Object.values(STORAGE_KEYS).forEach((key) => wx.removeStorageSync(key))
   wx.removeStorageSync(LEGACY_SHARE_SNAPSHOTS_KEY)
+  footprintListCache = null
+  footprintListCachedAt = 0
   sessionReady = false
   cloudReady = false
   loginPromise = null

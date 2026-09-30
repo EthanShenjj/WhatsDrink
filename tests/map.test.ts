@@ -55,6 +55,45 @@ describe('clusterFootprints', () => {
     const result = clusterFootprints(fps, 10)
     expect(result).toHaveLength(2)
   })
+
+  it('collapses co-located footprints into one cluster', () => {
+    const fps = Array.from({ length: 50 }, (_, i) => makeFootprint(30, 104, `same_${i}`))
+    const result = clusterFootprints(fps, 4)
+    const clusters = result.filter((r) => 'count' in r)
+    expect(clusters).toHaveLength(1)
+    expect(clusters[0].count).toBe(50)
+    expect(clusters[0].footprintIds).toHaveLength(50)
+  })
+
+  it('keeps every footprint reachable exactly once', () => {
+    // 稠密 + 稀疏混合：聚合展开与独立点合起来必须不重不漏
+    const dense = Array.from({ length: 20 }, (_, i) =>
+      makeFootprint(30 + i * 0.0005, 104 + i * 0.0005, `dense_${i}`))
+    const sparse = [
+      makeFootprint(31, 106, 'far_a'),
+      makeFootprint(32, 107, 'far_b'),
+    ]
+    const result = clusterFootprints([...dense, ...sparse], 6)
+    const seen: string[] = []
+    for (const item of result) {
+      if ('footprintIds' in item) seen.push(...item.footprintIds)
+      else seen.push(item.id)
+    }
+    expect(seen).toHaveLength(dense.length + sparse.length)
+    expect(new Set(seen).size).toBe(dense.length + sparse.length)
+  })
+
+  it('does not merge points across the antimeridian', () => {
+    // ±180° 经线两侧的点在像素坐标中相距极远，不应被聚合
+    const fps = [
+      makeFootprint(30, 179.999, 'west'),
+      makeFootprint(30, -179.999, 'east'),
+      makeFootprint(30.001, 179.999, 'west2'),
+      makeFootprint(30.001, -179.999, 'east2'),
+    ]
+    const result = clusterFootprints(fps, 10)
+    expect(result.every((item) => !('footprintIds' in item))).toBe(true)
+  })
 })
 
 describe('fitBounds', () => {

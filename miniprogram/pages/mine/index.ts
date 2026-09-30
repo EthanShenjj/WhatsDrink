@@ -1,4 +1,4 @@
-import type { GrowthSnapshot, LightingStats, UserProfile } from '../../domain/types'
+import type { Footprint, GrowthSnapshot, LightingStats, UserProfile } from '../../domain/types'
 import {
   ensureProfile,
   listFootprints,
@@ -46,27 +46,23 @@ Page<PageData, WechatMiniprogram.IAnyObject>({
 
   onShow() {
     const tabBar = this.getTabBar?.()
-    if (tabBar) tabBar.setData({ selected: 3 })
+    if (tabBar && (tabBar.data as { selected?: number }).selected !== 3) tabBar.setData({ selected: 3 })
     this.loadProfileAndStats()
   },
 
   async loadProfileAndStats() {
-    this.setData({ loading: true })
+    if (!this.data.profile) this.setData({ loading: true })
     try {
       const profile = await ensureProfile()
       app.globalData.profile = profile
       const isLoggedIn = Boolean(profile && profile.nickname && profile.avatarUrl)
-      // refresh cache if stale
-      let list = app.globalData.footprints || []
-      const cachedAt = app.globalData.footprintsCachedAt || 0
-      if (!list.length || Date.now() - cachedAt > 60_000) {
-        try {
-          list = await listFootprints()
-          app.globalData.footprints = list
-          app.globalData.footprintsCachedAt = Date.now()
-        } catch (err) {
-          console.warn('[mine] load footprints failed', err)
-        }
+      // 复用 repository 共享缓存：60 秒内切页不重复发起全量请求
+      let list: Footprint[]
+      try {
+        list = await listFootprints({ maxAgeMs: 60_000 })
+      } catch (err) {
+        console.warn('[mine] load footprints failed', err)
+        list = app.globalData.footprints || []
       }
       const stats = computeLighting(list)
       const growth = computeGrowthSnapshot(list, profile)

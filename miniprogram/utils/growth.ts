@@ -12,6 +12,13 @@ import { placeKey } from './footprint'
 
 const DAY = 86_400_000
 
+// 同一份足迹与档案在一天内的快照不会变化；地图、时光、我的、成长页共用，
+// 记忆化避免各页 onShow 重复执行内部的 O(n²) 最大距离等计算。
+const snapshotMemo = new WeakMap<
+  Footprint[],
+  { profile: UserProfile | null | undefined; day: number; result: GrowthSnapshot }
+>()
+
 const COLORS: Array<Omit<GrowthColorView, 'unlocked'>> = [
   { id: 'journey', name: '启程蓝紫', shortName: '启程', description: '最常见的陪伴状态' },
   { id: 'explore', name: '探索橙粉', shortName: '探索', description: '最近 7 天新增 3 条足迹' },
@@ -121,8 +128,16 @@ export const isGrowthPlusActive = (preferences?: GrowthPreferences, now = Date.n
 export const computeGrowthSnapshot = (
   footprints: Footprint[],
   profile?: UserProfile | null,
-  now = Date.now(),
+  now?: number,
 ): GrowthSnapshot => {
+  // 显式传入 now 的调用（测试、回溯视图）不走记忆化
+  const memoizable = now === undefined
+  const effectiveNow = now ?? Date.now()
+  const day = Math.floor(effectiveNow / DAY)
+  if (memoizable) {
+    const cached = snapshotMemo.get(footprints)
+    if (cached && cached.day === day && cached.profile === profile) return cached.result
+  }
   const visits = footprints
     .filter((item) => item.status === 'visited')
     .sort((a, b) => visitTime(a) - visitTime(b))
@@ -130,9 +145,9 @@ export const computeGrowthSnapshot = (
   const fulfilled = footprints.filter((item) => item.status === 'fulfilled')
   const legacyFulfilled = visits.filter((item) => item.convertedFromWishlist && !item.wishId)
   const fulfilledCount = fulfilled.length + legacyFulfilled.length
-  const recentStart = now - 7 * DAY
-  const currentMonth = monthKeyOf(now)
-  const recent = visits.filter((item) => visitTime(item) >= recentStart && visitTime(item) <= now)
+  const recentStart = effectiveNow - 7 * DAY
+  const currentMonth = monthKeyOf(effectiveNow)
+  const recent = visits.filter((item) => visitTime(item) >= recentStart && visitTime(item) <= effectiveNow)
   const older = visits.filter((item) => visitTime(item) < recentStart)
   const monthVisits = visits.filter((item) => monthKeyOf(visitTime(item)) === currentMonth)
   const beforeMonth = visits.filter((item) => monthKeyOf(visitTime(item)) < currentMonth)
@@ -141,7 +156,7 @@ export const computeGrowthSnapshot = (
   const monthFulfilled = fulfilledTimes.some((time) => monthKeyOf(time) === currentMonth)
   const activeWeeks = longestWeeklyStreak(visits)
   const recentActiveWeeks = new Set(
-    visits.filter((item) => visitTime(item) >= now - 21 * DAY).map((item) => weekKeyOf(visitTime(item))),
+    visits.filter((item) => visitTime(item) >= effectiveNow - 21 * DAY).map((item) => weekKeyOf(visitTime(item))),
   ).size
 
   const weeklyColorId = selectState({
@@ -162,10 +177,10 @@ export const computeGrowthSnapshot = (
   const placeVisitPeak = maxPlaceVisits(visits)
   const dawnUnlocked = longestPlaceGap(visits) >= 180
   const monthViewed = profile?.growth?.viewedMonthlyReports?.includes(currentMonth) || false
-  const isPlus = isGrowthPlusActive(profile?.growth, now)
+  const isPlus = isGrowthPlusActive(profile?.growth, effectiveNow)
   const lockedColor = profile?.growth?.lockedColorId
   const plusDaysLeft = isPlus
-    ? Math.max(1, Math.ceil(((profile?.growth?.plusUntil || now) - now) / DAY))
+    ? Math.max(1, Math.ceil(((profile?.growth?.plusUntil || effectiveNow) - effectiveNow) / DAY))
     : 0
 
   const unlockedColorIds = new Set<GrowthColorId>(['journey'])
@@ -204,14 +219,14 @@ export const computeGrowthSnapshot = (
     [8, 9, 10],
     [11, 0, 1],
   ].every((season) => season.some((month) => months.has(month)))
-  const firstRecordAt = visits[0] ? visitTime(visits[0]) : profile?.createdAt || now
+  const firstRecordAt = visits[0] ? visitTime(visits[0]) : profile?.createdAt || effectiveNow
   const hiddenStates: GrowthHiddenStateView[] = [
     { id: 'dawn', name: '晨曦', hint: '当过去和现在再次相遇时，也许会出现。', unlocked: dawnUnlocked },
     { id: 'seasons', name: '四季', hint: '让春夏秋冬都留下一段记录。', unlocked: seasons },
     { id: 'distance', name: '远方', hint: '让足迹跨越一段很远的距离。', unlocked: maxDistance >= 1000 },
     { id: 'hometown', name: '故乡', hint: '在同一座城市留下 30 段生活。', unlocked: Math.max(0, ...cityCounts.values()) >= 30 },
     { id: 'reunion', name: '重逢', hint: '多次回到一个熟悉的地方。', unlocked: placeVisitPeak >= 5 },
-    { id: 'annual', name: '年轮', hint: '让小拾陪你走过完整的一年。', unlocked: now - firstRecordAt >= 365 * DAY },
+    { id: 'annual', name: '年轮', hint: '让小拾陪你走过完整的一年。', unlocked: effectiveNow - firstRecordAt >= 365 * DAY },
   ]
 
   const shards = visits.length
@@ -240,7 +255,7 @@ export const computeGrowthSnapshot = (
     ? `新增 ${monthVisits.length} 段足迹${topCity ? `，最常走进 ${topCity}` : ''}。`
     : '这个月还没有新足迹，从一次出发开始吧。'
 
-  return {
+  const snapshot: GrowthSnapshot = {
     weeklyColorId,
     activeColorId: isPlus && lockedColor && unlockedColorIds.has(lockedColor) ? lockedColor : weeklyColorId,
     weeklyTitle: `本周状态 · ${weeklyColor.name}`,
@@ -272,4 +287,6 @@ export const computeGrowthSnapshot = (
     monthCityCount: new Set(monthVisits.map((item) => item.city).filter(Boolean)).size,
     fulfilledCount,
   }
+  if (memoizable) snapshotMemo.set(footprints, { profile, day, result: snapshot })
+  return snapshot
 }

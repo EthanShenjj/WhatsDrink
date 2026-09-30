@@ -64,11 +64,13 @@ interface GrowthCircle {
   strokeWidth: number
 }
 
+/**
+ * WXML 只渲染界面控件所需的轻量字段；完整足迹、过滤结果与标记索引
+ * 都放在页面实例上，避免每次 setData 把大对象整份传到渲染层。
+ */
 interface PageData {
   mode: MapMode
   markers: MapMarker[]
-  footprints: Footprint[]
-  filteredFootprints: Footprint[]
   unplacedFootprints: Footprint[]
   filterVisible: boolean
   currentFilter: FilterState
@@ -88,9 +90,9 @@ interface PageData {
   hasLocationAuth: boolean
   selectedFootprint: Footprint | null
   detailVisible: boolean
+  detailClosing: boolean
   center: { latitude: number; longitude: number }
   scale: number
-  zoom: number
   lighting: LightingStats | null
   growthCities: CityGrowth[]
   growthCircles: GrowthCircle[]
@@ -98,18 +100,34 @@ interface PageData {
   nearbyMemory: Footprint | null
   nearbyDistance: number
   checkinVisible: boolean
+  checkinClosing: boolean
   checkinCandidate: CheckinCandidate | null
   checkinDistance: number
   statusBarHeight: number
   tabReady: boolean
+  growth: GrowthSnapshot | null
+}
+
+interface MarkerIndex {
+  markers: MapMarker[]
   markerIdMap: Record<number, string>
   clusterMarkers: Record<number, ClusterMarker>
-  growth: GrowthSnapshot | null
+}
+
+interface ModeView {
+  modeList: Footprint[]
+  fields: {
+    modeEmpty: boolean
+    unplacedFootprints: Footprint[]
+    modeEmptyTitle: string
+    modeEmptyDescription: string
+  }
 }
 
 const DEFAULT_CENTER = { latitude: 35.0, longitude: 105.0 }
 const DEFAULT_SCALE = 4
-const FOOTPRINT_CACHE_TTL = 60_000
+// 与 repository 的共享缓存配合：热切回地图 60 秒内不重新请求足迹
+const FOOTPRINTS_MAX_AGE_MS = 60_000
 const MAP_MODE_STORAGE_KEY = 'sgj:map-mode'
 
 const app = getApp<IAppOption>()
@@ -234,12 +252,36 @@ const scaleToZoom = (scale: number): number => {
   return 17
 }
 
+const buildGrowthCircles = (growthCities: CityGrowth[]): GrowthCircle[] =>
+  growthCities
+    .filter((city) => typeof city.latitude === 'number' && typeof city.longitude === 'number')
+    .map((city) => ({
+      latitude: city.latitude!,
+      longitude: city.longitude!,
+      radius: city.level === 3 ? 30000 : city.level === 2 ? 18000 : 8000,
+      color: city.level === 3 ? '#3E47C899' : '#5B6CFF80',
+      fillColor: city.level === 3 ? '#5B6CFF66' : city.level === 2 ? '#5B6CFF44' : '#5B6CFF2E',
+      strokeWidth: city.level === 3 ? 3 : 1,
+    }))
+
 Page<PageData, WechatMiniprogram.IAnyObject>({
+  detailCloseTimer: null,
+  checkinCloseTimer: null,
+
+  // ─── 实例态：不进入渲染层的大对象与视图缓存（自定义字段受 IAnyObject 约束为
+  // any，实例数组上的回调参数需显式标注类型）───
+  allFootprints: [] as Footprint[],
+  footprintsById: {} as Record<string, Footprint>,
+  filteredFootprints: [] as Footprint[],
+  mapScale: DEFAULT_SCALE,
+  zoomTier: scaleToZoom(DEFAULT_SCALE),
+  dataVersion: 0,
+  markerCacheKey: '',
+  markerCache: null as MarkerIndex | null,
+
   data: {
     mode: 'visited',
     markers: [],
-    footprints: [],
-    filteredFootprints: [],
     unplacedFootprints: [],
     filterVisible: false,
     currentFilter: {},
@@ -259,9 +301,9 @@ Page<PageData, WechatMiniprogram.IAnyObject>({
     hasLocationAuth: false,
     selectedFootprint: null,
     detailVisible: false,
+    detailClosing: false,
     center: DEFAULT_CENTER,
     scale: DEFAULT_SCALE,
-    zoom: DEFAULT_SCALE,
     lighting: null,
     growthCities: [],
     growthCircles: [],
@@ -269,12 +311,11 @@ Page<PageData, WechatMiniprogram.IAnyObject>({
     nearbyMemory: null,
     nearbyDistance: 0,
     checkinVisible: false,
+    checkinClosing: false,
     checkinCandidate: null,
     checkinDistance: 0,
     statusBarHeight: 20,
     tabReady: false,
-    markerIdMap: {},
-    clusterMarkers: {},
     growth: null,
   },
 
@@ -287,21 +328,29 @@ Page<PageData, WechatMiniprogram.IAnyObject>({
   onShow() {
     const tabBar = this.getTabBar?.()
     if (tabBar) {
-      tabBar.setData({ selected: 0 })
-      this.setData({ tabReady: true })
+      if ((tabBar.data as { selected?: number }).selected !== 0) tabBar.setData({ selected: 0 })
+      if (!this.data.tabReady) this.setData({ tabReady: true })
     }
+    // 从其他页返回时兜底恢复 tabBar（弹层打开期间会被隐藏）
+    this.syncTabBarForSheets()
     const requestedMode = wx.getStorageSync<MapMode>(MAP_MODE_STORAGE_KEY)
     if (requestedMode === 'visited' || requestedMode === 'wishlist' || requestedMode === 'lighting') {
       wx.removeStorageSync(MAP_MODE_STORAGE_KEY)
-      this.setData({ mode: requestedMode })
-      this.updateModeView()
+      if (requestedMode !== this.data.mode) this.applyMode(requestedMode, { fit: true })
     }
     const settings = getMapSettings()
-    this.setData({
-      settings,
-      clusterEnabled: settings.clusterEnabled,
-      mapLayerStyle: MAP_STYLE_IDS[settings.theme],
-    }, () => this.refreshFromCache())
+    if (JSON.stringify(settings) !== JSON.stringify(this.data.settings)) {
+      this.setData({
+        settings,
+        clusterEnabled: settings.clusterEnabled,
+        mapLayerStyle: MAP_STYLE_IDS[settings.theme],
+      }, () => {
+        if (this.allFootprints.length) this.refreshMarkers()
+      })
+    }
+    // onLoad is already fetching the first screen. Repeating the cache refresh here
+    // causes a second request and several full native-map redraws during tab entry.
+    if (!this.data.loading) this.refreshFromCache()
   },
 
   onReady() {
@@ -314,7 +363,7 @@ Page<PageData, WechatMiniprogram.IAnyObject>({
       await loginForAccess()
       const profile = await ensureProfile()
       app.globalData.profile = profile
-      await this.loadFootprints(true)
+      await this.loadFootprints(true, true)
     } catch (err) {
       console.warn('[map] init failed', err)
       this.setData({ loading: false, empty: true })
@@ -322,22 +371,19 @@ Page<PageData, WechatMiniprogram.IAnyObject>({
   },
 
   async refreshFromCache() {
-    const cachedAt = app.globalData.footprintsCachedAt || 0
-    const isStale = Date.now() - cachedAt > FOOTPRINT_CACHE_TTL
-    if (isStale) {
-      await this.loadFootprints(false)
-    } else {
-      this.applyFootprints(app.globalData.footprints || [])
+    try {
+      const list = await listFootprints({ maxAgeMs: FOOTPRINTS_MAX_AGE_MS })
+      this.applyFootprints(list)
+    } catch (err) {
+      console.warn('[map] refresh failed', err)
     }
   },
 
-  async loadFootprints(showLoading: boolean) {
+  async loadFootprints(showLoading: boolean, fit = false) {
     if (showLoading) wx.showLoading({ title: '加载中', mask: true })
     try {
       const list = await listFootprints()
-      app.globalData.footprints = list
-      app.globalData.footprintsCachedAt = Date.now()
-      this.applyFootprints(list)
+      this.applyFootprints(list, { fit })
     } catch (err) {
       console.warn('[map] load footprints failed', err)
       this.setData({ loading: false, empty: true })
@@ -346,83 +392,120 @@ Page<PageData, WechatMiniprogram.IAnyObject>({
     }
   },
 
-  applyFootprints(list: Footprint[]) {
-    const moods = usedMoods(list)
-    const categories = usedCategories(list)
-    const filtered = list.filter((fp) => matchesFilter(fp, this.data.currentFilter))
-    const chips = filterChips(this.data.currentFilter)
+  applyFootprints(list: Footprint[], options: { fit?: boolean } = {}) {
+    const fit = options.fit === true
+    // 引用相同说明数据未变（典型为热切回地图），整段重算与 setData 都可跳过
+    if (list === this.allFootprints && !fit) return
+    this.allFootprints = list
+    const byId: Record<string, Footprint> = {}
+    for (const fp of list) byId[fp.id] = fp
+    this.footprintsById = byId
+    this.dataVersion += 1
+    const currentFilter = this.data.currentFilter
+    const filtered = list.filter((fp) => matchesFilter(fp, currentFilter))
+    this.filteredFootprints = filtered
+    const chips = filterChips(currentFilter)
     const growthCities = computeCityGrowth(list)
-    const growthCircles: GrowthCircle[] = growthCities
-      .filter((city) => typeof city.latitude === 'number' && typeof city.longitude === 'number')
-      .map((city) => ({
-        latitude: city.latitude!,
-        longitude: city.longitude!,
-        radius: city.level === 3 ? 30000 : city.level === 2 ? 18000 : 8000,
-        color: city.level === 3 ? '#3E47C899' : '#5B6CFF80',
-        fillColor: city.level === 3 ? '#5B6CFF66' : city.level === 2 ? '#5B6CFF44' : '#5B6CFF2E',
-        strokeWidth: city.level === 3 ? 3 : 1,
-      }))
+    const view = this.computeModeView(this.data.mode)
     this.setData({
-      footprints: list,
-      filteredFootprints: filtered,
-      moods,
-      categories,
+      moods: usedMoods(list),
+      categories: usedCategories(list),
       lighting: computeLighting(filtered),
       growthCities,
-      growthCircles,
+      growthCircles: buildGrowthCircles(growthCities),
       todayDrop: buildMemoryDrops(list, todayKey(), 1)[0] || null,
       loading: false,
       empty: list.length === 0,
       activeFilterCount: chips.length,
       activeFilterChips: chips,
       growth: computeGrowthSnapshot(list, app.globalData.profile),
+      ...view.fields,
     })
-    this.updateModeView()
+    if (fit) this.fitToFootprints(view.modeList)
+    this.refreshMarkers()
   },
 
-  updateModeView() {
-    const { mode, filteredFootprints } = this.data
-    const modeList = filteredFootprints.filter((fp) =>
+  computeModeView(mode: MapMode): ModeView {
+    const modeList = this.filteredFootprints.filter((fp: Footprint) =>
       mode === 'wishlist' ? fp.status !== 'visited' : fp.status === 'visited',
     )
-    const copy = modeCopy(mode)
-    const unplacedFootprints = modeList.filter(
-      (fp) => typeof fp.lat !== 'number' || typeof fp.lng !== 'number',
+    const unplaced = modeList.filter(
+      (fp: Footprint) => typeof fp.lat !== 'number' || typeof fp.lng !== 'number',
     )
-    this.setData({
-      modeEmpty: modeList.length === 0,
-      unplacedFootprints,
-      modeEmptyTitle: copy.title,
-      modeEmptyDescription: copy.description,
-      lighting: computeLighting(filteredFootprints),
-    })
-    this.renderMarkers()
-    this.fitToFootprints(modeList)
+    const copy = modeCopy(mode)
+    return {
+      modeList,
+      fields: {
+        modeEmpty: modeList.length === 0,
+        unplacedFootprints: unplaced,
+        modeEmptyTitle: copy.title,
+        modeEmptyDescription: copy.description,
+      },
+    }
   },
 
-  renderMarkers() {
-    const { mode, filteredFootprints, clusterEnabled, zoom, settings } = this.data
-    if (mode === 'lighting') {
-      this.setData({ markers: [], markerIdMap: {}, clusterMarkers: {} })
-      return
-    }
+  /** 模式切换：合并提交模式与空态字段，仅在确需重定位时调整视野 */
+  applyMode(mode: MapMode, options: { fit?: boolean } = {}) {
+    const view = this.computeModeView(mode)
+    this.setData({ mode, ...view.fields })
+    if (options.fit) this.fitToFootprints(view.modeList)
+    this.refreshMarkers()
+  },
 
-    const target = filteredFootprints.filter((fp) => {
+  /** 过滤条件变化：合并提交筛选与空态字段，标记按新数据版本重建 */
+  applyFilter(filter: FilterState, options: { closeSheet?: boolean; fit?: boolean } = {}) {
+    this.dataVersion += 1
+    this.filteredFootprints = this.allFootprints.filter((fp: Footprint) => matchesFilter(fp, filter))
+    const chips = filterChips(filter)
+    const view = this.computeModeView(this.data.mode)
+    this.setData({
+      currentFilter: filter,
+      activeFilterCount: chips.length,
+      activeFilterChips: chips,
+      filterVisible: options.closeSheet ? false : this.data.filterVisible,
+      lighting: computeLighting(this.filteredFootprints),
+      ...view.fields,
+    })
+    if (options.fit) this.fitToFootprints(view.modeList)
+    this.refreshMarkers()
+    this.syncTabBarForSheets()
+  },
+
+  /** 标记构建带缓存：数据版本、模式、聚合开关、缩放档位与设置都没变时直接复用 */
+  buildMarkers(force = false): MarkerIndex | null {
+    const { mode, settings, clusterEnabled } = this.data
+    if (mode === 'lighting') {
+      if (!force && this.markerCacheKey === 'lighting' && this.markerCache) return null
+      const index: MarkerIndex = { markers: [], markerIdMap: {}, clusterMarkers: {} }
+      this.markerCacheKey = 'lighting'
+      this.markerCache = index
+      return index
+    }
+    const key = [
+      this.dataVersion,
+      mode,
+      clusterEnabled ? 1 : 0,
+      this.zoomTier,
+      settings.markerStyle,
+      settings.theme,
+    ].join('|')
+    if (!force && key === this.markerCacheKey && this.markerCache) return null
+
+    const target = this.filteredFootprints.filter((fp: Footprint) => {
       if (mode === 'visited') return fp.status === 'visited'
       if (mode === 'wishlist') return fp.status !== 'visited'
       return true
     })
-
     const validForMap = target.filter(
-      (fp) => typeof fp.lat === 'number' && typeof fp.lng === 'number',
+      (fp: Footprint) => typeof fp.lat === 'number' && typeof fp.lng === 'number',
     )
 
     // 同一 POI 可有多次到访，但地图默认只显示一个点。
     const visitCounts: Record<string, number> = {}
     const placeMap = new Map<string, Footprint>()
     for (const fp of validForMap) {
-      const key = placeKey(fp)
       visitCounts[fp.id] = (visitCounts[fp.id] || 0) + 1
+      const key = placeKey(fp)
       const current = placeMap.get(key)
       if (!current || fp.updatedAt > current.updatedAt) placeMap.set(key, fp)
     }
@@ -435,8 +518,8 @@ Page<PageData, WechatMiniprogram.IAnyObject>({
     }
 
     let items: Array<Footprint | ClusterMarker>
-    if (clusterEnabled && zoom < 14) {
-      items = clusterFootprints(mapFootprints, zoom)
+    if (clusterEnabled && this.zoomTier < 14) {
+      items = clusterFootprints(mapFootprints, this.zoomTier)
       // utils 会把 2~3 个相邻点判定为不聚合；补回这些独立点，避免标记消失。
       const included = new Set<string>()
       for (const item of items) {
@@ -464,58 +547,80 @@ Page<PageData, WechatMiniprogram.IAnyObject>({
       } else {
         const fp = item as Footprint
         markerIdMap[id] = fp.id
-        markers.push(buildMarker(fp, id, mode, settings, zoom, visitCounts[fp.id] || 1))
+        markers.push(buildMarker(fp, id, mode, settings, this.zoomTier, visitCounts[fp.id] || 1))
       }
     })
 
-    this.setData({ markers, markerIdMap, clusterMarkers })
+    const index: MarkerIndex = { markers, markerIdMap, clusterMarkers }
+    this.markerCacheKey = key
+    this.markerCache = index
+    return index
+  },
+
+  /** 仅在标记内容真正变化时提交 markers，减少原生地图重绘 */
+  refreshMarkers() {
+    const update = this.buildMarkers()
+    if (update) this.setData({ markers: update.markers })
   },
 
   fitToFootprints(list: Footprint[]) {
     const target = list.filter(
       (fp) => typeof fp.lat === 'number' && typeof fp.lng === 'number',
     )
-    if (!target.length) {
-      this.setData({ center: DEFAULT_CENTER, scale: DEFAULT_SCALE, zoom: DEFAULT_SCALE })
+    const next = target.length
+      ? fitBounds(target)
+      : { latitude: DEFAULT_CENTER.latitude, longitude: DEFAULT_CENTER.longitude, scale: DEFAULT_SCALE }
+    const prev = this.data.center
+    if (
+      prev &&
+      Math.abs(prev.latitude - next.latitude) < 1e-9 &&
+      Math.abs(prev.longitude - next.longitude) < 1e-9 &&
+      this.data.scale === next.scale
+    ) {
       return
     }
-    const { latitude, longitude, scale } = fitBounds(target)
-    this.setData({ center: { latitude, longitude }, scale, zoom: scaleToZoom(scale) })
+    this.mapScale = next.scale
+    this.zoomTier = scaleToZoom(next.scale)
+    this.setData({ center: { latitude: next.latitude, longitude: next.longitude }, scale: next.scale })
   },
 
   onModeTap(e: WechatMiniprogram.TouchEvent) {
     const mode = e.currentTarget.dataset.mode as MapMode
     if (mode === this.data.mode) return
-    this.setData({ mode, detailVisible: false, selectedFootprint: null })
-    this.updateModeView()
+    this.closeDetailSheet()
+    this.applyMode(mode, { fit: true })
   },
 
   onMarkerTap(
     e: WechatMiniprogram.CustomEvent<{ markerId: number }>,
   ) {
     const markerId = e.detail.markerId
-    const { markerIdMap, clusterMarkers, footprints } = this.data
-    const cluster = clusterMarkers[markerId]
+    const cache = this.markerCache
+    if (!cache) return
+    const cluster = cache.clusterMarkers[markerId]
     if (cluster) {
-      const nextScale = Math.min(this.data.scale + 3, 18)
+      const nextScale = Math.min(this.mapScale + 3, 18)
+      this.mapScale = nextScale
+      this.zoomTier = scaleToZoom(nextScale)
       this.setData({
         center: { latitude: cluster.latitude, longitude: cluster.longitude },
         scale: nextScale,
-        zoom: scaleToZoom(nextScale),
       })
-      this.renderMarkers()
+      this.refreshMarkers()
       return
     }
-    const footprintId = markerIdMap[markerId]
+    const footprintId = cache.markerIdMap[markerId]
     if (!footprintId) return
-    const fp = footprints.find((f) => f.id === footprintId)
+    const fp = this.footprintsById[footprintId]
     if (!fp) return
-    this.setData({ selectedFootprint: fp, detailVisible: true })
+    this.closeDetailSheet()
+    this.setData({ selectedFootprint: fp, detailVisible: true, detailClosing: false })
+    this.syncTabBarForSheets()
   },
 
   onMapTap() {
     if (this.data.detailVisible) {
-      this.setData({ detailVisible: false, selectedFootprint: null })
+      this.closeDetailSheet()
     }
   },
 
@@ -523,17 +628,19 @@ Page<PageData, WechatMiniprogram.IAnyObject>({
     e: WechatMiniprogram.CustomEvent<{ type: 'begin' | 'end'; scale?: number }>,
   ) {
     if (e.detail.type !== 'end') return
-    const updateScale = (scale: number) => {
-      const newZoom = scaleToZoom(scale)
-      if (Math.abs(newZoom - this.data.zoom) >= 1) {
-        this.setData({ scale, zoom: newZoom })
-        this.renderMarkers()
-      } else {
-        this.setData({ scale })
-      }
+    const settle = (scale: number) => {
+      if (typeof scale !== 'number' || !Number.isFinite(scale)) return
+      // 拖动或程序设定视野的回声：缩放档位未跨越时不写 data、不重建标记，
+      // 避免反写 scale 触发原生地图再渲染以及与 regionchange 相互触发。
+      if (Math.abs(scale - this.mapScale) < 0.05) return
+      this.mapScale = scale
+      const tier = scaleToZoom(scale)
+      if (tier === this.zoomTier) return
+      this.zoomTier = tier
+      this.refreshMarkers()
     }
-    if (typeof e.detail.scale === 'number') updateScale(e.detail.scale)
-    else mapContext?.getScale({ success: ({ scale }) => updateScale(scale) })
+    if (typeof e.detail.scale === 'number') settle(e.detail.scale)
+    else mapContext?.getScale({ success: ({ scale }) => settle(scale) })
   },
 
   onCheckin() {
@@ -544,16 +651,17 @@ Page<PageData, WechatMiniprogram.IAnyObject>({
         const candidate = findNearbyCheckinCandidate(
           res.latitude,
           res.longitude,
-          this.data.footprints,
+          this.allFootprints,
         )
         const nearbyMemory = candidate?.footprint.status === 'visited'
           ? candidate.footprint
           : null
         const distance = candidate ? Math.round(candidate.distance) : 0
+        this.mapScale = 16
+        this.zoomTier = scaleToZoom(16)
         this.setData({
           center: { latitude: res.latitude, longitude: res.longitude },
           scale: 16,
-          zoom: 14,
           hasLocationAuth: true,
           nearbyMemory,
           nearbyDistance: nearbyMemory ? distance : 0,
@@ -561,6 +669,8 @@ Page<PageData, WechatMiniprogram.IAnyObject>({
           checkinCandidate: candidate,
           checkinDistance: distance,
         })
+        this.refreshMarkers()
+        this.syncTabBarForSheets()
         mapContext?.moveToLocation({
           latitude: res.latitude,
           longitude: res.longitude,
@@ -575,18 +685,21 @@ Page<PageData, WechatMiniprogram.IAnyObject>({
   },
 
   onCheckinClose() {
-    this.setData({ checkinVisible: false })
+    this.closeCheckinSheet()
   },
 
   onCheckinConfirm() {
     const candidate = this.data.checkinCandidate
     if (!candidate) return
-    this.setData({ checkinVisible: false })
+    this.setData({ checkinVisible: false, checkinClosing: false })
+    this.syncTabBarForSheets()
+    wx.vibrateShort({ type: 'light', fail: () => {} })
     wx.navigateTo({ url: buildCheckinRoute(candidate) })
   },
 
   onCheckinChoosePlace() {
     this.setData({ checkinVisible: false })
+    this.syncTabBarForSheets()
     wx.chooseLocation({
       success: (res) => {
         const draft = {
@@ -636,6 +749,7 @@ Page<PageData, WechatMiniprogram.IAnyObject>({
 
   onFilter() {
     this.setData({ filterVisible: true })
+    this.syncTabBarForSheets()
   },
 
   onAiTap() {
@@ -647,28 +761,11 @@ Page<PageData, WechatMiniprogram.IAnyObject>({
   },
 
   onFilterApply(e: WechatMiniprogram.CustomEvent<{ filter: FilterState }>) {
-    const filter = e.detail.filter || {}
-    const filtered = this.data.footprints.filter((fp) => matchesFilter(fp, filter))
-    const chips = filterChips(filter)
-    this.setData({
-      currentFilter: filter,
-      filteredFootprints: filtered,
-      filterVisible: false,
-      activeFilterCount: chips.length,
-      activeFilterChips: chips,
-    })
-    this.updateModeView()
+    this.applyFilter(e.detail.filter || {}, { closeSheet: true, fit: true })
   },
 
   onFilterReset() {
-    this.setData({
-      currentFilter: {},
-      filteredFootprints: this.data.footprints,
-      filterVisible: false,
-      activeFilterCount: 0,
-      activeFilterChips: [],
-    })
-    this.updateModeView()
+    this.applyFilter({}, { closeSheet: true, fit: true })
   },
 
   onFilterChipRemove(e: WechatMiniprogram.TouchEvent) {
@@ -681,19 +778,12 @@ Page<PageData, WechatMiniprogram.IAnyObject>({
       delete next[key]
       if (key === 'province') delete next.city
     }
-    const filtered = this.data.footprints.filter((fp) => matchesFilter(fp, next))
-    const chips = filterChips(next)
-    this.setData({
-      currentFilter: next,
-      filteredFootprints: filtered,
-      activeFilterCount: chips.length,
-      activeFilterChips: chips,
-    })
-    this.updateModeView()
+    this.applyFilter(next, { fit: true })
   },
 
   onFilterClose() {
     this.setData({ filterVisible: false })
+    this.syncTabBarForSheets()
   },
 
   onMapControlClusterToggle(
@@ -703,7 +793,7 @@ Page<PageData, WechatMiniprogram.IAnyObject>({
     const settings: MapSettings = { ...this.data.settings, clusterEnabled: enabled }
     saveMapSettings(settings)
     this.setData({ settings, clusterEnabled: enabled })
-    this.renderMarkers()
+    this.refreshMarkers()
   },
 
   onGrowthTap() {
@@ -722,7 +812,57 @@ Page<PageData, WechatMiniprogram.IAnyObject>({
   },
 
   onDetailClose() {
-    this.setData({ detailVisible: false, selectedFootprint: null })
+    this.closeDetailSheet()
+  },
+
+  /** 弹层（详情/打卡/筛选）打开期间隐藏自定义 tabBar：tabBar 在独立原生层，页面 z-index 压不住，会盖住弹层底部按钮 */
+  syncTabBarForSheets() {
+    const { detailVisible, checkinVisible, filterVisible } = this.data
+    const tabBar = this.getTabBar?.()
+    if (tabBar) tabBar.setData({ hidden: detailVisible || checkinVisible || filterVisible })
+  },
+
+  /** 详情半屏退场：播完下滑动画再卸载 */
+  closeDetailSheet() {
+    if (this.detailCloseTimer) {
+      clearTimeout(this.detailCloseTimer)
+      this.detailCloseTimer = null
+    }
+    if (!this.data.detailVisible) {
+      this.setData({ detailClosing: false })
+      this.syncTabBarForSheets()
+      return
+    }
+    this.setData({ detailVisible: false, detailClosing: true })
+    this.detailCloseTimer = setTimeout(() => {
+      this.detailCloseTimer = null
+      // 退场期间可能已重新打开详情（快速连点标记）：只收尾动画标记，不清空选中态
+      if (this.data.detailVisible) {
+        this.setData({ detailClosing: false })
+        return
+      }
+      this.setData({ detailClosing: false, selectedFootprint: null })
+      this.syncTabBarForSheets()
+    }, 240)
+  },
+
+  /** 打卡面板退场 */
+  closeCheckinSheet() {
+    if (this.checkinCloseTimer) {
+      clearTimeout(this.checkinCloseTimer)
+      this.checkinCloseTimer = null
+    }
+    if (!this.data.checkinVisible) {
+      this.setData({ checkinClosing: false })
+      this.syncTabBarForSheets()
+      return
+    }
+    this.setData({ checkinVisible: false, checkinClosing: true })
+    this.checkinCloseTimer = setTimeout(() => {
+      this.checkinCloseTimer = null
+      this.setData({ checkinClosing: false })
+      this.syncTabBarForSheets()
+    }, 240)
   },
 
   onEmptyAction() {
