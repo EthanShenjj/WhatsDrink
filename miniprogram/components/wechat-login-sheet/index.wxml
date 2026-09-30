@@ -1,6 +1,6 @@
 <view
-  wx:if="{{visible}}"
-  class="login-sheet-layer"
+  wx:if="{{rendered}}"
+  class="login-sheet-layer {{closing ? 'is-closing' : ''}}"
   catchtouchmove="preventClose"
 >
   <view class="login-sheet-mask" catchtap="cancel"></view>

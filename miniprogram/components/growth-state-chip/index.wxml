@@ -1,7 +1,8 @@
 <view
   class="state-chip state-{{state}} {{interactive ? 'is-interactive' : ''}}"
+  hover-class="{{interactive ? 'press-dim' : 'none'}}"
   bindtap="onTap"
-  role="{{interactive ? 'button' : 'text'}}"
+  role="{{interactive ? 'button' : ''}}"
   aria-label="{{label}} {{timeframe}}"
 >
   <view class="state-dot"></view>

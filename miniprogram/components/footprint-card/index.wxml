@@ -1,6 +1,7 @@
 <view
   wx:if="{{footprint}}"
   class="fp-card {{compact ? 'is-compact' : ''}} {{footprint.status !== 'visited' ? 'is-wishlist' : ''}}"
+  hover-class="press-dim"
   bindtap="onTap"
   role="button"
   aria-label="{{footprint.poiName}}"
@@ -8,10 +9,12 @@
   <view class="fp-thumb">
     <image
       wx:if="{{derived.photo}}"
-      class="fp-thumb-img"
+      class="fp-thumb-img {{imgLoaded ? 'is-loaded' : ''}}"
       src="{{derived.photo}}"
       mode="aspectFill"
       lazy-load
+      bindload="onImgLoad"
+      binderror="onImgError"
     />
     <view wx:else class="fp-thumb-placeholder">
       <image class="fp-thumb-icon" src="/assets/icons/image.svg" mode="aspectFit" />

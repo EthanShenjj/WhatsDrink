@@ -69,6 +69,7 @@ interface PageData {
   isEditing: boolean
   saved: boolean
   successVisible: boolean
+  successClosing: boolean
   successTitle: string
   successDescription: string
   successState: 'journey' | 'highlight' | 'companion'
@@ -125,6 +126,7 @@ Page<PageData, WechatMiniprogram.IAnyObject>({
     isEditing: false,
     saved: false,
     successVisible: false,
+    successClosing: false,
     successTitle: '',
     successDescription: '',
     successState: 'journey',
@@ -536,6 +538,7 @@ Page<PageData, WechatMiniprogram.IAnyObject>({
       if (removedLocalPhotos.length) await deletePhotos(removedLocalPhotos)
       clearDraft()
       this.setData({ id: saved.id, saved: true })
+      wx.vibrateShort({ type: 'light', fail: () => {} })
       if (this.data.isCheckin) {
         const distanceCopy = this.data.checkinDistance > 0
           ? `定位距离约 ${this.data.checkinDistance} 米，`
@@ -573,9 +576,14 @@ Page<PageData, WechatMiniprogram.IAnyObject>({
     }
   },
 
+  preventMove() {
+    /* 阻止成功弹层下的页面滚动穿透 */
+  },
+
   onSuccessClose() {
-    this.setData({ successVisible: false })
-    wx.navigateBack()
+    if (this.data.successClosing) return
+    this.setData({ successVisible: false, successClosing: true })
+    setTimeout(() => wx.navigateBack(), 240)
   },
 
   onDelete() {

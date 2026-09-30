@@ -34,7 +34,7 @@
 .dialog-copy {
   margin-top: 20rpx;
   color: #78746d;
-  font-size: 27rpx;
+  font-size: 28rpx;
   line-height: 1.75;
 }
 
@@ -65,3 +65,6 @@
 .disagree-button {
   margin-top: 12rpx;
 }
+
+/* 原生 button 默认 hover 覆盖（组件样式隔离，本地定义） */
+.button-hover { opacity: 0.78; }

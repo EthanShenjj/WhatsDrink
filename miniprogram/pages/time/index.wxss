@@ -18,8 +18,8 @@
 .time-state-card { display: flex; min-height: 246rpx; align-items: center; padding: 28rpx 18rpx 24rpx 30rpx; }
 .time-state-copy { display: flex; min-width: 0; flex: 1; align-items: flex-start; flex-direction: column; }
 .time-state-kicker { color: var(--brand-primary-deep); font-size: 20rpx; font-weight: 700; letter-spacing: 2rpx; }
-.time-state-title { margin-top: 8rpx; color: var(--ink); font-size: 31rpx; font-weight: 700; }
-.time-state-message { margin: 6rpx 0 18rpx; color: var(--muted); font-size: 21rpx; line-height: 1.5; }
+.time-state-title { margin-top: 8rpx; color: var(--ink); font-size: 32rpx; font-weight: 700; }
+.time-state-message { margin: 6rpx 0 18rpx; color: var(--muted); font-size: 22rpx; line-height: 1.5; }
 .time-page > brand-card { display: block; margin-bottom: 38rpx; }
 
 .time-capsule-button {
@@ -62,7 +62,7 @@
 }
 
 .memory-drop-heading .muted {
-  font-size: 21rpx;
+  font-size: 22rpx;
 }
 
 .memory-drop-wrap {
@@ -101,7 +101,7 @@
   white-space: normal;
 }
 
-.memory-drop-mascot { display: flex; height: 160rpx; align-items: center; justify-content: center; margin-bottom: 14rpx; border-radius: 20rpx; background: linear-gradient(135deg, #EEF0FF, #F7EDFF); }
+.memory-drop-mascot { display: flex; height: 160rpx; align-items: center; justify-content: center; margin-bottom: 14rpx; border-radius: 20rpx; background: linear-gradient(135deg, var(--brand-bg-deep), #F7EDFF); }
 
 .memory-drop-image {
   width: 100%;
@@ -119,7 +119,7 @@
 .memory-drop-title {
   margin-top: 6rpx;
   color: var(--ink);
-  font-size: 27rpx;
+  font-size: 28rpx;
   font-weight: 700;
   line-height: 1.4;
 }
@@ -128,7 +128,7 @@
   overflow: hidden;
   margin-top: 8rpx;
   color: var(--muted);
-  font-size: 21rpx;
+  font-size: 22rpx;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
@@ -168,8 +168,8 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  width: 64rpx;
-  height: 64rpx;
+  width: 72rpx;
+  height: 72rpx;
   border-radius: 32rpx;
   background: var(--surface);
   box-shadow: var(--shadow-control);
@@ -185,7 +185,7 @@
   color: var(--ink);
   font-size: 34rpx;
   font-weight: 700;
-  letter-spacing: -0.5rpx;
+  letter-spacing: -1rpx;
 }
 
 .month-nav-center {
@@ -234,11 +234,6 @@
   display: flex;
   flex-direction: column;
   gap: 24rpx;
-}
-
-.timeline-loading {
-  padding: 40rpx 0;
-  text-align: center;
 }
 
 .all-timeline {
@@ -299,3 +294,18 @@
   flex-direction: column;
   gap: 20rpx;
 }
+
+/* 列表加载骨架屏 */
+.timeline-skeleton { display: block; }
+.timeline-skeleton-card { display: flex; gap: 24rpx; margin-bottom: 24rpx; }
+.timeline-skeleton-thumb { flex: 0 0 200rpx; width: 200rpx; height: 200rpx; }
+.timeline-skeleton-body { flex: 1; padding-top: 12rpx; }
+
+/* 按压反馈过渡 */
+.time-view-option,
+.month-nav-btn,
+.memory-drop-card { transition: opacity 160ms ease, transform 160ms ease; }
+
+/* 掉落卡片图片淡入 */
+.memory-drop-image { opacity: 0; transition: opacity 280ms ease; }
+.memory-drop-image.is-loaded { opacity: 1; }

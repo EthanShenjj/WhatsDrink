@@ -64,3 +64,7 @@
   background: linear-gradient(to left, var(--surface), rgba(255, 255, 255, 0));
   pointer-events: none;
 }
+
+/* 按压反馈（组件样式隔离，本地定义） */
+.press-scale { transform: scale(0.94); }
+.mood-item { transition: transform 160ms ease; }

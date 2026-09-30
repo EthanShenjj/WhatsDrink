@@ -2,7 +2,6 @@
   padding-bottom: calc(190rpx + env(safe-area-inset-bottom));
 }
 
-.detail-loading,
 .detail-photo-placeholder {
   padding: 120rpx 0;
   text-align: center;
@@ -36,7 +35,7 @@
 .detail-note-label {
   margin-top: 6rpx;
   color: var(--muted);
-  font-size: 23rpx;
+  font-size: 24rpx;
 }
 
 .detail-visits-scroll {
@@ -187,7 +186,7 @@
 .detail-note-text {
   margin-top: 10rpx;
   color: var(--ink-body);
-  font-size: 29rpx;
+  font-size: 30rpx;
   line-height: 1.75;
   white-space: pre-wrap;
 }
@@ -332,9 +331,15 @@
 }
 
 .detail-action-label {
-  font-size: 21rpx;
+  font-size: 22rpx;
 }
 
 .detail-action-danger {
   color: var(--danger);
 }
+
+/* 加载骨架屏 */
+.detail-skeleton-media { width: 100%; height: 420rpx; border-radius: var(--radius-card); }
+
+/* 按压反馈过渡 */
+.detail-visit-chip { transition: transform 160ms ease, background-color 160ms ease; }

@@ -1,6 +1,13 @@
 <view class="page-shell detail-page">
-  <view wx:if="{{loading}}" class="detail-loading">
-    <text class="muted">加载中…</text>
+  <view wx:if="{{loading}}" class="detail-skeleton">
+    <view class="skeleton sk-thumb detail-skeleton-media"></view>
+    <view class="skeleton-card" style="margin-top: 24rpx;">
+      <view class="skeleton sk-line" style="width: 62%; height: 34rpx;"></view>
+      <view class="skeleton sk-line" style="width: 40%; margin-top: 22rpx;"></view>
+      <view class="skeleton sk-line" style="width: 100%; margin-top: 30rpx;"></view>
+      <view class="skeleton sk-line" style="width: 88%; margin-top: 18rpx;"></view>
+      <view class="skeleton sk-line" style="width: 54%; margin-top: 18rpx;"></view>
+    </view>
   </view>
 
   <empty-state
@@ -24,6 +31,8 @@
             wx:for="{{relatedVisits}}"
             wx:key="id"
             class="detail-visit-chip {{item.id === footprint.id ? 'is-active' : ''}}"
+            hover-class="press-scale"
+            role="button"
             data-id="{{item.id}}"
             bindtap="selectVisit"
           >
@@ -39,7 +48,7 @@
       <swiper
         class="detail-gallery-swiper"
         indicator-dots="{{footprint.photos.length > 1}}"
-        indicator-color="rgba(176,157,138,0.4)"
+        indicator-color="rgba(91, 108, 255, 0.35)"
         indicator-active-color="#5B6CFF"
         current="{{photoIndex}}"
         bindchange="onPhotoSwiperChange"
@@ -135,7 +144,7 @@
       </view>
       <text class="place-ring-summary">第一次 {{firstVisit.visitDate}} · 最近一次 {{latestVisit.visitDate}}</text>
       <view class="place-ring-list">
-        <view wx:for="{{relatedVisits}}" wx:key="id" class="place-ring-entry" data-id="{{item.id}}" bindtap="selectVisit">
+        <view wx:for="{{relatedVisits}}" wx:key="id" class="place-ring-entry" role="button" data-id="{{item.id}}" bindtap="selectVisit">
           <view class="place-ring-dot"></view>
           <image wx:if="{{item.photos.length}}" class="place-ring-photo" src="{{item.photos[0]}}" mode="aspectFill" />
           <view class="place-ring-entry-body">

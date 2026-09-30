@@ -38,7 +38,7 @@
     <view class="ai-draft card">
       <view class="field-block">
         <text class="field-label">地点 *</text>
-        <input value="{{poiName}}" maxlength="40" placeholder="请填写地点" bindinput="onPoiInput" />
+        <input class="field-input" value="{{poiName}}" maxlength="40" placeholder="请填写地点" bindinput="onPoiInput" />
         <text wx:if="{{needsPoiConfirmation && !poiConfirmed}}" class="field-warning">地点可能有歧义，请选择 POI 或明确确认</text>
         <view class="poi-actions">
           <button class="secondary-button" bindtap="choosePoi">选择地图 POI</button>
@@ -62,7 +62,7 @@
         <text class="field-label">类别</text>
         <scroll-view scroll-x class="category-scroll">
           <view class="category-row">
-            <view wx:for="{{categoryOptions}}" wx:key="value" class="chip {{category === item.value ? 'is-active' : ''}}" data-value="{{item.value}}" bindtap="selectCategory">{{item.emoji}} {{item.label}}</view>
+            <view wx:for="{{categoryOptions}}" wx:key="value" class="chip {{category === item.value ? 'is-active' : ''}}" hover-class="press-scale" data-value="{{item.value}}" bindtap="selectCategory">{{item.emoji}} {{item.label}}</view>
           </view>
         </scroll-view>
       </view>

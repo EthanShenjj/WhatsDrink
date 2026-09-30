@@ -34,6 +34,7 @@ page {
   --shadow-card: 0 16rpx 48rpx rgba(68, 76, 145, 0.09);
   --shadow-control: 0 8rpx 26rpx rgba(68, 76, 145, 0.14);
   --shadow-fab: 0 14rpx 34rpx rgba(91, 108, 255, 0.32);
+  --text-fine: 20rpx;
   --text-caption: 22rpx;
   --text-small: 26rpx;
   --text-body: 28rpx;
@@ -66,6 +67,9 @@ scroll-view {
 button {
   margin: 0;
   font-family: inherit;
+  /* 微信原生 button 基础样式带固定宽度(约184px),普通 class 的 width 赢不过它,
+     必须 !important 才能生效;iPad 等宽屏下字号放大后固定宽会挤到文字换行 */
+  width: auto !important;
 }
 
 button::after {
@@ -125,7 +129,7 @@ button::after {
   display: flex;
   align-items: center;
   justify-content: center;
-  width: 100%;
+  width: 100% !important;
   min-height: 96rpx;
   border-radius: 48rpx;
   background: var(--brand-gradient);
@@ -140,7 +144,7 @@ button::after {
   display: flex;
   align-items: center;
   justify-content: center;
-  width: 100%;
+  width: 100% !important;
   min-height: 96rpx;
   border-radius: 48rpx;
   background: var(--amber);
@@ -175,6 +179,8 @@ button::after {
   min-height: var(--control-height);
   align-items: center;
   justify-content: center;
+  /* 原生 button 自带 margin: 0 auto，在 flex 行里会吞掉剩余空间、压过 space-between */
+  margin: 0;
   padding: 0 16rpx;
   background: transparent;
   color: var(--brand-primary-deep);
@@ -243,4 +249,137 @@ button::after {
 .divider {
   height: 1rpx;
   background: var(--line);
+}
+
+/* ---- 按压反馈（hover-class 引用；组件内需在组件 wxss 里复用同名类）---- */
+.press-dim {
+  opacity: 0.78;
+}
+
+.press-scale {
+  transform: scale(0.96);
+}
+
+.press-tint {
+  background-color: var(--surface-high);
+}
+
+/* 覆盖原生 button 默认 hover，统一为透明度反馈 */
+.button-hover {
+  opacity: 0.78;
+}
+
+.chip {
+  transition: transform 160ms ease, background-color 160ms ease;
+}
+
+/* ---- 骨架屏 ---- */
+.skeleton {
+  position: relative;
+  overflow: hidden;
+  background: linear-gradient(90deg, #EDEFF7 25%, #F7F8FD 37%, #EDEFF7 63%);
+  background-size: 400% 100%;
+  animation: skeleton-shimmer 1.4s ease infinite;
+}
+
+@keyframes skeleton-shimmer {
+  0% {
+    background-position: 100% 50%;
+  }
+  100% {
+    background-position: 0 50%;
+  }
+}
+
+.skeleton-card {
+  border-radius: var(--radius-card);
+  background: var(--surface);
+  box-shadow: var(--shadow-card);
+  padding: 24rpx;
+}
+
+.sk-line {
+  height: 26rpx;
+  border-radius: 99rpx;
+}
+
+.sk-thumb {
+  border-radius: var(--radius-md);
+  background: linear-gradient(90deg, #EDEFF7 25%, #F7F8FD 37%, #EDEFF7 63%);
+  background-size: 400% 100%;
+  animation: skeleton-shimmer 1.4s ease infinite;
+}
+
+/* 统一加载态：转圈 + 文案，各页面通用 */
+.loading-block {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 14rpx;
+  padding: 48rpx 0;
+  color: var(--muted);
+  font-size: var(--text-small);
+}
+
+.loading-block::before {
+  content: '';
+  width: 28rpx;
+  height: 28rpx;
+  border: 4rpx solid var(--moss-soft);
+  border-top-color: var(--moss);
+  border-radius: 50%;
+  animation: app-spin 720ms linear infinite;
+}
+
+@keyframes app-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+/* 公共表单控件：ai-assistant / time-capsule / travel-plan 共用同一套规格 */
+.field-label {
+  display: block;
+  margin: 26rpx 0 12rpx;
+  color: var(--ink);
+  font-size: var(--text-small);
+  font-weight: 600;
+}
+
+.field-label:first-child {
+  margin-top: 0;
+}
+
+.field-input {
+  box-sizing: border-box;
+  width: 100%;
+  min-height: var(--control-height);
+  padding: 0 24rpx;
+  border: 1rpx solid var(--line);
+  border-radius: var(--radius-sm);
+  background: var(--surface-soft);
+  color: var(--ink-body);
+  font-size: var(--text-body);
+}
+
+.field-textarea {
+  box-sizing: border-box;
+  width: 100%;
+  min-height: 140rpx;
+  padding: 20rpx 24rpx;
+  border: 1rpx solid var(--line);
+  border-radius: var(--radius-sm);
+  background: var(--surface-soft);
+  color: var(--ink-body);
+  font-size: var(--text-body);
+  line-height: 1.6;
+}
+
+/* iPad 等宽屏：内容限宽居中，避免 rpx 等比放大导致版面松散 */
+@media (min-width: 700px) {
+  .page-shell {
+    max-width: 720px;
+    margin-left: auto;
+    margin-right: auto;
+  }
 }

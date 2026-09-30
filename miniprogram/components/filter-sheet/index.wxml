@@ -1,6 +1,6 @@
 <view
-  wx:if="{{visible}}"
-  class="filter-layer"
+  wx:if="{{rendered}}"
+  class="filter-layer {{closing ? 'is-closing' : ''}}"
   catchtouchmove="preventMove"
 >
   <view class="filter-mask" catchtap="close"></view>
@@ -8,7 +8,7 @@
     <view class="filter-handle"></view>
     <view class="filter-header">
       <text class="filter-title">筛选</text>
-      <view class="filter-close" bindtap="close" role="button" aria-label="关闭">
+      <view class="filter-close" hover-class="press-scale" bindtap="close" role="button" aria-label="关闭">
         <image class="filter-close-icon" src="/assets/icons/delete.svg" mode="aspectFit" />
       </view>
     </view>
@@ -100,6 +100,7 @@
             wx:for="{{categoryOptions}}"
             wx:key="value"
             class="chip-item {{localFilter.category === item.value ? 'is-active' : ''}}"
+            hover-class="press-scale"
             data-value="{{item.value}}"
             bindtap="toggleCategory"
             role="button"
@@ -120,6 +121,7 @@
             wx:for="{{moodOptions}}"
             wx:key="value"
             class="chip-item {{localFilter.mood === item.value ? 'is-active is-mood' : ''}}"
+            hover-class="press-scale"
             data-value="{{item.value}}"
             bindtap="toggleMood"
             role="button"
@@ -133,8 +135,8 @@
     </scroll-view>
 
     <view class="filter-footer">
-      <view class="filter-reset" bindtap="reset" role="button">重置</view>
-      <view class="filter-apply" bindtap="apply" role="button">应用筛选</view>
+      <view class="filter-reset" hover-class="press-dim" bindtap="reset" role="button">重置</view>
+      <view class="filter-apply" hover-class="press-dim" bindtap="apply" role="button">应用筛选</view>
     </view>
     <view class="safe-bottom"></view>
   </view>

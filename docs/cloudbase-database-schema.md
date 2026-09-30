@@ -1,13 +1,13 @@
 # 云开发文档型数据库结构
 
-目标环境：`ethan-workspace-d7f7k5ma0befbf77`。项目使用文档型数据库；集合中的字段由云函数写入，不需要预先创建固定列。需要先创建下列七个集合，再设置索引和[访问规则](cloudbase-security-rules.md)。所有用户数据文档都以 `_openid` 标识归属，`_id` 是云数据库文档 ID；客户端看到的 `userId`、`id` 分别由云函数从这些字段转换得到。
+目标环境：`ethan-workspace-d7f7k5ma0befbf77`。项目使用文档型数据库；集合中的字段由云函数写入，不需要预先创建固定列。需要先创建下列六个集合，再设置索引和[访问规则](cloudbase-security-rules.md)。所有用户数据文档都以 `_openid` 标识归属，`_id` 是云数据库文档 ID；客户端看到的 `userId`、`id` 分别由云函数从这些字段转换得到。
 
 | 集合 | 云端主要字段 | 使用位置 |
 | --- | --- | --- |
 | `user_profiles` | `_openid`, `nickname`, `avatarUrl`, `createdAt`, `updatedAt` | `login`、`accountMutation` |
 | `footprints` | `_openid`, `status`, `poiName`, `address?`, `lat?`, `lng?`, `country?`, `province?`, `city?`, `district?`, `visitDate?`, `photos`, `mood?`, `category?`, `tags`, `note?`, `markerStyle?`, `source`, `placeId?`, `wishId?`, `isImportant`, `wishlistCreatedAt?`, `fulfilledAt?`, `fulfilledVisitId?`, `convertedFromWishlist?`, `clientRequestId`, `createdAt`, `updatedAt` | `footprintMutation`；旅行计划和时间胶囊也会校验足迹引用 |
 | `travel_plans` | `_openid`, `title`, `city`, `days`, `preferences`, `poiIds`, `dayPlans`, `status`, `createdAt`, `updatedAt` | `travelPlanMutation` |
-| `time_capsules` | `_openid`, `title`, `footprintId?`, `text?`, `photos`, `unlockDate`, `status`, `subscriptionId?`, `createdAt`, `updatedAt`, `unlockedAt?`, `reminderAttemptedAt?`, `reminderSentAt?`, `reminderFailedAt?` | `timeCapsuleMutation`、`sendCapsuleReminder` |
+| `time_capsules` | `_openid`, `title`, `footprintId?`, `text?`, `photos`, `unlockDate`, `status`, `subscriptionId?`, `createdAt`, `updatedAt`, `unlockedAt?`, `reminderAttemptedAt?`, `reminderAttempts?`, `reminderSentAt?`, `reminderFailedAt?`, `reminderTerminalAt?` | `timeCapsuleMutation`、`sendCapsuleReminder` |
 | `payment_orders` | `_openid`, `outTradeNo`, `wxOrderId?`, `catalogProductId`, `platformProductId`, `productName`, `amountFen`, `durationDays`, `status`, `entitlementStartsAt?`, `entitlementEndsAt?`, `createdAt`, `updatedAt`, `paidAt?`, `fulfilledAt?`, `refundedAt?` | `paymentMutation`、`paymentNotify` |
 | `user_entitlements` | `_openid`, `entitlementKey`, `sourceOrderId`, `startsAt`, `expiresAt`, `status`, `createdAt`, `updatedAt`, `revokedAt?` | `paymentNotify`、支付查单兜底 |
 
@@ -25,6 +25,7 @@
 | `travel_plans` | `_openid` 升序，`updatedAt` 降序 | 否 | 按用户列出旅行计划 |
 | `time_capsules` | `_openid` 升序，`unlockDate` 升序 | 否 | 按用户列出时间胶囊 |
 | `time_capsules` | `status` 升序，`unlockDate` 升序 | 否 | 定时查找待解锁胶囊 |
+| `time_capsules` | `subscriptionId` 升序，`unlockDate` 升序，`reminderAttemptedAt` 升序 | 否 | 定时查找待发送与待重试提醒 |
 | `payment_orders` | `_openid` 升序，`createdAt` 降序 | 否 | 用户购买记录 |
 | `payment_orders` | `outTradeNo` 升序 | 是 | 商户订单幂等与通知定位 |
 | `payment_orders` | `wxOrderId` 升序 | 建议唯一 | 微信订单幂等 |

@@ -1,6 +1,15 @@
 <view class="page-shell form-page {{loading ? 'is-loading' : ''}}">
-  <view wx:if="{{loading}}" class="form-loading">
-    <text class="muted">加载中…</text>
+  <view wx:if="{{loading}}" class="loading-block">
+    <view class="skeleton-card">
+      <view class="skeleton sk-line" style="width: 32%; height: 30rpx;"></view>
+      <view class="skeleton sk-line" style="width: 100%; margin-top: 28rpx;"></view>
+      <view class="skeleton sk-line" style="width: 68%; margin-top: 20rpx;"></view>
+    </view>
+    <view class="skeleton-card" style="margin-top: 24rpx;">
+      <view class="skeleton sk-line" style="width: 45%; height: 30rpx;"></view>
+      <view class="skeleton sk-line" style="width: 100%; margin-top: 28rpx;"></view>
+      <view class="skeleton sk-line" style="width: 86%; margin-top: 20rpx;"></view>
+    </view>
   </view>
 
   <block wx:else>
@@ -52,6 +61,7 @@
         <view
           wx:if="{{address}}"
           class="form-address-bar"
+          hover-class="press-dim"
           bindtap="onChooseLocation"
           role="button"
           aria-label="已标记地址，点击重新选择"
@@ -68,7 +78,7 @@
           <text>日期</text>
         </view>
         <picker mode="date" value="{{visitDate}}" bindchange="onDateChange">
-          <view class="form-date-picker">
+          <view class="form-date-picker" hover-class="press-dim">
             <text>{{visitDate || '选择日期'}}</text>
             <local-icon name="calendar" size="28rpx" />
           </view>
@@ -78,6 +88,7 @@
             wx:for="{{dateShortcuts}}"
             wx:key="label"
             class="form-date-chip {{visitDate === item.value ? 'is-active' : ''}}"
+            hover-class="press-scale"
             data-value="{{item.value}}"
             bindtap="onDateShortcutTap"
             role="button"
@@ -107,7 +118,7 @@
 
     <!-- 可选字段折叠区 -->
     <view class="form-section form-optional">
-      <view class="form-optional-toggle" bindtap="toggleOptional">
+      <view class="form-optional-toggle" hover-class="press-tint" bindtap="toggleOptional">
         <text class="form-optional-title">更多设置</text>
         <view class="form-optional-right">
           <text wx:if="{{optionalSummary && !optionalOpen}}" class="form-optional-summary">{{optionalSummary}}</text>
@@ -136,6 +147,7 @@
                   wx:for="{{categoryOptions}}"
                   wx:key="value"
                   class="chip form-category-chip {{category === item.value ? 'is-active' : ''}}"
+                  hover-class="press-scale"
                   data-value="{{item.value}}"
                   bindtap="selectCategory"
                   role="button"
@@ -216,6 +228,7 @@
               wx:for="{{markerColors}}"
               wx:key="value"
               class="form-marker-color-swatch {{markerColor === item.value ? 'is-active' : ''}}"
+              hover-class="press-scale"
                 style="background: {{item.color}};"
                 data-value="{{item.value}}"
                 bindtap="selectMarkerColor"
@@ -232,6 +245,7 @@
                   wx:for="{{markerEmojis}}"
                   wx:key="*this"
                   class="form-marker-emoji-swatch {{markerEmoji === item ? 'is-active' : ''}}"
+                  hover-class="press-scale"
                   data-value="{{item}}"
                   bindtap="selectMarkerEmoji"
                   role="button"
@@ -270,8 +284,8 @@
     <view class="safe-bottom"></view>
   </block>
 
-  <view wx:if="{{successVisible}}" class="form-success-layer">
-    <view class="form-success-mask"></view>
+  <view wx:if="{{successVisible || successClosing}}" class="form-success-layer {{successClosing ? 'is-closing' : ''}}" catchtouchmove="preventMove">
+    <view class="form-success-mask" bindtap="onSuccessClose"></view>
     <view class="form-success-panel">
       <ip-feedback
         type="success"

@@ -1,5 +1,5 @@
 <view class="page-shell privacy-page">
-  <text class="eyebrow">DATA &amp; PRIVACY</text>
+  <text class="eyebrow">DATA & PRIVACY</text>
   <text class="display-title">你的记录，只属于你</text>
 
   <view class="privacy-section">

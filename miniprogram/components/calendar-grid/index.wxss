@@ -93,7 +93,7 @@
   box-shadow: inset 0 0 0 2rpx rgba(91, 108, 255, 0.35);
 }
 
-.cal-cell.is-selected { background: linear-gradient(135deg, #5B76FF, #A88BFF) !important; box-shadow: 0 8rpx 20rpx rgba(91,108,255,.24); }
+.cal-cell.is-selected { background: linear-gradient(135deg, #5B76FF, var(--brand-lavender)) !important; box-shadow: 0 8rpx 20rpx rgba(91,108,255,.24); }
 .cal-cell.is-selected .cell-day { color: #fff; }
 .cal-cell.is-selected .cell-dot { background: #fff; }
 
@@ -120,7 +120,7 @@
   border-radius: 99rpx;
   background: rgba(23, 24, 43, 0.62);
   color: #fff;
-  font-size: 18rpx;
+  font-size: 20rpx;
   font-weight: 600;
 }
 
@@ -154,3 +154,7 @@
   font-size: 32rpx;
   line-height: 1;
 }
+
+/* 按压反馈（组件样式隔离，本地定义） */
+.press-scale { transform: scale(0.94); }
+.cal-cell { transition: transform 160ms ease; }

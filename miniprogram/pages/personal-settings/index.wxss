@@ -87,7 +87,7 @@
 .row-hint {
   margin-top: 2rpx;
   color: var(--muted);
-  font-size: 21rpx;
+  font-size: 22rpx;
   line-height: 32rpx;
 }
 

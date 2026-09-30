@@ -29,6 +29,7 @@
       <view class="mode-switcher">
         <view
           class="mode-pill {{mode === 'visited' ? 'is-active visited' : ''}}"
+          hover-class="press-scale"
           data-mode="visited"
           bindtap="onModeTap"
           role="button"
@@ -39,6 +40,7 @@
         </view>
         <view
           class="mode-pill {{mode === 'wishlist' ? 'is-active wishlist' : ''}}"
+          hover-class="press-scale"
           data-mode="wishlist"
           bindtap="onModeTap"
           role="button"
@@ -50,6 +52,7 @@
       </view>
       <view
         class="lighting-shortcut {{mode === 'lighting' ? 'is-active' : ''}}"
+        hover-class="press-scale"
         data-mode="lighting"
         bindtap="onModeTap"
         role="button"
@@ -67,9 +70,12 @@
     />
   </view>
 
+  <!-- 底部浮层栈：自上而下为打卡入口/记忆提示/未标注面板/空态，flex 排布避免互相遮挡 -->
+  <view class="map-bottom-stack {{checkinVisible || checkinClosing || detailVisible || detailClosing || filterVisible ? 'is-covered' : ''}}">
   <view
     wx:if="{{mode === 'visited' && tabReady}}"
     class="map-checkin-cta"
+    hover-class="press-dim"
     bindtap="onCheckin"
     role="button"
     aria-label="当前位置打卡"
@@ -84,9 +90,34 @@
     <text class="map-checkin-arrow">›</text>
   </view>
 
-  <view wx:if="{{mode === 'visited' && (nearbyMemory || todayDrop)}}" class="map-memory-cue" bindtap="onMemoryCueTap">
+  <view wx:if="{{mode === 'visited' && (nearbyMemory || todayDrop)}}" class="map-memory-cue" hover-class="press-dim" bindtap="onMemoryCueTap">
     <text class="map-memory-cue-eyebrow">{{nearbyMemory ? '附近的旧记忆' : '今日掉落'}}</text>
     <text class="map-memory-cue-title">{{nearbyMemory ? '距离 ' + nearbyMemory.poiName + ' 约 ' + nearbyDistance + ' 米' : todayDrop.title}}</text>
+  </view>
+
+  <view wx:if="{{unplacedFootprints.length && mode !== 'lighting'}}" class="unplaced-panel">
+    <text class="unplaced-title">未标注位置 · {{unplacedFootprints.length}}</text>
+    <scroll-view scroll-y class="unplaced-list">
+      <footprint-card wx:for="{{unplacedFootprints}}" wx:key="id" footprint="{{item}}" compact bind:tap="onUnplacedTap" />
+    </scroll-view>
+  </view>
+
+  <view wx:if="{{modeEmpty && !loading && mode !== 'lighting'}}" class="map-empty">
+    <ip-mascot state="{{growth.activeColorId || 'journey'}}" expression="think" size="104rpx" motion="float" label="正在等你出发的小拾" />
+    <view class="map-empty-copy">
+      <text class="map-empty-title">{{modeEmptyTitle}}</text>
+      <text class="map-empty-description">{{modeEmptyDescription}}</text>
+    </view>
+    <view
+      class="map-empty-action"
+      hover-class="press-scale"
+      bindtap="onEmptyAction"
+      role="button"
+      aria-label="{{mode === 'wishlist' ? '收藏想去地点' : '添加第一个足迹'}}"
+    >
+      <local-icon name="add-white" size="34rpx" />
+    </view>
+  </view>
   </view>
 
   <scroll-view
@@ -101,6 +132,7 @@
         wx:for="{{activeFilterChips}}"
         wx:key="key"
         class="active-filter-chip"
+        hover-class="press-dim"
         data-key="{{item.key}}"
         bindtap="onFilterChipRemove"
         role="button"
@@ -150,13 +182,6 @@
     </view>
   </view>
 
-  <view wx:if="{{unplacedFootprints.length && mode !== 'lighting'}}" class="unplaced-panel">
-    <text class="unplaced-title">未标注位置 · {{unplacedFootprints.length}}</text>
-    <scroll-view scroll-y class="unplaced-list">
-      <footprint-card wx:for="{{unplacedFootprints}}" wx:key="id" footprint="{{item}}" compact bind:tap="onUnplacedTap" />
-    </scroll-view>
-  </view>
-
   <!-- Map controls (right side floating) -->
   <map-controls
     wx:if="{{tabReady}}"
@@ -171,23 +196,6 @@
     bind:clusterToggle="onMapControlClusterToggle"
   ></map-controls>
 
-  <!-- Empty state -->
-  <view wx:if="{{modeEmpty && !loading && mode !== 'lighting'}}" class="map-empty">
-    <ip-mascot state="{{growth.activeColorId || 'journey'}}" expression="think" size="104rpx" motion="float" label="正在等你出发的小拾" />
-    <view class="map-empty-copy">
-      <text class="map-empty-title">{{modeEmptyTitle}}</text>
-      <text class="map-empty-description">{{modeEmptyDescription}}</text>
-    </view>
-    <view
-      class="map-empty-action"
-      bindtap="onEmptyAction"
-      role="button"
-      aria-label="{{mode === 'wishlist' ? '收藏想去地点' : '添加第一个足迹'}}"
-    >
-      <local-icon name="add-white" size="34rpx" />
-    </view>
-  </view>
-
   <!-- Loading state -->
   <view wx:if="{{loading}}" class="map-loading">
     <view class="map-loading-dot"></view>
@@ -195,7 +203,7 @@
   </view>
 
   <!-- Footprint detail sheet (half screen) -->
-  <view wx:if="{{detailVisible && selectedFootprint}}" class="detail-sheet-layer" catchtouchmove="preventMove">
+  <view wx:if="{{(detailVisible || detailClosing) && selectedFootprint}}" class="detail-sheet-layer {{detailClosing ? 'is-closing' : ''}}" catchtouchmove="preventMove">
     <view class="detail-sheet-mask" bindtap="onDetailClose"></view>
     <view class="detail-sheet">
       <view class="detail-sheet-handle"></view>
@@ -212,7 +220,7 @@
   </view>
 
   <!-- Current-location check-in confirmation -->
-  <view wx:if="{{checkinVisible}}" class="checkin-sheet-layer" catchtouchmove="preventMove">
+  <view wx:if="{{checkinVisible || checkinClosing}}" class="checkin-sheet-layer {{checkinClosing ? 'is-closing' : ''}}" catchtouchmove="preventMove">
     <view class="checkin-sheet-mask" bindtap="onCheckinClose"></view>
     <view class="checkin-sheet" role="dialog" aria-modal="true" aria-labelledby="checkin-sheet-title">
       <view class="detail-sheet-handle"></view>

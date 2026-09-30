@@ -27,7 +27,7 @@
   <view class="capsule-list">
     <text class="section-title">我的胶囊</text>
     <view wx:if="{{capsules.length}}">
-      <view wx:for="{{capsules}}" wx:key="id" class="capsule-item card" data-id="{{item.id}}" bindtap="onCapsuleTap">
+      <view wx:for="{{capsules}}" wx:key="id" class="capsule-item card" role="button" data-id="{{item.id}}" bindtap="onCapsuleTap">
         <view class="capsule-symbol"><local-icon name="{{item.status === 'locked' ? 'lock' : 'sparkles'}}" size="34rpx" /></view>
         <view class="capsule-copy"><text class="capsule-title">{{item.title}}</text><text class="capsule-date">{{item.status === 'locked' ? '将于 ' + item.unlockDate + ' 解锁' : '已解锁'}}</text></view>
         <text class="capsule-arrow">›</text>

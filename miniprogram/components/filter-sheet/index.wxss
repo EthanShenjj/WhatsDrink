@@ -258,3 +258,27 @@
   from { transform: translateY(48rpx); opacity: 0; }
   to { transform: translateY(0); opacity: 1; }
 }
+
+/* 弹层退场 */
+.filter-layer.is-closing .filter-mask {
+  animation: filter-mask-out 200ms ease both;
+}
+
+.filter-layer.is-closing .filter-sheet {
+  animation: filter-sheet-out 260ms cubic-bezier(0.5, 0, 0.75, 0.4) both;
+}
+
+@keyframes filter-mask-out {
+  from { opacity: 1; }
+  to { opacity: 0; }
+}
+
+@keyframes filter-sheet-out {
+  from { transform: translateY(0); opacity: 1; }
+  to { transform: translateY(100%); opacity: 0; }
+}
+
+/* 按压反馈（组件样式隔离，需本地定义） */
+.press-dim { opacity: 0.78; }
+.press-scale { transform: scale(0.94); }
+.filter-close { transition: transform 160ms ease; }

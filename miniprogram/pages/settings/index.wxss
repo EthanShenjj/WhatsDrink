@@ -42,7 +42,7 @@
   border-radius: 30rpx;
   background: var(--moss);
   color: #fff;
-  font-size: 23rpx;
+  font-size: 24rpx;
   font-weight: 700;
 }
 
@@ -61,14 +61,14 @@
 
 .settings-option-title {
   color: var(--ink);
-  font-size: 27rpx;
+  font-size: 28rpx;
   font-weight: 650;
 }
 
 .settings-option-hint {
   margin-top: 5rpx;
   color: var(--muted);
-  font-size: 21rpx;
+  font-size: 22rpx;
 }
 
 .theme-list {
@@ -117,3 +117,7 @@
 .settings-switch > view {
   flex: 1;
 }
+
+/* 按压反馈过渡 */
+.settings-option,
+.theme-row { transition: opacity 160ms ease; }

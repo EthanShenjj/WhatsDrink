@@ -1,5 +1,20 @@
 <view class="growth-page">
-  <view wx:if="{{loading}}" class="growth-loading">正在读取小拾的状态…</view>
+  <view wx:if="{{loading}}" class="growth-skeleton">
+    <view class="skeleton-card" style="display: flex; justify-content: space-between; gap: 24rpx;">
+      <view style="flex: 1;">
+        <view class="skeleton sk-line" style="width: 55%; height: 32rpx;"></view>
+        <view class="skeleton sk-line" style="width: 92%; margin-top: 24rpx;"></view>
+        <view class="skeleton sk-line" style="width: 70%; margin-top: 18rpx;"></view>
+        <view class="skeleton sk-line" style="width: 46%; margin-top: 30rpx;"></view>
+      </view>
+      <view class="skeleton sk-thumb" style="flex: 0 0 180rpx; width: 180rpx; height: 180rpx; border-radius: 50%;"></view>
+    </view>
+    <view class="skeleton-card" style="margin-top: 24rpx;">
+      <view class="skeleton sk-line" style="width: 42%;"></view>
+      <view class="skeleton sk-line" style="width: 100%; margin-top: 26rpx;"></view>
+      <view class="skeleton sk-line" style="width: 30%; margin-top: 26rpx;"></view>
+    </view>
+  </view>
   <block wx:elif="{{snapshot}}">
     <view class="growth-heading">
       <text class="eyebrow">XIAOSHI GROWTH</text>
@@ -32,7 +47,7 @@
       <view><text class="section-title">本月拾光色</text><text class="section-sub">每月 1 日重新结算</text></view>
       <button class="section-action" bindtap="onMonthlyReport">查看报告</button>
     </view>
-    <view class="monthly-card card" bindtap="onMonthlyReport">
+    <view class="monthly-card card" role="button" bindtap="onMonthlyReport">
       <ip-mascot state="{{snapshot.monthlyColorId}}" expression="companion" size="150rpx" label="本月的小拾" />
       <view class="monthly-copy">
         <text class="monthly-title">{{snapshot.monthlyTitle}}</text>
@@ -51,6 +66,8 @@
           wx:for="{{snapshot.colors}}"
           wx:key="id"
           class="color-card color-{{item.id}} {{!item.unlocked ? 'is-locked' : ''}} {{profile.growth.lockedColorId === item.id ? 'is-selected' : ''}}"
+          role="button"
+          hover-class="press-dim"
           data-id="{{item.id}}"
           bindtap="onColorTap"
         >
@@ -112,14 +129,14 @@
       </view>
       <scroll-view class="icon-options" scroll-x>
         <view class="icon-option-list">
-          <view wx:for="{{snapshot.colors}}" wx:key="id" class="icon-option {{iconColorId === item.id ? 'is-active' : ''}} {{!item.unlocked ? 'is-locked' : ''}}" data-id="{{item.id}}" bindtap="onIconTap">
+          <view wx:for="{{snapshot.colors}}" wx:key="id" class="icon-option {{iconColorId === item.id ? 'is-active' : ''}} {{!item.unlocked ? 'is-locked' : ''}}" role="button" data-id="{{item.id}}" bindtap="onIconTap">
             <ip-mascot state="{{item.id}}" expression="default" size="86rpx" label="{{item.name}}图标主题" />
           </view>
         </view>
       </scroll-view>
     </view>
 
-    <view wx:if="{{reportVisible}}" class="report-mask">
+    <view wx:if="{{reportVisible}}" class="report-mask" catchtouchmove="noop" bindtap="onReportClose">
       <view class="report-panel" catchtap="noop">
         <view class="report-handle"></view>
         <text class="report-kicker">MONTHLY MOMENTS</text>

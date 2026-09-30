@@ -14,7 +14,7 @@
     </view>
   </brand-card>
 
-  <view class="membership-card {{growth.isPlus ? 'is-active' : ''}}" bindtap="onMembershipTap" role="button" aria-label="查看拾光加付费方案">
+  <view class="membership-card {{growth.isPlus ? 'is-active' : ''}}" hover-class="press-dim" bindtap="onMembershipTap" role="button" aria-label="查看拾光加付费方案">
     <view class="membership-symbol"><local-icon name="sparkles" size="38rpx" /></view>
     <view class="membership-copy">
       <view class="membership-title-row">
@@ -26,7 +26,7 @@
     <text class="membership-arrow">›</text>
   </view>
 
-  <view wx:if="{{growth}}" class="growth-card growth-{{growth.activeColorId}}" bindtap="onGrowthTap" role="button" aria-label="查看小拾成长计划">
+  <view wx:if="{{growth}}" class="growth-card growth-{{growth.activeColorId}}" hover-class="press-dim" bindtap="onGrowthTap" role="button" aria-label="查看小拾成长计划">
     <view class="growth-card-copy">
       <view class="growth-label-row">
         <text class="growth-label">小拾成长计划</text>
@@ -60,7 +60,7 @@
   </view>
 
   <view class="menu-card card">
-    <view wx:for="{{menu}}" wx:key="key" class="menu-row" data-key="{{item.key}}" bindtap="onMenuTap">
+    <view wx:for="{{menu}}" wx:key="key" class="menu-row" hover-class="press-tint" role="button" aria-label="{{item.label}}" data-key="{{item.key}}" bindtap="onMenuTap">
       <view class="menu-icon"><local-icon name="{{item.icon}}" size="34rpx" /></view>
       <text class="menu-label">{{item.label}}</text>
       <text wx:if="{{item.hint}}" class="menu-hint">{{item.hint}}</text>

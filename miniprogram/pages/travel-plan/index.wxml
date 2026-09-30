@@ -21,7 +21,7 @@
     <text class="section-title">选择想去地点</text>
     <text class="section-sub">{{city ? '显示这个城市的心愿地点' : '先填写城市或从全部心愿中挑选'}}</text>
     <view wx:if="{{visibleWishlist.length}}" class="poi-list">
-      <view wx:for="{{visibleWishlist}}" wx:key="id" class="poi-row card" data-id="{{item.id}}" bindtap="onTogglePoi">
+      <view wx:for="{{visibleWishlist}}" wx:key="id" class="poi-row card" role="button" hover-class="press-dim" data-id="{{item.id}}" bindtap="onTogglePoi">
         <view class="poi-check {{item.selected ? 'selected' : ''}}">{{item.selected ? '✓' : ''}}</view>
         <view class="poi-copy"><text class="poi-title">{{item.poiName}}</text><text class="poi-meta">{{item.city || item.province || '未标注地区'}}</text></view>
       </view>

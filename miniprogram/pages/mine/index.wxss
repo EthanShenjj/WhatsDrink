@@ -13,7 +13,7 @@
 .membership-copy { display: flex; min-width: 0; flex: 1; flex-direction: column; }
 .membership-title-row { display: flex; align-items: center; gap: 12rpx; }
 .membership-title { color: #fff; font-size: 28rpx; font-weight: 700; }
-.membership-pill { padding: 4rpx 11rpx; border-radius: 99rpx; background: rgba(255,255,255,.16); color: rgba(255,255,255,.92); font-size: 17rpx; font-weight: 700; }
+.membership-pill { padding: 4rpx 11rpx; border-radius: 99rpx; background: rgba(255,255,255,.16); color: rgba(255,255,255,.92); font-size: 20rpx; font-weight: 700; }
 .membership-note { display: block; margin-top: 7rpx; color: rgba(255,255,255,.72); font-size: 20rpx; line-height: 1.45; }
 .membership-arrow { color: rgba(255,255,255,.74); font-size: 40rpx; line-height: 1; }
 
@@ -27,25 +27,25 @@
 .growth-card-copy { min-width: 0; flex: 1; }
 .growth-label-row { display: flex; align-items: center; gap: 10rpx; }
 .growth-label { color: #554FA3; font-size: 20rpx; font-weight: 700; letter-spacing: 1rpx; }
-.growth-plus { padding: 3rpx 10rpx; border-radius: 99rpx; background: #4B47A4; color: #fff; font-size: 16rpx; font-weight: 700; }
-.growth-title { display: block; margin-top: 10rpx; color: #22243C; font-size: 31rpx; font-weight: 700; }
-.growth-message { display: block; margin-top: 7rpx; color: #6F7489; font-size: 21rpx; line-height: 1.5; }
-.growth-goal { display: flex; align-items: center; justify-content: space-between; gap: 12rpx; margin-top: 17rpx; color: #5C62A0; font-size: 18rpx; font-weight: 600; }
+.growth-plus { padding: 3rpx 10rpx; border-radius: 99rpx; background: #4B47A4; color: #fff; font-size: 20rpx; font-weight: 700; }
+.growth-title { display: block; margin-top: 10rpx; color: #22243C; font-size: 32rpx; font-weight: 700; }
+.growth-message { display: block; margin-top: 7rpx; color: var(--muted); font-size: 22rpx; line-height: 1.5; }
+.growth-goal { display: flex; align-items: center; justify-content: space-between; gap: 12rpx; margin-top: 17rpx; color: #5C62A0; font-size: 20rpx; font-weight: 600; }
 .growth-goal > text:first-child { overflow: hidden; min-width: 0; flex: 1; text-overflow: ellipsis; white-space: nowrap; }
-.growth-goal-arrow { flex: none; color: #3E47C8; }
+.growth-goal-arrow { flex: none; color: var(--brand-primary-deep); }
 
 .stats-card { margin-top: 28rpx; padding: 30rpx; }
 .stats-heading { display: flex; align-items: flex-start; justify-content: space-between; gap: 20rpx; }
 .stats-heading > view { display: flex; flex-direction: column; }
 .stats-subtitle { margin-top: 2rpx; color: var(--muted); font-size: 20rpx; }
-.stats-hint { flex: none; margin-top: 8rpx; color: var(--brand-primary-deep); font-size: 21rpx; font-weight: 600; }
+.stats-hint { flex: none; margin-top: 8rpx; color: var(--brand-primary-deep); font-size: 22rpx; font-weight: 600; }
 .stats-grid { display: grid; grid-template-columns: repeat(3, 1fr); margin-top: 30rpx; }
 .stat-item { display: flex; align-items: center; border-right: 1rpx solid var(--line); flex-direction: column; }
 .stat-item:last-child { border-right: 0; }
 .stat-number { color: var(--ink); font-size: 44rpx; font-weight: 700; line-height: 1.2; }
 .stat-label { margin-top: 6rpx; color: var(--muted); font-size: 20rpx; }
 .stats-secondary { display: flex; flex-wrap: wrap; gap: 10rpx; margin-top: 28rpx; padding-top: 22rpx; border-top: 1rpx solid var(--line); }
-.stats-secondary text { padding: 7rpx 14rpx; border-radius: 99rpx; background: var(--surface-high); color: var(--muted); font-size: 18rpx; }
+.stats-secondary text { padding: 7rpx 14rpx; border-radius: 99rpx; background: var(--surface-high); color: var(--muted); font-size: 20rpx; }
 
 .menu-arrow { color: var(--outline); font-size: 42rpx; line-height: 1; }
 
@@ -53,6 +53,11 @@
 .menu-row { display: flex; min-height: 96rpx; align-items: center; gap: 18rpx; border-bottom: 1rpx solid var(--line); }
 .menu-row:last-child { border-bottom: 0; }
 .menu-icon { display: flex; width: 64rpx; height: 64rpx; align-items: center; justify-content: center; border-radius: 22rpx; background: var(--surface-high); }
-.menu-label { flex: 1; color: var(--ink); font-size: 27rpx; }
-.menu-hint { padding: 4rpx 10rpx; border-radius: 99rpx; background: var(--surface-high); color: var(--muted); font-size: 18rpx; }
+.menu-label { flex: 1; color: var(--ink); font-size: 28rpx; }
+.menu-hint { padding: 4rpx 10rpx; border-radius: 99rpx; background: var(--surface-high); color: var(--muted); font-size: 20rpx; }
 .version-label { display: block; margin-top: 36rpx; color: var(--muted); font-size: 20rpx; text-align: center; }
+
+/* 按压反馈过渡 */
+.membership-card,
+.growth-card { transition: opacity 160ms ease; }
+.menu-row { transition: background-color 160ms ease; }

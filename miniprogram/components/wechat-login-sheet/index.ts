@@ -10,20 +10,33 @@ Component({
     visible: {
       type: Boolean,
       value: false,
-      observer(visible: boolean) {
-        if (!visible) return
-        this.setData({
-          avatarUrl: '',
-          nickname: '',
-          saving: false,
-        })
-      },
     },
   },
   data: {
+    rendered: false,
+    closing: false,
+    closeTimerId: 0,
     avatarUrl: '',
     nickname: '',
     saving: false,
+  },
+  observers: {
+    visible(visible: boolean) {
+      if (this.data.closeTimerId) {
+        clearTimeout(this.data.closeTimerId)
+        this.setData({ closeTimerId: 0 })
+      }
+      if (visible) {
+        this.setData({ rendered: true, closing: false, avatarUrl: '', nickname: '', saving: false })
+        return
+      }
+      if (!this.data.rendered || this.data.closing) return
+      this.setData({ closing: true })
+      const timerId = setTimeout(() => {
+        this.setData({ closeTimerId: 0, rendered: false, closing: false })
+      }, 260) as unknown as number
+      this.setData({ closeTimerId: timerId })
+    },
   },
   methods: {
     chooseAvatar(event: WechatMiniprogram.CustomEvent<{ avatarUrl: string }>) {

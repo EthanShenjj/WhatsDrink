@@ -5,6 +5,7 @@
         wx:for="{{moodList}}"
         wx:key="value"
         class="mood-item {{value === item.value ? 'is-selected' : ''}}"
+        hover-class="press-scale"
         data-value="{{item.value}}"
         bindtap="onPick"
         role="button"

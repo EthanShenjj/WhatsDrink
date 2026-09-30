@@ -87,7 +87,7 @@
 }
 
 .lighting-shortcut.is-active {
-  background: linear-gradient(135deg, #5B76FF, #A88BFF);
+  background: linear-gradient(135deg, #5B76FF, var(--brand-lavender));
 }
 
 .lighting-shortcut.is-active local-icon { filter: brightness(0) invert(1); }
@@ -204,12 +204,28 @@
   gap: 12rpx;
 }
 
-.map-memory-cue {
+/* 底部浮层栈：子项自上而下排列,容器锚定在 tab 栏上方,间距 14rpx 互不遮挡。
+   右侧留 120rpx 让位给 map-controls 的悬浮按钮列。 */
+.map-bottom-stack {
   position: absolute;
-  left: 32rpx;
-  right: 170rpx;
-  bottom: calc(320rpx + env(safe-area-inset-bottom));
-  z-index: 32;
+  right: 24rpx;
+  bottom: calc(160rpx + env(safe-area-inset-bottom));
+  left: 24rpx;
+  z-index: 34;
+  display: flex;
+  flex-direction: column;
+  gap: 14rpx;
+  pointer-events: none;
+  transition: opacity 200ms ease, visibility 200ms ease;
+}
+
+.map-bottom-stack.is-covered {
+  opacity: 0;
+  visibility: hidden;
+}
+
+.map-memory-cue {
+  margin-right: 120rpx;
   display: flex;
   flex-direction: column;
   gap: 6rpx;
@@ -217,6 +233,7 @@
   border-radius: 22rpx;
   background: rgba(255, 255, 255, 0.96);
   box-shadow: var(--shadow-control);
+  pointer-events: auto;
 }
 
 .map-memory-cue-eyebrow {
@@ -227,16 +244,12 @@
 
 .map-memory-cue-title {
   color: var(--ink);
-  font-size: 23rpx;
+  font-size: 24rpx;
   line-height: 1.45;
 }
 
 .map-checkin-cta {
-  position: absolute;
-  right: 32rpx;
-  bottom: calc(438rpx + env(safe-area-inset-bottom));
-  left: 32rpx;
-  z-index: 34;
+  margin-right: 120rpx;
   display: flex;
   align-items: center;
   gap: 18rpx;
@@ -273,13 +286,13 @@
 
 .map-checkin-title {
   color: var(--ink);
-  font-size: 27rpx;
+  font-size: 28rpx;
   font-weight: 700;
 }
 
 .map-checkin-subtitle {
   color: var(--muted);
-  font-size: 21rpx;
+  font-size: 22rpx;
 }
 
 .map-checkin-arrow {
@@ -291,16 +304,12 @@
 
 /* Map empty overlay */
 .map-empty {
-  position: absolute;
-  right: 24rpx;
-  bottom: calc(160rpx + env(safe-area-inset-bottom));
-  left: 24rpx;
-  z-index: 25;
   display: flex;
   align-items: center;
   gap: 18rpx;
   min-height: 112rpx;
   padding: 18rpx 20rpx;
+  margin-right: 120rpx;
   border: 1rpx solid rgba(255, 255, 255, 0.9);
   border-radius: 28rpx;
   background: linear-gradient(135deg, rgba(255,255,255,.98), rgba(238,240,255,.96));
@@ -316,8 +325,8 @@
   gap: 4rpx;
 }
 
-.map-empty-title { color: var(--ink); font-size: 27rpx; font-weight: 700; }
-.map-empty-description { color: var(--muted); font-size: 21rpx; line-height: 1.4; }
+.map-empty-title { color: var(--ink); font-size: 28rpx; font-weight: 700; }
+.map-empty-description { color: var(--muted); font-size: 22rpx; line-height: 1.4; }
 
 .map-empty-action {
   display: flex;
@@ -376,16 +385,14 @@
 }
 
 .unplaced-panel {
-  position: fixed;
-  z-index: 30;
-  left: 24rpx;
-  bottom: calc(190rpx + env(safe-area-inset-bottom));
+  align-self: flex-start;
   width: 420rpx;
   max-height: 360rpx;
   padding: 16rpx;
   border-radius: 26rpx;
   background: rgba(255, 255, 255, 0.96);
   box-shadow: var(--shadow-card);
+  pointer-events: auto;
 }
 
 .unplaced-title {
@@ -501,7 +508,7 @@
 
 .checkin-location-status {
   color: #2f875f;
-  font-size: 23rpx;
+  font-size: 24rpx;
   font-weight: 600;
 }
 
@@ -525,19 +532,19 @@
 
 .checkin-place-eyebrow {
   color: var(--brand-primary-deep);
-  font-size: 21rpx;
+  font-size: 22rpx;
   font-weight: 700;
 }
 
 .checkin-place-name {
   color: var(--ink);
-  font-size: 31rpx;
+  font-size: 32rpx;
   font-weight: 700;
 }
 
 .checkin-place-address {
   color: var(--muted);
-  font-size: 23rpx;
+  font-size: 24rpx;
   line-height: 1.45;
 }
 
@@ -568,7 +575,7 @@
   margin-top: 10rpx;
   background: transparent;
   color: var(--muted);
-  font-size: 25rpx;
+  font-size: 26rpx;
 }
 
 .checkin-cancel::after { border: 0; }
@@ -592,3 +599,42 @@
     opacity: 1;
   }
 }
+
+/* 弹层退场：mask 淡出 + 面板下滑 */
+.detail-sheet-layer.is-closing .detail-sheet-mask,
+.checkin-sheet-layer.is-closing .checkin-sheet-mask {
+  animation: detail-mask-out 200ms ease both;
+}
+
+.detail-sheet-layer.is-closing .detail-sheet,
+.checkin-sheet-layer.is-closing .checkin-sheet {
+  animation: detail-sheet-out 240ms cubic-bezier(0.5, 0, 0.75, 0.4) both;
+}
+
+@keyframes detail-mask-out {
+  from {
+    opacity: 1;
+  }
+  to {
+    opacity: 0;
+  }
+}
+
+@keyframes detail-sheet-out {
+  from {
+    transform: translateY(0);
+    opacity: 1;
+  }
+  to {
+    transform: translateY(100%);
+    opacity: 0;
+  }
+}
+
+/* 按压反馈过渡 */
+.mode-pill,
+.lighting-shortcut,
+.map-empty-action { transition: transform 160ms ease; }
+.map-checkin-cta,
+.map-memory-cue,
+.active-filter-chip { transition: opacity 160ms ease; }

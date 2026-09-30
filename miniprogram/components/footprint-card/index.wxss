@@ -64,7 +64,7 @@
   border-radius: 99rpx;
   background: rgba(23, 24, 43, 0.62);
   color: #fff;
-  font-size: 18rpx;
+  font-size: 20rpx;
   font-weight: 600;
   letter-spacing: 1rpx;
 }
@@ -175,3 +175,9 @@
   -webkit-line-clamp: 2;
   -webkit-box-orient: vertical;
 }
+
+/* 按压反馈与图片淡入（组件样式隔离，本地定义） */
+.press-dim { opacity: 0.78; }
+.fp-card { transition: opacity 160ms ease; }
+.fp-thumb-img { opacity: 0; transition: opacity 280ms ease; }
+.fp-thumb-img.is-loaded { opacity: 1; }

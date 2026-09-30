@@ -9,6 +9,8 @@
         wx:for="{{markerOptions}}"
         wx:key="value"
         class="settings-option {{settings.markerStyle === item.value ? 'is-active' : ''}}"
+        hover-class="press-dim"
+        role="button"
         data-value="{{item.value}}"
         bindtap="selectMarker"
       >
@@ -26,6 +28,8 @@
         wx:for="{{themeOptions}}"
         wx:key="value"
         class="theme-row {{settings.theme === item.value ? 'is-active' : ''}}"
+        hover-class="press-dim"
+        role="button"
         data-value="{{item.value}}"
         bindtap="selectTheme"
       >

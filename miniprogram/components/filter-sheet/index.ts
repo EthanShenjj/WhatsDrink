@@ -13,9 +13,6 @@ Component({
     visible: {
       type: Boolean,
       value: false,
-      observer(visible: boolean) {
-        if (visible) this.syncFromCurrent()
-      },
     },
     currentFilter: {
       type: Object,
@@ -31,6 +28,9 @@ Component({
     },
   },
   data: {
+    rendered: false,
+    closing: false,
+    closeTimerId: 0,
     localFilter: {} as FilterState,
     provinces: ALL_PROVINCES,
     cities: [] as string[],
@@ -41,6 +41,23 @@ Component({
     today: todayStr(),
   },
   observers: {
+    visible(visible: boolean) {
+      if (this.data.closeTimerId) {
+        clearTimeout(this.data.closeTimerId)
+        this.setData({ closeTimerId: 0 })
+      }
+      if (visible) {
+        this.setData({ rendered: true, closing: false })
+        this.syncFromCurrent()
+        return
+      }
+      if (!this.data.rendered || this.data.closing) return
+      this.setData({ closing: true })
+      const timerId = setTimeout(() => {
+        this.setData({ closeTimerId: 0, rendered: false, closing: false })
+      }, 260) as unknown as number
+      this.setData({ closeTimerId: timerId })
+    },
     moods(moods: string[]) {
       const opts =
         moods && moods.length
@@ -129,6 +146,7 @@ Component({
       })
     },
     apply() {
+      wx.vibrateShort({ type: 'light', fail: () => {} })
       this.triggerEvent('apply', { filter: this.data.localFilter })
     },
     reset() {

@@ -39,11 +39,12 @@ Component({
   },
   data: {
     derived: emptyDerived,
+    imgLoaded: false,
   },
   observers: {
     footprint(fp: Footprint | null) {
       if (!fp) {
-        this.setData({ derived: emptyDerived })
+        this.setData({ derived: emptyDerived, imgLoaded: false })
         return
       }
       const photo = fp.photos && fp.photos.length > 0 ? fp.photos[0] : ''
@@ -56,6 +57,7 @@ Component({
         .filter(Boolean)
         .join(' · ')
       this.setData({
+        imgLoaded: false,
         derived: {
           photo,
           dateLabel: formatVisitDate(fp.visitDate),
@@ -71,6 +73,12 @@ Component({
     },
   },
   methods: {
+    onImgLoad() {
+      this.setData({ imgLoaded: true })
+    },
+    onImgError() {
+      this.setData({ imgLoaded: true, 'derived.photo': '' })
+    },
     onTap() {
       const fp = this.properties.footprint as Footprint | undefined
       if (!fp?.id) return

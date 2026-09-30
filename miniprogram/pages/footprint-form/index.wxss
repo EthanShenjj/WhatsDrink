@@ -2,11 +2,6 @@
   padding-bottom: calc(220rpx + env(safe-area-inset-bottom));
 }
 
-.form-loading {
-  padding: 120rpx 0;
-  text-align: center;
-}
-
 .form-checkin-banner {
   display: flex;
   align-items: center;
@@ -45,7 +40,7 @@
 
 .form-checkin-banner-hint {
   color: var(--brand-primary-deep);
-  font-size: 23rpx;
+  font-size: 24rpx;
 }
 
 .form-wishlist-banner {
@@ -174,15 +169,15 @@
 
 .form-address-clear {
   flex-shrink: 0;
-  width: 40rpx;
-  height: 40rpx;
+  width: 56rpx;
+  height: 56rpx;
   display: flex;
   align-items: center;
   justify-content: center;
   border-radius: 50%;
   background: rgba(23, 24, 43, 0.08);
   color: var(--muted);
-  font-size: 24rpx;
+  font-size: 28rpx;
 }
 
 .form-date-shortcuts {
@@ -567,3 +562,21 @@
 .form-success-mask { position: absolute; inset: 0; background: rgba(23,24,43,.46); backdrop-filter: blur(8rpx); }
 .form-success-panel { position: relative; width: 100%; animation: form-success-in 260ms cubic-bezier(.2,.85,.3,1.15) both; }
 @keyframes form-success-in { from { opacity: 0; transform: translateY(28rpx) scale(.96); } to { opacity: 1; transform: translateY(0) scale(1); } }
+
+/* 加载骨架屏 */
+.loading-block { display: block; }
+
+/* 成功层退场 */
+.form-success-layer.is-closing .form-success-mask { animation: form-fade-out 200ms ease both; }
+.form-success-layer.is-closing .form-success-panel { animation: form-success-out 240ms cubic-bezier(.5, 0, .75, .4) both; }
+@keyframes form-success-out { from { opacity: 1; transform: translateY(0) scale(1); } to { opacity: 0; transform: translateY(24rpx) scale(.96); } }
+@keyframes form-fade-out { from { opacity: 1; } to { opacity: 0; } }
+
+/* 按压反馈过渡 */
+.form-date-picker,
+.form-address-bar { transition: opacity 160ms ease; }
+.form-optional-toggle { transition: background-color 160ms ease; border-radius: var(--radius-card); }
+.form-date-chip,
+.form-category-chip,
+.form-marker-color-swatch,
+.form-marker-emoji-swatch { transition: transform 160ms ease, background-color 160ms ease, border-color 160ms ease; }

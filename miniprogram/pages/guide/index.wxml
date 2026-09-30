@@ -1,6 +1,6 @@
 <view class="page-shell guide-page">
   <view class="guide-header">
-    <text class="eyebrow">WISHLIST &amp; PLANS</text>
+    <text class="eyebrow">WISHLIST & PLANS</text>
     <view class="guide-title-row">
       <text class="display-title">攻略</text>
       <button class="guide-plan-button" bindtap="onGeneratePlan">
@@ -52,9 +52,7 @@
       bind:action="onAddWishlist"
     ></empty-state>
 
-    <view wx:else class="section-loading">
-      <text class="muted">加载中…</text>
-    </view>
+    <view wx:else class="loading-block"><text>加载中…</text></view>
   </view>
 
   <view wx:if="{{fulfilledWishes.length}}" class="section">
@@ -78,7 +76,8 @@
       <view
         wx:for="{{travelPlans}}"
         wx:key="id"
-        class="plan-card card"
+        class="plan-card card" role="button"
+        hover-class="press-dim"
         data-id="{{item.id}}"
         bindtap="onTravelPlanTap"
       >
@@ -107,9 +106,7 @@
       bind:action="onGeneratePlan"
     ></empty-state>
 
-    <view wx:else class="section-loading">
-      <text class="muted">加载中…</text>
-    </view>
+    <view wx:else class="loading-block"><text>加载中…</text></view>
   </view>
 
   <privacy-popup></privacy-popup>

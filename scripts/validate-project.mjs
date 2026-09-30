@@ -30,6 +30,7 @@ const readJson = (file) => {
 }
 
 const appJson = readJson(path.join(miniprogram, 'app.json'))
+const cloudBaseConfig = readJson(path.join(root, 'cloudbaserc.json'))
 readJson(path.join(root, 'project.config.json'))
 readJson(path.join(miniprogram, 'sitemap.json'))
 
@@ -74,6 +75,9 @@ const requiredCloudFunctions = [
 ]
 
 for (const name of requiredCloudFunctions) {
+  if (!cloudBaseConfig?.functions?.some((entry) => entry.name === name)) {
+    errors.push(`云函数未列入 cloudbaserc.json：${name}`)
+  }
   for (const fileName of ['index.js', 'package.json']) {
     const file = path.join(root, 'cloudfunctions', name, fileName)
     if (!fs.existsSync(file)) errors.push(`缺少云函数文件：${path.relative(root, file)}`)

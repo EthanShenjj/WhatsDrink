@@ -53,6 +53,7 @@
     "chooseLocation"
   ],
   "style": "v2",
+  "darkmode": false,
   "lazyCodeLoading": "requiredComponents",
   "sitemapLocation": "sitemap.json"
 }

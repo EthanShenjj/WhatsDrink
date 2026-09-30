@@ -32,6 +32,7 @@
       wx:for="{{products}}"
       wx:key="id"
       class="product-card {{selectedProductId === item.id ? 'is-selected' : ''}}"
+      hover-class="press-dim"
       data-id="{{item.id}}"
       bindtap="onProductTap"
       role="radio"

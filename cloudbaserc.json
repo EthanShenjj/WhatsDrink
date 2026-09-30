@@ -60,6 +60,24 @@
           "config": "0 0 9 * * * *"
         }
       ]
+    },
+    {
+      "name": "paymentMutation",
+      "type": "Event",
+      "runtime": "Nodejs20.19",
+      "handler": "index.main",
+      "timeout": 60,
+      "memorySize": 256,
+      "installDependency": true
+    },
+    {
+      "name": "paymentNotify",
+      "type": "Event",
+      "runtime": "Nodejs20.19",
+      "handler": "index.main",
+      "timeout": 60,
+      "memorySize": 256,
+      "installDependency": true
     }
   ]
 }

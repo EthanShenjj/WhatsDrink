@@ -10,9 +10,8 @@
   padding: 8rpx 16rpx;
   border: 1rpx solid rgba(255,255,255,.9);
   border-radius: 36rpx;
-  background: rgba(255,255,255,.94);
+  background: #FFFFFF;
   box-shadow: 0 18rpx 54rpx rgba(49,57,121,.2);
-  backdrop-filter: blur(24rpx);
 }
 
 .tab-item {
@@ -46,16 +45,16 @@
 .tab-label {
   overflow: hidden;
   max-width: 100%;
-  color: #6F7489;
-  font-size: 21rpx;
+  color: var(--muted);
+  font-size: 22rpx;
   font-weight: 600;
   line-height: 32rpx;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
 
-.is-selected .tab-label { color: #3E47C8; }
-.tab-selected-indicator { position: absolute; bottom: 2rpx; width: 24rpx; height: 5rpx; border-radius: 99rpx; background: #5B6CFF; }
+.is-selected .tab-label { color: var(--brand-primary-deep); }
+.tab-selected-indicator { position: absolute; bottom: 2rpx; width: 24rpx; height: 5rpx; border-radius: 99rpx; background: var(--brand-primary); }
 
 .tab-item-add { transform: translateY(-10rpx); }
 .tab-item-add:active { transform: translateY(-10rpx) scale(.95); }
@@ -64,9 +63,154 @@
   height: 82rpx;
   border: 5rpx solid rgba(255,255,255,.96);
   border-radius: 41rpx;
-  background: linear-gradient(135deg, #5B76FF, #A88BFF);
+  background-color: #5B6CFF;
+  background-image: linear-gradient(135deg, #5B76FF, #A88BFF);
   box-shadow: 0 8rpx 22rpx rgba(91,108,255,.24);
 }
-.tab-add-pin { width: 42rpx; height: 42rpx; filter: brightness(0) invert(1); }
+.tab-add-pin { width: 42rpx; height: 42rpx; }
 .tab-add-plus { position: absolute; right: 14rpx; bottom: 14rpx; width: 20rpx; height: 20rpx; }
 .tab-item-add .tab-label { margin-top: 1rpx; color: #4A4F73; }
+
+/* 中央「+」自绘弹层,与 filter-sheet 同一设计语言 */
+.tab-sheet-layer {
+  position: fixed;
+  z-index: 300;
+  inset: 0;
+}
+
+.tab-sheet-mask {
+  position: absolute;
+  inset: 0;
+  background: rgba(28, 27, 45, 0.46);
+  animation: tab-mask-in 180ms ease-out both;
+}
+
+.tab-sheet {
+  position: absolute;
+  right: 0;
+  bottom: 0;
+  left: 0;
+  padding: 16rpx 32rpx 0;
+  border-radius: 40rpx 40rpx 0 0;
+  background: var(--surface);
+  box-shadow: 0 -24rpx 80rpx rgba(28, 27, 45, 0.2);
+  animation: tab-sheet-in 240ms cubic-bezier(0.22, 0.8, 0.35, 1) both;
+}
+
+.tab-sheet-handle {
+  width: 64rpx;
+  height: 7rpx;
+  margin: 0 auto 24rpx;
+  border-radius: 999rpx;
+  background: var(--surface-highest);
+}
+
+.tab-sheet-option {
+  display: flex;
+  align-items: center;
+  gap: 20rpx;
+  min-height: 120rpx;
+  padding: 16rpx 8rpx;
+  border-bottom: 1rpx solid var(--line);
+}
+
+.tab-sheet-option:active {
+  background: var(--surface-soft);
+}
+
+.tab-sheet-icon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 72rpx;
+  height: 72rpx;
+  border-radius: 24rpx;
+  background: var(--brand-surface-tint);
+  color: var(--brand-primary-deep);
+}
+
+.tab-sheet-icon.is-wish {
+  background: var(--amber-soft);
+  color: var(--amber-deep);
+}
+
+.tab-sheet-copy {
+  display: flex;
+  min-width: 0;
+  flex: 1;
+  flex-direction: column;
+  gap: 4rpx;
+}
+
+.tab-sheet-title {
+  color: var(--ink);
+  font-size: 28rpx;
+  font-weight: 600;
+}
+
+.tab-sheet-sub {
+  color: var(--muted);
+  font-size: 22rpx;
+}
+
+.tab-sheet-arrow {
+  color: var(--outline);
+  font-size: 40rpx;
+  line-height: 1;
+}
+
+.tab-sheet-cancel {
+  margin-top: 16rpx;
+  min-height: var(--control-height);
+  border-radius: var(--radius-sm);
+  background: transparent;
+  color: var(--muted);
+  font-size: 26rpx;
+}
+
+.tab-sheet-cancel::after {
+  border: 0;
+}
+
+.tab-sheet-safe {
+  height: env(safe-area-inset-bottom);
+}
+
+@keyframes tab-mask-in {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+@keyframes tab-sheet-in {
+  from { transform: translateY(48rpx); opacity: 0; }
+  to { transform: translateY(0); opacity: 1; }
+}
+
+/* 弹层退场 */
+.tab-sheet-layer.is-closing .tab-sheet-mask {
+  animation: tab-mask-out 200ms ease both;
+}
+
+.tab-sheet-layer.is-closing .tab-sheet {
+  animation: tab-sheet-out 260ms cubic-bezier(0.5, 0, 0.75, 0.4) both;
+}
+
+@keyframes tab-mask-out {
+  from { opacity: 1; }
+  to { opacity: 0; }
+}
+
+@keyframes tab-sheet-out {
+  from { transform: translateY(0); opacity: 1; }
+  to { transform: translateY(100%); opacity: 0; }
+}
+
+/* 选中指示条弹入 */
+.tab-selected-indicator {
+  animation: tab-indicator-in 240ms cubic-bezier(0.22, 0.8, 0.35, 1) both;
+}
+
+@keyframes tab-indicator-in {
+  from { transform: scaleX(0.2); opacity: 0; }
+  to { transform: scaleX(1); opacity: 1; }
+}

@@ -49,3 +49,7 @@
   border: 3rpx solid #fff;
   box-shadow: 0 0 0 1rpx rgba(91,108,255,.28);
 }
+
+/* 按压反馈（组件样式隔离，本地定义） */
+.press-scale { transform: scale(0.94); }
+.mc-button { transition: transform 160ms ease; }

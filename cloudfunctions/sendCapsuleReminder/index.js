@@ -22,21 +22,31 @@ const formatDateCN = (value) => {
   return `${Number(match[1])}年${Number(match[2])}月${Number(match[3])}日`
 }
 
+const templateFields = () => ({
+  title: String(process.env.CAPSULE_TITLE_FIELD || 'thing1').trim(),
+  date: String(process.env.CAPSULE_DATE_FIELD || 'time2').trim(),
+  note: String(process.env.CAPSULE_NOTE_FIELD || 'thing3').trim(),
+})
+
 const sendSubscription = async (capsule) => {
-  if (!capsule.subscriptionId || !process.env.CAPSULE_TEMPLATE_ID) return false
-  const templateId = process.env.CAPSULE_TEMPLATE_ID
-  const page = process.env.CAPSULE_PAGE || 'pages/time/index'
+  const templateId = String(process.env.CAPSULE_TEMPLATE_ID || '').trim()
+  if (!templateId || capsule.subscriptionId !== templateId) {
+    console.warn('[sendCapsuleReminder] 胶囊授权模板与发送模板不一致', capsule._id)
+    return false
+  }
+  const page = process.env.CAPSULE_PAGE || 'pages/time-capsule/index'
   // 体验版/开发版调试提醒时，在云函数环境变量里把 CAPSULE_MINIPROGRAM_STATE 设为 developer 或 trial
   const miniprogramState = process.env.CAPSULE_MINIPROGRAM_STATE
+  const fields = templateFields()
   try {
     await cloud.openapi.subscribeMessage.send({
       touser: capsule._openid,
       templateId,
       page,
       data: {
-        thing1: { value: String(capsule.title || '时间胶囊').slice(0, 20) },
-        time2: { value: formatDateCN(capsule.unlockDate || todayString()) },
-        thing3: { value: '你的时间胶囊已解锁，快来看看吧' },
+        [fields.title]: { value: String(capsule.title || '时间胶囊').slice(0, 20) },
+        [fields.date]: { value: formatDateCN(capsule.unlockDate || todayString()) },
+        [fields.note]: { value: '你的时间胶囊已解锁，快来看看吧' },
       },
       ...(miniprogramState ? { miniprogramState } : {}),
     })
@@ -53,6 +63,17 @@ const sendSubscription = async (capsule) => {
   }
 }
 
+const recordDelivery = async (capsule) => {
+  const sent = await sendSubscription(capsule)
+  const now = Date.now()
+  await capsules.doc(capsule._id).update({
+    data: sent
+      ? { reminderSentAt: now, updatedAt: now }
+      : { reminderFailedAt: now, updatedAt: now },
+  })
+  return sent
+}
+
 exports.main = async () => {
   try {
     const { OPENID } = cloud.getWXContext()
@@ -61,7 +82,8 @@ exports.main = async () => {
     let unlocked = 0
     let notified = 0
     let failed = 0
-    // Re-query from the first page because claimed rows immediately leave the locked result set.
+    // Unlocking and notification are separate: opening the capsule page may
+    // unlock a due capsule before this scheduled function runs.
     while (true) {
       const response = await capsules
         .where({ unlockDate: db.command.lte(today), status: 'locked' })
@@ -75,18 +97,87 @@ exports.main = async () => {
           data: {
             status: 'unlocked',
             unlockedAt: now,
-            reminderAttemptedAt: now,
             updatedAt: now,
           },
         })
         if (!claim.stats || claim.stats.updated !== 1) continue
         unlocked++
-        const sent = await sendSubscription(capsule)
-        await capsules.doc(capsule._id).update({
-          data: sent
-            ? { reminderSentAt: Date.now(), updatedAt: Date.now() }
-            : { reminderFailedAt: Date.now(), updatedAt: Date.now() },
+      }
+    }
+
+    // Keep accepted subscriptions queued until the matching server template is configured.
+    const templateId = String(process.env.CAPSULE_TEMPLATE_ID || '').trim()
+    if (!templateId) {
+      return { ok: true, data: { unlocked, notified, failed } }
+    }
+    const fields = Object.values(templateFields())
+    if (fields.some((field) => !field) || new Set(fields).size !== fields.length) {
+      throw new Error('订阅模板字段配置不合法')
+    }
+    // Claimed rows leave this result set, so querying from the first page
+    // avoids skipping records as reminders are processed.
+    while (true) {
+      const response = await capsules
+        .where({
+          unlockDate: db.command.lte(today),
+          subscriptionId: templateId,
+          reminderAttemptedAt: db.command.exists(false),
         })
+        .limit(100)
+        .get()
+      const page = response.data
+      if (!page.length) break
+      for (const capsule of page) {
+        const now = Date.now()
+        const claim = await capsules.where({
+          _id: capsule._id,
+          reminderAttemptedAt: db.command.exists(false),
+        }).update({
+          data: { reminderAttemptedAt: now, reminderAttempts: 1, updatedAt: now },
+        })
+        if (!claim.stats || claim.stats.updated !== 1) continue
+        const sent = await recordDelivery(capsule)
+        if (sent) notified++
+        else failed++
+      }
+    }
+
+    // A send can fail transiently or the function can stop after claiming a
+    // reminder. Retry on a later run, never more than three total attempts.
+    const retryBefore = Date.now() - 12 * 60 * 60 * 1000
+    while (true) {
+      const response = await capsules
+        .where({
+          unlockDate: db.command.lte(today),
+          subscriptionId: templateId,
+          reminderAttemptedAt: db.command.lte(retryBefore),
+          reminderSentAt: db.command.exists(false),
+          reminderTerminalAt: db.command.exists(false),
+        })
+        .limit(100)
+        .get()
+      const page = response.data
+      if (!page.length) break
+      for (const capsule of page) {
+        const attempts = Number(capsule.reminderAttempts) || 1
+        const now = Date.now()
+        const condition = {
+          _id: capsule._id,
+          reminderAttemptedAt: db.command.lte(retryBefore),
+          reminderSentAt: db.command.exists(false),
+          reminderTerminalAt: db.command.exists(false),
+        }
+        if (attempts >= 3) {
+          await capsules.where(condition).update({
+            data: { reminderTerminalAt: now, updatedAt: now },
+          })
+          continue
+        }
+        const claim = await capsules.where(condition).update({
+          data: { reminderAttemptedAt: now, reminderAttempts: attempts + 1, updatedAt: now },
+        })
+        if (!claim.stats || claim.stats.updated !== 1) continue
+        const sent = await recordDelivery(capsule)
         if (sent) notified++
         else failed++
       }

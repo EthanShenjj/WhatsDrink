@@ -11,7 +11,7 @@
   >
     <view class="tab-icon-wrap">
       <block wx:if="{{index === 2}}">
-        <image class="tab-add-pin" src="/assets/icons/location.svg" mode="aspectFit" aria-hidden="true" />
+        <image class="tab-add-pin" src="/assets/icons/location-white.svg" mode="aspectFit" aria-hidden="true" />
         <image class="tab-add-plus" src="/assets/icons/add-white.svg" mode="aspectFit" aria-hidden="true" />
       </block>
       <image
@@ -24,5 +24,30 @@
     </view>
     <text class="tab-label">{{item.text}}</text>
     <view wx:if="{{selected === index && index !== 2}}" class="tab-selected-indicator"></view>
+  </view>
+</view>
+
+<view wx:if="{{sheetVisible || sheetClosing}}" class="tab-sheet-layer {{sheetClosing ? 'is-closing' : ''}}" catchtouchmove="noop">
+  <view class="tab-sheet-mask" bindtap="closeSheet"></view>
+  <view class="tab-sheet" role="dialog" aria-label="添加记录">
+    <view class="tab-sheet-handle"></view>
+    <view class="tab-sheet-option" data-index="0" bindtap="chooseAction" role="button" aria-label="记录足迹">
+      <view class="tab-sheet-icon"><local-icon name="location" size="34rpx" /></view>
+      <view class="tab-sheet-copy">
+        <text class="tab-sheet-title">记录足迹</text>
+        <text class="tab-sheet-sub">到访打卡或手动记录一个地方</text>
+      </view>
+      <text class="tab-sheet-arrow">›</text>
+    </view>
+    <view class="tab-sheet-option" data-index="1" bindtap="chooseAction" role="button" aria-label="添加想去">
+      <view class="tab-sheet-icon is-wish"><local-icon name="heart" size="34rpx" /></view>
+      <view class="tab-sheet-copy">
+        <text class="tab-sheet-title">添加想去</text>
+        <text class="tab-sheet-sub">收藏想去的地点，等待实现</text>
+      </view>
+      <text class="tab-sheet-arrow">›</text>
+    </view>
+    <button class="tab-sheet-cancel" bindtap="closeSheet">取消</button>
+    <view class="tab-sheet-safe"></view>
   </view>
 </view>

@@ -18,6 +18,7 @@
       class="photo-remove"
       data-index="{{item.index}}"
       catchtap="onRemove"
+      hover-class="press-scale"
       role="button"
       aria-label="删除照片"
     >
@@ -29,6 +30,7 @@
     wx:if="{{showAdd}}"
     class="photo-add"
     bindtap="onAdd"
+    hover-class="press-dim"
     role="button"
     aria-label="{{addLabel}}"
   >

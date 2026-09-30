@@ -12,6 +12,7 @@
       wx:for="{{cellViews}}"
       wx:key="key"
       class="cal-cell {{item.inMonth ? 'in-month' : 'out-month'}} {{item.isToday ? 'is-today' : ''}} {{item.hasFootprint ? 'has-fp' : ''}} {{item.isSelected ? 'is-selected' : ''}}"
+      hover-class="press-scale"
       data-key="{{item.key}}"
       data-inmonth="{{item.inMonth}}"
       bindtap="onSelect"

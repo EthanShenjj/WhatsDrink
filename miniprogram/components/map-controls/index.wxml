@@ -3,6 +3,7 @@
     wx:for="{{buttons}}"
     wx:key="key"
     class="mc-button {{item.key === 'filter' && filterActive ? 'has-badge' : ''}}"
+    hover-class="press-scale"
     data-event="{{item.event}}"
     bindtap="onTap"
     role="button"

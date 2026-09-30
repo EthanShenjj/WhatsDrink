@@ -28,16 +28,16 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  width: 40rpx;
-  height: 40rpx;
+  width: 56rpx;
+  height: 56rpx;
   border-radius: 50%;
   background: rgba(23, 24, 43, 0.64);
   backdrop-filter: blur(4rpx);
 }
 
 .photo-remove-icon {
-  width: 22rpx;
-  height: 22rpx;
+  width: 26rpx;
+  height: 26rpx;
 }
 
 .photo-add {
@@ -87,3 +87,9 @@
   background: var(--surface-highest);
   opacity: 0.8;
 }
+
+/* 按压反馈与图片淡入（组件样式隔离，本地定义） */
+.press-dim { opacity: 0.78; }
+.press-scale { transform: scale(0.9); }
+.photo-add { transition: opacity 160ms ease; }
+.photo-remove { transition: transform 160ms ease; }

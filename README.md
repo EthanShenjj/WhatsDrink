@@ -42,11 +42,11 @@
 
 1. 将 [project.config.json](project.config.json) 的 `appid` 换为真实 AppID。
 2. 创建云开发环境，把环境 ID 写入 `miniprogram/services/config.ts` 的 `CLOUD_ENV_ID`。
-3. 按[数据库结构](docs/cloudbase-database-schema.md)创建五个集合并配置索引。
+3. 按[数据库结构](docs/cloudbase-database-schema.md)创建所需集合并配置索引。
 4. 在开发者工具中分别上传并部署 `cloudfunctions/` 下九个云函数，选择"云端安装依赖"；同时上传 `sendCapsuleReminder` 的触发器。虚拟支付额外配置见[虚拟支付部署说明](docs/virtual-payment-setup.md)。
 5. 按 [CloudBase 安全规则](docs/cloudbase-security-rules.md) 配置数据库、云存储和云函数权限。
 6. 在小程序管理后台填写用户隐私保护指引，说明位置、相册/相机和云存储用途。
-7. 如需时光胶囊订阅消息，在微信公众平台选择模板，把模板 ID 写入 `miniprogram/services/config.ts` 的 `CAPSULE_TEMPLATE_ID`，并给 `sendCapsuleReminder` 配置 `CAPSULE_TEMPLATE_ID` 环境变量。
+7. 如需时光胶囊订阅消息，在微信公众平台选择已审核模板，把同一个模板 ID 写入 `miniprogram/services/config.ts` 的 `CAPSULE_TEMPLATE_ID` 和 `sendCapsuleReminder` 的 `CAPSULE_TEMPLATE_ID` 环境变量。模板字段默认是标题 `thing1`、日期 `time2`、提示 `thing3`；若后台模板字段不同，在云函数中分别配置 `CAPSULE_TITLE_FIELD`、`CAPSULE_DATE_FIELD`、`CAPSULE_NOTE_FIELD`。部署后用真机授权一条测试胶囊，并核对定时触发器的时区和发送日志。
 
 ## 当前验收边界
 

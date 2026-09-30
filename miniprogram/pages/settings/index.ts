@@ -8,9 +8,9 @@ const MARKER_OPTIONS: Array<{ value: MapSettings['markerStyle']; label: string; 
 ]
 
 const THEME_OPTIONS: Array<{ value: MapSettings['theme']; label: string; hint: string }> = [
-  { value: 'clean', label: '清爽地图', hint: '干净、适合日常浏览' },
-  { value: 'journal', label: '手账地图', hint: '暖色纸张与回忆感' },
-  { value: 'night', label: '夜间地图', hint: '低亮度环境更舒适' },
+  { value: 'clean', label: '清爽地图', hint: '干净、适合日常浏览（仅影响地图配色）' },
+  { value: 'journal', label: '手账地图', hint: '暖色纸张与回忆感（仅影响地图配色）' },
+  { value: 'night', label: '夜间地图', hint: '低亮度环境更舒适（仅影响地图配色）' },
 ]
 
 Page({

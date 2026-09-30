@@ -56,7 +56,7 @@
 |---|---|---|
 | `PAYMENT_MESSAGE_TOKEN` | 是 | 自定义随机 Token，必须与 MP 消息推送配置一致 |
 
-为该云函数开通 HTTP 访问，云函数调用权限设为 `false`，仅允许 HTTP 入口。代码会使用 Token、timestamp、nonce 校验微信消息签名。
+该函数按事件云函数部署（`cloudbaserc.json` 中为 `type: "Event"`），再为它添加 HTTP 网关触发；不要按需要 `scf_bootstrap` 的独立 HTTP Web 服务部署。云函数调用权限设为 `false`，仅允许 HTTP 入口。代码会使用 Token、timestamp、nonce 校验微信消息签名。
 
 在“小程序后台 → 开发与服务 → 开发管理 → 消息推送”中：
 
@@ -84,4 +84,3 @@
 - [ ] 支付页、购买记录页、后台订单金额一致。
 
 本地开发环境不会伪造支付成功或免费发放正式权益；未连接已配置的云环境时，购买按钮会给出明确错误。
-
