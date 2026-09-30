@@ -63,6 +63,7 @@ const FUNCTIONS = [
     envKeys: [
       'VIRTUAL_PAY_OFFER_ID',
       'VIRTUAL_PAY_APP_KEY',
+      'VIRTUAL_PAY_ENV',
       'WECHAT_APP_ID',
       'WECHAT_APP_SECRET',
       'VIRTUAL_PAY_PRODUCT_PLUS_31D',

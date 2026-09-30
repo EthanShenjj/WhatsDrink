@@ -35,6 +35,10 @@ const PRODUCTS = {
 const hmac = (key, value) =>
   crypto.createHmac('sha256', key).update(value, 'utf8').digest('hex')
 
+// 虚拟支付环境：0 现网（默认）、1 沙箱。签名里的 env 必须与所用 AppKey 的环境一致，
+// 切换时需同步替换 .env.payment 里的 VIRTUAL_PAY_APP_KEY。
+const virtualPayEnv = () => (String(process.env.VIRTUAL_PAY_ENV || '').trim() === '1' ? 1 : 0)
+
 let accessTokenCache = { value: '', expiresAt: 0 }
 
 const postJson = (url, body) => new Promise((resolve, reject) => {
@@ -233,7 +237,7 @@ const reconcileOrder = async (order) => {
   const accessToken = await getAccessToken()
   const body = JSON.stringify({
     openid: order._openid,
-    env: 0,
+    env: virtualPayEnv(),
     order_id: order.outTradeNo,
   })
   const paySig = hmac(appKey, `/xpay/query_order&${body}`)
@@ -384,7 +388,7 @@ exports.main = async (event) => {
       const signData = JSON.stringify({
         offerId,
         buyQuantity: 1,
-        env: 0,
+        env: virtualPayEnv(),
         currencyType: 'CNY',
         productId: product.productId,
         goodsPrice: product.priceFen,

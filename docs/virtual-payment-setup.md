@@ -44,7 +44,8 @@ npm run deploy:payment
 | 环境变量 | 必填 | 说明 |
 |---|---|---|
 | `VIRTUAL_PAY_OFFER_ID` | 是 | 虚拟支付 OfferID |
-| `VIRTUAL_PAY_APP_KEY` | 是 | 虚拟支付现网 AppKey |
+| `VIRTUAL_PAY_APP_KEY` | 是 | 虚拟支付 AppKey，必须与所选环境（现网/沙箱）匹配 |
+| `VIRTUAL_PAY_ENV` | 否 | 支付环境：`0` 现网（默认）、`1` 沙箱。切换时 `VIRTUAL_PAY_APP_KEY` 要同步换成对应环境的 AppKey，否则签名校验失败 |
 | `WECHAT_APP_ID` | 是 | 小程序 AppID，用于查单兜底 |
 | `WECHAT_APP_SECRET` | 是 | 小程序 AppSecret，用于查单兜底 |
 | `VIRTUAL_PAY_PRODUCT_PLUS_31D` | 否 | 31 天卡后台道具 ID，默认 `plus_31d_v1` |
@@ -53,6 +54,8 @@ npm run deploy:payment
 | `MEMBERSHIP_TEMPLATE_ID` | 否 | 会员到期提醒订阅模板 ID，与 `sendMembershipReminder` 一致；不配则提醒功能关闭 |
 
 云函数权限设为 `auth != null`。AppKey 和 AppSecret 只能存在于云函数环境变量中，不要提交到 Git，也不要返回给客户端。
+
+沙箱联调：把 `VIRTUAL_PAY_ENV` 设为 `1` 并使用沙箱 AppKey 重新 `npm run deploy:payment`，沙箱道具支付走测试结算、不产生真实扣款；转现网验收前记得改回 `0` 并换回现网 AppKey。
 
 `paymentMutation` 负责：
 
