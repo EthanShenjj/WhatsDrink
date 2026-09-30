@@ -6,3 +6,5 @@ project.private.config.json
 *.log
 output/
 
+.env.payment
+.env.*.local

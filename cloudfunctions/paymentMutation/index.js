@@ -14,12 +14,21 @@ const PRODUCTS = {
     name: '拾光+ 31 天',
     priceFen: 600,
     days: 31,
+    entitlementKey: 'plus',
   },
   plus_372d_v1: {
     productId: process.env.VIRTUAL_PAY_PRODUCT_PLUS_372D || 'plus_372d_v1',
     name: '拾光+ 372 天',
     priceFen: 4900,
     days: 372,
+    entitlementKey: 'plus',
+  },
+  pro_372d_v1: {
+    productId: process.env.VIRTUAL_PAY_PRODUCT_PRO_372D || 'pro_372d_v1',
+    name: '拾光 Pro 年卡',
+    priceFen: 9900,
+    days: 372,
+    entitlementKey: 'pro',
   },
 }
 
@@ -88,6 +97,7 @@ const cleanGrowth = (growth) => {
   return {
     ...(Number.isFinite(source.trialStartedAt) ? { trialStartedAt: source.trialStartedAt } : {}),
     ...(Number.isFinite(source.plusUntil) ? { plusUntil: source.plusUntil } : {}),
+    ...(Number.isFinite(source.proUntil) ? { proUntil: source.proUntil } : {}),
     ...(source.lockedColorId ? { lockedColorId: source.lockedColorId } : {}),
     ...(source.iconColorId ? { iconColorId: source.iconColorId } : {}),
     viewedMonthlyReports: Array.isArray(source.viewedMonthlyReports)
@@ -165,9 +175,17 @@ const fulfillPaidOrder = async (found, wxOrderId, paidAt = Date.now()) => {
     const freshOrder = (await transaction.collection('payment_orders').doc(found._id).get()).data
     if (freshOrder.status === 'fulfilled') return
     const freshProfile = (await transaction.collection('user_profiles').doc(profile._id).get()).data
-    const currentUntil = Number(freshProfile.growth && freshProfile.growth.plusUntil) || 0
+    const growth = { ...(freshProfile.growth || {}) }
+    const entitlementKey = freshOrder.entitlementKey === 'pro' ? 'pro' : 'plus'
+    const currentPlusUntil = Number(growth.plusUntil) || 0
+    const currentProUntil = Number(growth.proUntil) || 0
+    const currentUntil = entitlementKey === 'pro' ? currentProUntil : currentPlusUntil
     const startsAt = Math.max(currentUntil, now)
     const endsAt = startsAt + Number(freshOrder.durationDays) * DAY
+    const plusUntil = entitlementKey === 'pro' ? Math.max(currentPlusUntil, endsAt) : endsAt
+    const plusGrantedDuration = Math.max(0, plusUntil - currentPlusUntil)
+    growth.plusUntil = plusUntil
+    if (entitlementKey === 'pro') growth.proUntil = endsAt
     await transaction.collection('payment_orders').doc(found._id).update({
       data: {
         wxOrderId,
@@ -176,13 +194,15 @@ const fulfillPaidOrder = async (found, wxOrderId, paidAt = Date.now()) => {
         fulfilledAt: now,
         entitlementStartsAt: startsAt,
         entitlementEndsAt: endsAt,
+        entitlementKey,
+        plusGrantedDuration,
         updatedAt: now,
       },
     })
     await transaction.collection('user_entitlements').add({
       data: {
         _openid: found._openid,
-        entitlementKey: 'plus',
+        entitlementKey,
         sourceOrderId: found.outTradeNo,
         startsAt,
         expiresAt: endsAt,
@@ -193,7 +213,7 @@ const fulfillPaidOrder = async (found, wxOrderId, paidAt = Date.now()) => {
     })
     await transaction.collection('user_profiles').doc(profile._id).update({
       data: {
-        growth: { ...(freshProfile.growth || {}), plusUntil: endsAt },
+        growth,
         updatedAt: now,
       },
     })
@@ -239,6 +259,47 @@ const reconcileOrder = async (order) => {
   return { ...order, lastQueriedAt: now, updatedAt: now }
 }
 
+const membershipTemplateId = () => String(process.env.MEMBERSHIP_TEMPLATE_ID || '').trim()
+
+// 到期提醒依赖一次性订阅授权：用户每次在会员页开启提醒会沉淀一条未使用的授权，
+// 定时函数在临期窗口内消耗一条发送一条。同一用户同一模板最多保留 3 条待用授权。
+const countReminderAuthorizations = async (openid, templateId) => {
+  const result = await db.collection('reminder_subscriptions')
+    .where({ _openid: openid, templateId, usedAt: db.command.exists(false) })
+    .count()
+  return Number(result.total) || 0
+}
+
+const saveReminderSubscription = async (openid, templateId, enabled) => {
+  const serverTemplateId = membershipTemplateId()
+  if (!serverTemplateId) throw new Error('到期提醒尚未开放')
+  if (templateId !== serverTemplateId) throw new Error('提醒模板与当前服务端配置不一致')
+  const collection = db.collection('reminder_subscriptions')
+  if (!enabled) {
+    const unused = await collection
+      .where({ _openid: openid, templateId, usedAt: db.command.exists(false) })
+      .limit(100)
+      .get()
+    for (const row of unused.data) {
+      await collection.doc(row._id).remove().catch(() => undefined)
+    }
+    return { enabled: false, count: 0 }
+  }
+  const count = await countReminderAuthorizations(openid, templateId)
+  if (count >= 3) return { enabled: true, count }
+  const now = Date.now()
+  await collection.add({
+    data: {
+      _openid: openid,
+      templateId,
+      kind: 'membership_expiry',
+      createdAt: now,
+      updatedAt: now,
+    },
+  })
+  return { enabled: true, count: count + 1 }
+}
+
 const exchangeSessionKey = async (code, expectedOpenid) => {
   if (!code) throw new Error('微信登录凭证不能为空')
   const result = await cloud.openapi.auth.code2Session({ jsCode: code })
@@ -257,13 +318,17 @@ exports.main = async (event) => {
     if (!OPENID) throw new Error('登录状态无效')
 
     if (event.action === 'account') {
-      let [profile, orders] = await Promise.all([
+      const templateId = membershipTemplateId()
+      let [profile, orders, reminderAuthorizations] = await Promise.all([
         getProfile(OPENID),
         db.collection('payment_orders')
           .where({ _openid: OPENID })
           .orderBy('createdAt', 'desc')
           .limit(30)
           .get(),
+        templateId
+          ? countReminderAuthorizations(OPENID, templateId).catch(() => 0)
+          : Promise.resolve(0),
       ])
       const reconciledOrders = []
       let reconciliationCount = 0
@@ -288,6 +353,7 @@ exports.main = async (event) => {
         data: {
           profile: profileForClient(OPENID, profile),
           orders: reconciledOrders.map(orderForClient),
+          reminderAuthorizations,
         },
       }
     }
@@ -333,6 +399,7 @@ exports.main = async (event) => {
         productName: product.name,
         amountFen: product.priceFen,
         durationDays: product.days,
+        entitlementKey: product.entitlementKey,
         status: 'pending',
         attach,
         createdAt: now,
@@ -352,6 +419,15 @@ exports.main = async (event) => {
           },
         },
       }
+    }
+
+    if (event.action === 'saveReminderSubscription') {
+      const data = await saveReminderSubscription(
+        OPENID,
+        String(event.templateId || ''),
+        Boolean(event.enabled),
+      )
+      return { ok: true, data }
     }
 
     throw new Error('不支持的支付操作')

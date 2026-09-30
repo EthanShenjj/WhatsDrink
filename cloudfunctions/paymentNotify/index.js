@@ -88,12 +88,18 @@ const fulfillOrder = async ({ outTradeNo, wxOrderId, openid, platformProductId }
     const freshOrder = (await transaction.collection('payment_orders').doc(found._id).get()).data
     if (freshOrder.status === 'fulfilled') return
     const freshProfile = (await transaction.collection('user_profiles').doc(profile._id).get()).data
-    const currentUntil = Number(freshProfile.growth && freshProfile.growth.plusUntil) || 0
+    const entitlementKey = freshOrder.entitlementKey === 'pro' ? 'pro' : 'plus'
+    const currentPlusUntil = Number(freshProfile.growth && freshProfile.growth.plusUntil) || 0
+    const currentProUntil = Number(freshProfile.growth && freshProfile.growth.proUntil) || 0
+    const currentUntil = entitlementKey === 'pro' ? currentProUntil : currentPlusUntil
     const startsAt = Math.max(currentUntil, now)
     const endsAt = startsAt + Number(freshOrder.durationDays) * DAY
+    const plusUntil = entitlementKey === 'pro' ? Math.max(currentPlusUntil, endsAt) : endsAt
+    const plusGrantedDuration = Math.max(0, plusUntil - currentPlusUntil)
     const growth = {
       ...(freshProfile.growth || {}),
-      plusUntil: endsAt,
+      plusUntil,
+      ...(entitlementKey === 'pro' ? { proUntil: endsAt } : {}),
     }
 
     await transaction.collection('payment_orders').doc(found._id).update({
@@ -104,13 +110,15 @@ const fulfillOrder = async ({ outTradeNo, wxOrderId, openid, platformProductId }
         fulfilledAt: now,
         entitlementStartsAt: startsAt,
         entitlementEndsAt: endsAt,
+        entitlementKey,
+        plusGrantedDuration,
         updatedAt: now,
       },
     })
     await transaction.collection('user_entitlements').add({
       data: {
         _openid: openid,
-        entitlementKey: 'plus',
+        entitlementKey,
         sourceOrderId: outTradeNo,
         startsAt,
         expiresAt: endsAt,
@@ -157,11 +165,21 @@ const refundOrder = async ({ outTradeNo, wxOrderId, refundFee }) => {
   await db.runTransaction(async (transaction) => {
     const freshProfile = (await transaction.collection('user_profiles').doc(profile._id).get()).data
     const growth = { ...(freshProfile.growth || {}) }
+    const entitlementKey = found.entitlementKey === 'pro' ? 'pro' : 'plus'
     const currentUntil = Number(growth.plusUntil) || 0
     const unusedFrom = Math.max(now, Number(found.entitlementStartsAt) || now)
     const unusedUntil = Number(found.entitlementEndsAt) || unusedFrom
     const unusedDuration = Math.max(0, unusedUntil - unusedFrom)
-    growth.plusUntil = Math.max(now, currentUntil - unusedDuration)
+    if (entitlementKey === 'pro') {
+      const currentProUntil = Number(growth.proUntil) || 0
+      const plusGrantedDuration = Number.isFinite(found.plusGrantedDuration)
+        ? Number(found.plusGrantedDuration)
+        : unusedDuration
+      growth.proUntil = Math.max(now, currentProUntil - unusedDuration)
+      growth.plusUntil = Math.max(now, currentUntil - Math.min(unusedDuration, plusGrantedDuration))
+    } else {
+      growth.plusUntil = Math.max(now, currentUntil - unusedDuration)
+    }
 
     await transaction.collection('payment_orders').doc(found._id).update({
       data: { status: 'refunded', refundedAt: now, updatedAt: now },

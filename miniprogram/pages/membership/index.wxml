@@ -1,18 +1,31 @@
 <view class="page-shell membership-page">
   <view class="membership-hero">
     <view class="hero-copy">
-      <text class="eyebrow">SHIGUANG PLUS</text>
+      <text class="eyebrow">SHIGUANG MEMBERSHIP</text>
       <text class="display-title">让每段足迹，都有更完整的回响</text>
       <text class="hero-note">完整回顾、专属表达与更安心的保存。</text>
     </view>
     <ip-mascot state="companion" expression="happy" size="190rpx" motion="float" label="陪伴状态的小拾" />
   </view>
 
-  <view wx:if="{{isPlus}}" class="active-card card">
+  <view wx:if="{{isPlus}}" class="active-card card {{isPro ? 'is-pro' : ''}} {{membershipExpiring ? 'is-expiring' : ''}}">
     <view class="active-icon"><local-icon name="check-circle" size="38rpx" /></view>
     <view class="active-copy">
-      <text class="active-title">拾光+ 已生效</text>
-      <text class="active-note">当前权益有效至 {{plusUntilLabel}}</text>
+      <text class="active-title">{{isPro ? '拾光 Pro 已生效' : '拾光+ 已生效'}}</text>
+      <text class="active-note">{{activeExpiryLabel}}</text>
+      <text wx:if="{{membershipExpiring}}" class="active-hint">续购会从当前到期日顺延，剩余时长不会清零。</text>
+    </view>
+    <view wx:if="{{reminderAvailable}}" class="reminder-toggle">
+      <text class="reminder-toggle-label">到期提醒</text>
+      <switch checked="{{reminderEnabled}}" disabled="{{reminderBusy}}" color="#5B6CFF" bindchange="onReminderToggle" />
+    </view>
+  </view>
+
+  <view wx:elif="{{hasExpiredMembership}}" class="active-card card is-lapsed">
+    <view class="active-icon is-lapsed-icon"><local-icon name="clock" size="38rpx" /></view>
+    <view class="active-copy">
+      <text class="active-title">会员已到期</text>
+      <text class="active-note">已记录的足迹与照片仍可查看、导出，续购立即恢复权益。</text>
     </view>
   </view>
 
@@ -23,7 +36,7 @@
   </view>
 
   <view class="section-heading">
-    <text class="section-title">选择时长</text>
+    <text class="section-title">选择方案</text>
     <text>单次购买，不会自动续费</text>
   </view>
 
@@ -31,7 +44,7 @@
     <view
       wx:for="{{products}}"
       wx:key="id"
-      class="product-card {{selectedProductId === item.id ? 'is-selected' : ''}}"
+      class="product-card {{selectedProductId === item.id ? 'is-selected' : ''}} {{item.tier === 'pro' ? 'is-pro' : ''}}"
       hover-class="press-dim"
       data-id="{{item.id}}"
       bindtap="onProductTap"
@@ -49,14 +62,25 @@
     </view>
   </view>
 
+  <view wx:if="{{selectedIsPro}}" class="pro-preview-card">
+    <view class="pro-preview-heading">
+      <text class="pro-preview-badge">PRO</text>
+      <text>面向未来的年度会员</text>
+    </view>
+    <text>完整包含当前拾光+权益，并获得未来新功能的优先体验机会，包括 AI 回忆整理、智能洞察等探索能力。</text>
+    <text class="pro-preview-note">未来能力将分阶段上线，具体功能、开放范围和使用额度以上线说明为准。</text>
+  </view>
+
   <button class="primary-button buy-button" loading="{{purchasing}}" disabled="{{purchasing}}" bindtap="onBuy">
-    {{purchasing ? '正在处理…' : '开通拾光+'}}
+    {{purchasing ? '正在处理…' : ('开通 ' + selectedProductName)}}
   </button>
-  <text class="purchase-note">购买后从当前权益到期日继续顺延；试用剩余时间不会被覆盖。支付成功后以平台确认结果为准。</text>
+  <text class="purchase-note">同一等级续购会从该等级到期日顺延；Pro 生效后同时包含拾光+权益，已有 Plus 到期日不会缩短。</text>
 
   <view class="policy-card card">
     <text class="policy-title">购买与数据说明</text>
     <text>· 这是单次购买，不会自动扣费，到期后可自主续购。</text>
+    <text>· 开启到期提醒后，到期前 {{remindDaysLabel}} 天会收到一条微信提醒，可随时关闭。</text>
+    <text>· Pro 年卡包含拾光+权益；未来功能与 AI 能力以上线时的实际说明为准。</text>
     <text>· 权益到期后，已创建的足迹与照片仍可查看和导出。</text>
     <text>· Android 等终端退款由开发者处理；iOS 退款需通过 App Store 申请。</text>
   </view>

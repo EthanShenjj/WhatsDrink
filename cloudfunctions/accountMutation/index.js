@@ -13,6 +13,7 @@ const cleanGrowth = (value) => {
   return {
     ...(Number.isFinite(growth.trialStartedAt) ? { trialStartedAt: growth.trialStartedAt } : {}),
     ...(Number.isFinite(growth.plusUntil) ? { plusUntil: growth.plusUntil } : {}),
+    ...(Number.isFinite(growth.proUntil) ? { proUntil: growth.proUntil } : {}),
     ...(GROWTH_COLORS.has(growth.lockedColorId) ? { lockedColorId: growth.lockedColorId } : {}),
     ...(GROWTH_COLORS.has(growth.iconColorId) ? { iconColorId: growth.iconColorId } : {}),
     viewedMonthlyReports: Array.isArray(growth.viewedMonthlyReports)

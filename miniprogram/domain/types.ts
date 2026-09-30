@@ -93,15 +93,18 @@ export type GrowthExpressionId =
 export interface GrowthPreferences {
   trialStartedAt?: number
   plusUntil?: number
+  proUntil?: number
   lockedColorId?: GrowthColorId
   iconColorId?: GrowthColorId
   viewedMonthlyReports?: string[]
 }
 
-export type PaymentProductId = 'plus_31d_v1' | 'plus_372d_v1'
+export type MembershipTier = 'plus' | 'pro'
+export type PaymentProductId = 'plus_31d_v1' | 'plus_372d_v1' | 'pro_372d_v1'
 
 export interface PaymentProduct {
   id: PaymentProductId
+  tier: MembershipTier
   name: string
   shortName: string
   description: string
@@ -149,6 +152,8 @@ export interface CreatePaymentOrderResult {
 export interface MembershipAccount {
   profile: UserProfile
   orders: PaymentOrder[]
+  /** 服务端仍保留的到期提醒一次性订阅授权条数 */
+  reminderAuthorizations?: number
 }
 
 export interface GrowthColorView {
@@ -191,6 +196,8 @@ export interface GrowthSnapshot {
   nextGoalTarget: number
   isPlus: boolean
   plusDaysLeft: number
+  isPro: boolean
+  proDaysLeft: number
   colors: GrowthColorView[]
   expressions: GrowthExpressionView[]
   hiddenStates: GrowthHiddenStateView[]
@@ -198,6 +205,21 @@ export interface GrowthSnapshot {
   monthVisitCount: number
   monthCityCount: number
   fulfilledCount: number
+}
+
+/** 主导航只需要的轻量成长信息，避免每次点击执行完整成就扫描。 */
+export interface GrowthOverview {
+  weeklyColorId: GrowthColorId
+  activeColorId: GrowthColorId
+  weeklyTitle: string
+  weeklyMessage: string
+  nextGoalText: string
+  nextGoalProgress: number
+  nextGoalTarget: number
+  isPlus: boolean
+  plusDaysLeft: number
+  isPro: boolean
+  proDaysLeft: number
 }
 
 export interface LightingStats {

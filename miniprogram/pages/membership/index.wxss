@@ -4,10 +4,18 @@
 .membership-hero .display-title { max-width: 440rpx; font-size: 42rpx; line-height: 1.35; }
 .hero-note { display: block; margin-top: 14rpx; color: var(--muted); font-size: 24rpx; }
 .active-card { display: flex; align-items: center; gap: 18rpx; margin-top: 24rpx; padding: 24rpx; border: 1rpx solid rgba(91,108,255,.15); }
-.active-icon { display: flex; width: 64rpx; height: 64rpx; align-items: center; justify-content: center; border-radius: 22rpx; background: #E7E9FF; }
-.active-copy { display: flex; flex-direction: column; }
+.active-card.is-pro { border-color: rgba(244,185,63,.4); background: linear-gradient(135deg, #FFFFFF, #FFF8E8); }
+.active-card.is-expiring { border-color: rgba(168,110,8,.35); background: linear-gradient(135deg, #FFFFFF, #FFF2CF); }
+.active-card.is-lapsed { border-color: rgba(199,78,99,.28); background: linear-gradient(135deg, #FFFFFF, #FFF0F2); }
+.active-icon { display: flex; width: 64rpx; height: 64rpx; flex: 0 0 64rpx; align-items: center; justify-content: center; border-radius: 22rpx; background: #E7E9FF; }
+.active-card.is-lapsed .active-icon { background: #FFE4E9; }
+.active-copy { display: flex; min-width: 0; flex: 1; flex-direction: column; }
 .active-title { color: var(--ink); font-size: 28rpx; font-weight: 700; }
 .active-note { margin-top: 3rpx; color: var(--muted); font-size: 22rpx; }
+.active-hint { margin-top: 3rpx; color: var(--amber-deep); font-size: 22rpx; }
+.reminder-toggle { display: flex; flex: 0 0 auto; flex-direction: column; align-items: center; gap: 2rpx; }
+.reminder-toggle-label { color: var(--muted); font-size: 20rpx; }
+.reminder-toggle switch { transform: scale(.8); transform-origin: center; }
 .benefit-card { margin-top: 24rpx; padding: 8rpx 26rpx; }
 .benefit-row { display: flex; align-items: center; gap: 20rpx; min-height: 112rpx; border-bottom: 1rpx solid var(--line); }
 .benefit-row:last-child { border-bottom: 0; }
@@ -19,10 +27,15 @@
 .product-list { display: flex; flex-direction: column; gap: 18rpx; margin-top: 20rpx; }
 .product-card { position: relative; display: flex; min-height: 164rpx; align-items: center; gap: 20rpx; padding: 26rpx; border: 3rpx solid transparent; border-radius: 30rpx; background: #fff; box-shadow: var(--shadow-card); }
 .product-card.is-selected { border-color: var(--brand-primary); background: linear-gradient(135deg, #FFFFFF, #F3F3FF); }
+.product-card.is-pro { background: linear-gradient(135deg, #FFFFFF, #FFF9EC); }
+.product-card.is-pro.is-selected { border-color: var(--amber); background: linear-gradient(135deg, #FFFDF8, #FFF3D6); box-shadow: 0 16rpx 42rpx rgba(168,110,8,.14); }
 .product-badge { position: absolute; top: -3rpx; right: 24rpx; padding: 6rpx 18rpx; border-radius: 0 0 16rpx 16rpx; background: var(--brand-primary); color: #fff; font-size: 20rpx; font-weight: 700; }
+.product-card.is-pro .product-badge { background: linear-gradient(135deg, #D89A24, #F4B93F); color: #4A3106; }
 .product-radio { display: flex; width: 38rpx; height: 38rpx; flex: 0 0 38rpx; align-items: center; justify-content: center; border: 3rpx solid var(--outline); border-radius: 50%; }
 .is-selected .product-radio { border-color: var(--brand-primary); }
 .is-selected .product-radio view { width: 20rpx; height: 20rpx; border-radius: 50%; background: var(--brand-primary); }
+.product-card.is-pro.is-selected .product-radio { border-color: var(--amber-deep); }
+.product-card.is-pro.is-selected .product-radio view { background: var(--amber); }
 .product-copy { display: flex; min-width: 0; flex: 1; flex-direction: column; }
 .product-name { color: var(--ink); font-size: 30rpx; font-weight: 700; }
 .product-description { margin-top: 5rpx; color: var(--muted); font-size: 22rpx; }
@@ -30,6 +43,10 @@
 .product-price { display: flex; align-items: baseline; color: var(--ink); }
 .product-price text:first-child { font-size: 24rpx; font-weight: 650; }
 .product-price text:last-child { font-size: 48rpx; font-weight: 750; }
+.pro-preview-card { display: flex; flex-direction: column; gap: 10rpx; margin-top: 20rpx; padding: 24rpx 26rpx; border: 1rpx solid rgba(168,110,8,.22); border-radius: 26rpx; background: linear-gradient(135deg, #FFFDF8, #FFF5DF); color: var(--ink-body); font-size: 23rpx; line-height: 1.65; }
+.pro-preview-heading { display: flex; align-items: center; gap: 12rpx; color: var(--ink); font-size: 27rpx; font-weight: 700; }
+.pro-preview-badge { padding: 3rpx 11rpx; border-radius: 8rpx; background: var(--amber); color: #4A3106; font-size: 18rpx; letter-spacing: 1rpx; }
+.pro-preview-note { color: var(--muted); font-size: 20rpx; }
 .buy-button { margin-top: 30rpx; }
 .purchase-note { display: block; margin-top: 16rpx; padding: 0 10rpx; color: var(--muted); font-size: 22rpx; line-height: 1.65; text-align: center; }
 .policy-card { display: flex; flex-direction: column; gap: 10rpx; margin-top: 30rpx; padding: 26rpx; color: var(--muted); font-size: 22rpx; }

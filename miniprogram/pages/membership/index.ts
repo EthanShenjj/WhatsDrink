@@ -5,13 +5,20 @@ import type {
   UserProfile,
   VirtualPaymentData,
 } from '../../domain/types'
+import { MEMBERSHIP_REMIND_DAYS, MEMBERSHIP_TEMPLATE_ID } from '../../services/config'
 import {
   createPaymentOrder,
   getMembershipAccount,
   getPaymentOrder,
+  saveReminderSubscription,
 } from '../../services/repository'
-import { PAYMENT_PRODUCTS, formatPrice } from '../../utils/payment'
-import { isGrowthPlusActive } from '../../utils/growth'
+import {
+  PAYMENT_PRODUCTS,
+  formatPrice,
+  isMembershipExpiringSoon,
+  membershipDaysLeft,
+} from '../../utils/payment'
+import { isGrowthPlusActive, isGrowthProActive } from '../../utils/growth'
 
 interface ProductView extends PaymentProduct {
   priceLabel: string
@@ -33,7 +40,18 @@ interface PageData {
   purchasing: boolean
   refreshing: boolean
   isPlus: boolean
+  isPro: boolean
   plusUntilLabel: string
+  proUntilLabel: string
+  selectedIsPro: boolean
+  selectedProductName: string
+  activeExpiryLabel: string
+  membershipExpiring: boolean
+  hasExpiredMembership: boolean
+  reminderAvailable: boolean
+  reminderEnabled: boolean
+  reminderBusy: boolean
+  remindDaysLabel: string
 }
 
 const STATUS_LABELS: Record<PaymentOrder['status'], string> = {
@@ -54,7 +72,7 @@ const productViews: ProductView[] = PAYMENT_PRODUCTS.map((product) => ({
   ...product,
   priceLabel: formatPrice(product.priceFen),
   perMonthLabel: product.days > 100
-    ? `约 ¥${(product.priceFen / 100 / 12).toFixed(1)}/月`
+    ? `${product.tier === 'pro' ? '含拾光+ · ' : ''}约 ¥${(product.priceFen / 100 / 12).toFixed(1)}/月`
     : '一次购买，31 天有效',
 }))
 
@@ -79,7 +97,7 @@ const supportsPayment = (): boolean => {
   if (!wx.canIUse('requestVirtualPayment')) {
     wx.showModal({
       title: '微信版本较旧',
-      content: '请将微信更新至最新版后再购买拾光+。',
+      content: '请将微信更新至最新版后再购买拾光会员。',
       showCancel: false,
     })
     return false
@@ -112,7 +130,18 @@ Page<PageData, WechatMiniprogram.IAnyObject>({
     purchasing: false,
     refreshing: false,
     isPlus: false,
+    isPro: false,
     plusUntilLabel: '',
+    proUntilLabel: '',
+    selectedIsPro: false,
+    selectedProductName: '拾光+ 372 天',
+    activeExpiryLabel: '',
+    membershipExpiring: false,
+    hasExpiredMembership: false,
+    reminderAvailable: Boolean(MEMBERSHIP_TEMPLATE_ID),
+    reminderEnabled: false,
+    reminderBusy: false,
+    remindDaysLabel: String(MEMBERSHIP_REMIND_DAYS),
   },
 
   onLoad() {
@@ -122,18 +151,38 @@ Page<PageData, WechatMiniprogram.IAnyObject>({
   async loadAccount(showResult = false) {
     try {
       const account = await getMembershipAccount()
-      const plusUntil = account.profile.growth?.plusUntil
+      const growth = account.profile.growth
+      const plusUntil = growth?.plusUntil
+      const proUntil = growth?.proUntil
+      const isPlus = isGrowthPlusActive(growth)
+      const isPro = isGrowthProActive(growth)
       const orders: OrderView[] = account.orders.map((order) => ({
         ...order,
         priceLabel: formatPrice(order.amountFen),
         statusLabel: STATUS_LABELS[order.status],
         dateLabel: formatDate(order.fulfilledAt || order.createdAt),
       }))
+      const plusDaysLeft = membershipDaysLeft(plusUntil)
+      const proDaysLeft = membershipDaysLeft(proUntil)
+      // Pro 生效期间 plusUntil 不会早于 proUntil，展示等级对应的到期口径
+      const membershipExpiring = isPlus
+        && isMembershipExpiringSoon(isPro ? proUntil : plusUntil)
+      const activeExpiryLabel = !isPlus
+        ? ''
+        : isPro
+          ? `剩余 ${proDaysLeft} 天 · ${formatDate(proUntil)} 到期${membershipExpiring ? '，即将到期' : ''}`
+          : `剩余 ${plusDaysLeft} 天 · ${formatDate(plusUntil)} 到期${membershipExpiring ? '，即将到期' : ''}`
       this.setData({
         profile: account.profile,
         orders,
-        isPlus: isGrowthPlusActive(account.profile.growth),
+        isPlus,
+        isPro,
         plusUntilLabel: plusUntil ? formatDate(plusUntil) : '',
+        proUntilLabel: proUntil ? formatDate(proUntil) : '',
+        activeExpiryLabel,
+        membershipExpiring,
+        hasExpiredMembership: !isPlus && orders.some((order) => order.status === 'fulfilled'),
+        reminderEnabled: (account.reminderAuthorizations || 0) > 0,
         loading: false,
         refreshing: false,
       })
@@ -145,10 +194,51 @@ Page<PageData, WechatMiniprogram.IAnyObject>({
     }
   },
 
+  requestReminderAuthorization(): Promise<boolean> {
+    if (!MEMBERSHIP_TEMPLATE_ID) return Promise.resolve(false)
+    return new Promise((resolve) => {
+      wx.requestSubscribeMessage({
+        tmplIds: [MEMBERSHIP_TEMPLATE_ID],
+        success: (result) => resolve(result[MEMBERSHIP_TEMPLATE_ID] === 'accept'),
+        fail: () => resolve(false),
+      })
+    })
+  },
+
+  async onReminderToggle(event: WechatMiniprogram.SwitchChange) {
+    if (this.data.reminderBusy || !MEMBERSHIP_TEMPLATE_ID) return
+    const enabled = Boolean(event.detail.value)
+    this.setData({ reminderBusy: true, reminderEnabled: enabled })
+    try {
+      if (enabled && !(await this.requestReminderAuthorization())) {
+        this.setData({ reminderEnabled: false })
+        wx.showToast({ title: '未授权提醒，可随时再次开启', icon: 'none' })
+        return
+      }
+      const result = await saveReminderSubscription(MEMBERSHIP_TEMPLATE_ID, enabled)
+      this.setData({ reminderEnabled: result.enabled && result.count > 0 })
+      wx.showToast({
+        title: enabled ? `到期前 ${MEMBERSHIP_REMIND_DAYS} 天会提醒你` : '已关闭到期提醒',
+        icon: 'none',
+      })
+    } catch (error) {
+      this.setData({ reminderEnabled: !enabled })
+      console.warn('[membership] reminder toggle failed', error)
+      wx.showToast({ title: '提醒设置失败，请重试', icon: 'none' })
+    } finally {
+      this.setData({ reminderBusy: false })
+    }
+  },
+
   onProductTap(event: WechatMiniprogram.TouchEvent) {
     const productId = String(event.currentTarget.dataset.id || '') as PaymentProductId
     if (PAYMENT_PRODUCTS.some((product) => product.id === productId)) {
-      this.setData({ selectedProductId: productId })
+      const product = PAYMENT_PRODUCTS.find((item) => item.id === productId)
+      this.setData({
+        selectedProductId: productId,
+        selectedIsPro: product?.tier === 'pro',
+        selectedProductName: product?.name || '拾光+',
+      })
     }
   },
 
@@ -167,7 +257,7 @@ Page<PageData, WechatMiniprogram.IAnyObject>({
       wx.hideLoading()
       await this.loadAccount()
       if (fulfilled) {
-        wx.showToast({ title: '拾光+ 已生效', icon: 'success' })
+        wx.showToast({ title: product.tier === 'pro' ? '拾光 Pro 已生效' : '拾光+ 已生效', icon: 'success' })
       } else {
         wx.showModal({
           title: '支付结果确认中',
