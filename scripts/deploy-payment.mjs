@@ -179,6 +179,22 @@ const ensureCollections = async (manager) => {
   }
 }
 
+const wait = (ms) => new Promise((resolve) => setTimeout(resolve, ms))
+
+// updateFunctionCode 后函数会短暂处于 Updating 状态，期间改配置会报错，等它空闲后重试
+const updateConfigWithRetry = async (manager, func) => {
+  for (let attempt = 1; ; attempt += 1) {
+    try {
+      await manager.functions.updateFunctionConfig(func)
+      return
+    } catch (error) {
+      if (attempt >= 6 || !String(error?.message || error).includes('Updating')) throw error
+      log(`  ↳ 函数处于 Updating 状态，5 秒后重试（${attempt}/5）`)
+      await wait(5000)
+    }
+  }
+}
+
 const deployFunction = async (manager, spec) => {
   const config = functionConfig[spec.name]
   if (!config) fail(`cloudbaserc.json 中找不到 ${spec.name} 的配置`)
@@ -206,7 +222,7 @@ const deployFunction = async (manager, spec) => {
   }
   if (exists) {
     await manager.functions.updateFunctionCode({ func: { name: spec.name }, functionRootPath })
-    await manager.functions.updateFunctionConfig(func)
+    await updateConfigWithRetry(manager, func)
   } else {
     await manager.functions.createFunction({ func, functionRootPath, force: true })
   }
