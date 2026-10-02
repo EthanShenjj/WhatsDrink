@@ -8,3 +8,4 @@ output/
 
 .env.payment
 .env.*.local
+social-video-lumi-teaser/renders/
