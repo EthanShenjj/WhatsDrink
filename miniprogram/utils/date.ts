@@ -57,7 +57,9 @@ export const buildMonthGridFromIndex = (
     date.setDate(start.getDate() + index)
     const key = dateKey(date)
     const dayFootprints = footprintMap.get(key) || []
-    const photoFootprint = dayFootprints.find((fp) => fp.photos.length > 0)
+    const photoFootprint = dayFootprints.find(
+      (fp) => (fp.photoCount ?? fp.photos.length) > 0 || Boolean(fp.photoThumbs?.length),
+    )
     return {
       key,
       day: date.getDate(),
@@ -65,7 +67,7 @@ export const buildMonthGridFromIndex = (
       inMonth: date.getMonth() === month,
       isToday: key === dateKey(today),
       footprintCount: dayFootprints.length,
-      previewPhoto: photoFootprint?.photos[0],
+      previewPhoto: photoFootprint?.photoThumbs?.[0] || photoFootprint?.photos[0],
       previewMood: dayFootprints[0]?.mood,
     }
   })

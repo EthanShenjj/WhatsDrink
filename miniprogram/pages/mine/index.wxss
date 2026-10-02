@@ -21,7 +21,7 @@
 .membership-note { display: block; margin-top: 7rpx; color: rgba(255,255,255,.72); font-size: 20rpx; line-height: 1.45; }
 .membership-arrow { color: rgba(255,255,255,.74); font-size: 40rpx; line-height: 1; }
 
-.growth-card { display: flex; min-height: 258rpx; align-items: center; margin-top: 28rpx; padding: 28rpx 14rpx 26rpx 30rpx; border: 1rpx solid rgba(91,108,255,.08); border-radius: 32rpx; box-shadow: var(--shadow-card); overflow: hidden; }
+.growth-card { display: flex; min-height: 148rpx; align-items: center; gap: 18rpx; margin-top: 28rpx; padding: 18rpx 24rpx 18rpx 18rpx; border: 1rpx solid rgba(91,108,255,.08); border-radius: 32rpx; box-shadow: var(--shadow-card); overflow: hidden; }
 .growth-journey { background: linear-gradient(135deg, #EEF1FF, #F5EAFF); }
 .growth-explore { background: linear-gradient(135deg, #FFF0E2, #FFE6EF); }
 .growth-discover { background: linear-gradient(135deg, #E6FBFF, #E9EFFF); }
@@ -32,11 +32,9 @@
 .growth-label-row { display: flex; align-items: center; gap: 10rpx; }
 .growth-label { color: #554FA3; font-size: 20rpx; font-weight: 700; letter-spacing: 1rpx; }
 .growth-plus { padding: 3rpx 10rpx; border-radius: 99rpx; background: #4B47A4; color: #fff; font-size: 20rpx; font-weight: 700; }
-.growth-title { display: block; margin-top: 10rpx; color: #22243C; font-size: 32rpx; font-weight: 700; }
-.growth-message { display: block; margin-top: 7rpx; color: var(--muted); font-size: 22rpx; line-height: 1.5; }
-.growth-goal { display: flex; align-items: center; justify-content: space-between; gap: 12rpx; margin-top: 17rpx; color: #5C62A0; font-size: 20rpx; font-weight: 600; }
-.growth-goal > text:first-child { overflow: hidden; min-width: 0; flex: 1; text-overflow: ellipsis; white-space: nowrap; }
-.growth-goal-arrow { flex: none; color: var(--brand-primary-deep); }
+.growth-title { display: block; margin-top: 6rpx; color: #22243C; font-size: 28rpx; font-weight: 700; }
+.growth-goal-text { display: block; overflow: hidden; margin-top: 5rpx; color: #5C62A0; font-size: 20rpx; text-overflow: ellipsis; white-space: nowrap; }
+.growth-card-arrow { flex: none; color: var(--brand-primary-deep); font-size: 42rpx; line-height: 1; }
 
 .stats-card { margin-top: 28rpx; padding: 30rpx; }
 .stats-heading { display: flex; align-items: flex-start; justify-content: space-between; gap: 20rpx; }
@@ -48,9 +46,6 @@
 .stat-item:last-child { border-right: 0; }
 .stat-number { color: var(--ink); font-size: 44rpx; font-weight: 700; line-height: 1.2; }
 .stat-label { margin-top: 6rpx; color: var(--muted); font-size: 20rpx; }
-.stats-secondary { display: flex; flex-wrap: wrap; gap: 10rpx; margin-top: 28rpx; padding-top: 22rpx; border-top: 1rpx solid var(--line); }
-.stats-secondary text { padding: 7rpx 14rpx; border-radius: 99rpx; background: var(--surface-high); color: var(--muted); font-size: 20rpx; }
-
 .menu-arrow { color: var(--outline); font-size: 42rpx; line-height: 1; }
 
 .menu-card { margin-top: 28rpx; padding: 4rpx 28rpx; }

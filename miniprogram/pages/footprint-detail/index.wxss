@@ -298,9 +298,7 @@
 }
 
 .place-ring {
-  margin: 30rpx 0;
-  padding: 30rpx;
-  background: #f6f6ff;
+  margin: 44rpx 0 34rpx;
 }
 
 .place-ring-heading {
@@ -318,51 +316,47 @@
 }
 
 .place-ring-subtitle {
-  margin-top: 4rpx;
-  color: var(--ink-body);
+  margin-top: 2rpx;
+  color: var(--muted);
   font-size: 24rpx;
 }
 
 .place-ring-count {
   flex: none;
-  margin-top: 4rpx;
-  padding: 6rpx 16rpx;
-  border-radius: 99rpx;
-  background: var(--moss-soft);
-  color: var(--moss-deep);
-  font-size: 21rpx;
+  margin-top: 7rpx;
+  color: var(--muted);
+  font-size: 22rpx;
   font-weight: 650;
 }
 
 .place-ring-summary {
   display: block;
-  margin-top: 8rpx;
+  margin-top: 10rpx;
   color: var(--muted);
-  font-size: 22rpx;
+  font-size: 21rpx;
 }
 
 .memory-ticket-list {
   display: flex;
   flex-direction: column;
-  gap: 18rpx;
-  margin-top: 26rpx;
+  gap: 22rpx;
+  margin-top: 24rpx;
 }
 
 .memory-ticket {
   position: relative;
   display: flex;
   overflow: hidden;
-  min-height: 190rpx;
-  border: 2rpx solid transparent;
-  border-radius: 24rpx;
-  background: var(--surface);
-  box-shadow: 0 10rpx 28rpx rgba(68, 76, 145, 0.09);
-  transition: transform 160ms ease, border-color 160ms ease, box-shadow 160ms ease;
+  min-height: 310rpx;
+  border: 1rpx solid rgba(49, 53, 74, .08);
+  border-radius: 28rpx;
+  background: #fffdfc;
+  box-shadow: 0 18rpx 48rpx rgba(55, 62, 102, .12);
+  transition: transform 160ms ease, box-shadow 160ms ease;
 }
 
 .memory-ticket.is-current {
-  border-color: var(--brand-primary);
-  box-shadow: 0 12rpx 32rpx rgba(91, 108, 255, 0.18);
+  box-shadow: 0 20rpx 56rpx rgba(64, 71, 130, .18);
 }
 
 .memory-ticket-pressed {
@@ -374,21 +368,19 @@
   min-width: 0;
   flex: 1;
   align-items: stretch;
-  gap: 18rpx;
-  padding: 22rpx 18rpx 22rpx 22rpx;
+  gap: 0;
 }
 
 .memory-ticket-media {
+  position: relative;
   display: flex;
   overflow: hidden;
-  flex: 0 0 118rpx;
-  width: 118rpx;
-  height: 138rpx;
+  flex: 0 0 38%;
+  width: 38%;
+  min-height: 310rpx;
   align-items: center;
-  align-self: center;
   justify-content: center;
-  border-radius: 18rpx;
-  background: linear-gradient(145deg, #eef0ff, #e3e6ff);
+  background: #5b6cff;
 }
 
 .memory-ticket-photo {
@@ -396,18 +388,52 @@
   height: 100%;
 }
 
-.memory-ticket-mascot {
+.memory-ticket-date-cover {
   display: flex;
   width: 100%;
   height: 100%;
-  align-items: center;
+  min-height: 310rpx;
+  align-items: flex-start;
   justify-content: center;
+  flex-direction: column;
+  padding: 26rpx 22rpx 54rpx;
+  color: #fff;
 }
 
-.memory-ticket-mascot image {
-  width: 98rpx;
-  height: 98rpx;
-  opacity: 0.62;
+.memory-ticket-cover-date {
+  font-size: 45rpx;
+  font-weight: 780;
+  line-height: 1;
+  letter-spacing: -1rpx;
+}
+
+.memory-ticket-cover-year {
+  margin-top: 10rpx;
+  font-size: 21rpx;
+  font-weight: 650;
+  letter-spacing: 3rpx;
+  opacity: .78;
+}
+
+.memory-ticket-media-shade {
+  position: absolute;
+  right: 0;
+  bottom: 0;
+  left: 0;
+  height: 55%;
+  background: linear-gradient(180deg, rgba(16, 17, 22, 0), rgba(16, 17, 22, .68));
+}
+
+.memory-ticket-media-mark {
+  position: absolute;
+  right: 14rpx;
+  bottom: 14rpx;
+  left: 14rpx;
+  display: flex;
+  justify-content: space-between;
+  color: rgba(255, 255, 255, .92);
+  font-size: 17rpx;
+  font-weight: 650;
 }
 
 .memory-ticket-copy {
@@ -416,6 +442,8 @@
   min-width: 0;
   flex: 1;
   flex-direction: column;
+  justify-content: center;
+  padding: 28rpx 22rpx 26rpx 24rpx;
 }
 
 .memory-ticket-meta {
@@ -423,12 +451,13 @@
   min-width: 0;
   align-items: center;
   gap: 8rpx;
+  min-height: 32rpx;
 }
 
-.memory-ticket-date {
+.memory-ticket-admit {
   overflow: hidden;
   color: var(--brand-primary-deep);
-  font-size: 21rpx;
+  font-size: 20rpx;
   font-weight: 650;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -436,47 +465,63 @@
 
 .memory-ticket-current {
   flex: none;
-  padding: 2rpx 8rpx;
+  padding: 3rpx 10rpx;
   border-radius: 99rpx;
   background: var(--moss-soft);
   color: var(--moss-deep);
-  font-size: 18rpx;
+  font-size: 17rpx;
   font-weight: 650;
 }
 
 .memory-ticket-place {
   display: -webkit-box;
   overflow: hidden;
-  margin-top: 7rpx;
+  margin-top: 14rpx;
   color: var(--ink);
-  font-size: 27rpx;
-  font-weight: 700;
-  line-height: 1.35;
-  text-overflow: ellipsis;
-  -webkit-box-orient: vertical;
-  -webkit-line-clamp: 1;
-}
-
-.memory-ticket-note {
-  display: -webkit-box;
-  overflow: hidden;
-  margin-top: 8rpx;
-  color: var(--muted);
-  font-size: 21rpx;
-  line-height: 1.45;
+  font-size: 34rpx;
+  font-weight: 750;
+  line-height: 1.28;
+  letter-spacing: -1rpx;
   text-overflow: ellipsis;
   -webkit-box-orient: vertical;
   -webkit-line-clamp: 2;
 }
 
-.memory-ticket-stamp {
-  align-self: flex-start;
+.memory-ticket-details {
+  display: flex;
+  min-width: 0;
+  align-items: center;
+  gap: 8rpx;
   margin-top: auto;
+  padding-top: 22rpx;
+  color: var(--muted);
+  font-size: 20rpx;
+}
+
+.memory-ticket-location {
+  overflow: hidden;
+  min-width: 0;
+  flex: 1;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.memory-ticket-full-date {
+  flex: none;
+  color: var(--ink-body);
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+.memory-ticket-stamp {
+  position: absolute;
+  right: 22rpx;
+  top: 27rpx;
   padding: 3rpx 10rpx;
-  border: 2rpx solid rgba(168, 110, 8, 0.42);
-  border-radius: 8rpx;
-  color: var(--amber-deep);
-  font-size: 18rpx;
+  border: 2rpx solid rgba(91, 108, 255, .36);
+  border-radius: 99rpx;
+  color: var(--brand-primary-deep);
+  font-size: 17rpx;
   font-weight: 700;
   letter-spacing: 1rpx;
   transform: rotate(-3deg);
@@ -485,14 +530,14 @@
 .memory-ticket-stub {
   position: relative;
   display: flex;
-  flex: 0 0 92rpx;
-  width: 92rpx;
+  flex: 0 0 84rpx;
+  width: 84rpx;
   align-items: center;
   justify-content: center;
   flex-direction: column;
-  border-left: 2rpx dashed #c9ccef;
-  background: linear-gradient(180deg, #f0f1ff, #e8eaff);
-  color: var(--brand-primary-deep);
+  border-left: 2rpx dashed rgba(89, 94, 120, .28);
+  background: #f1f2f7;
+  color: var(--ink);
 }
 
 .memory-ticket-notch {
@@ -502,7 +547,7 @@
   width: 26rpx;
   height: 26rpx;
   border-radius: 50%;
-  background: #f6f6ff;
+  background: var(--paper);
 }
 
 .memory-ticket-notch.is-top { top: -14rpx; }
@@ -510,22 +555,48 @@
 
 .memory-ticket-stub-label {
   font-size: 16rpx;
-  font-weight: 700;
+  font-weight: 650;
   letter-spacing: 3rpx;
-  opacity: 0.62;
+  opacity: .55;
   writing-mode: vertical-rl;
 }
 
 .memory-ticket-number {
-  margin-top: 8rpx;
-  font-size: 36rpx;
-  font-weight: 750;
+  margin: 8rpx 0 4rpx;
+  font-size: 34rpx;
+  font-weight: 800;
   line-height: 1;
 }
 
-.memory-ticket-stub-unit {
-  margin-top: 7rpx;
-  font-size: 17rpx;
+.memory-ticket-barcode {
+  display: flex;
+  width: 48rpx;
+  height: 68rpx;
+  align-items: stretch;
+  justify-content: center;
+  gap: 2rpx;
+  margin-top: 4rpx;
+}
+
+.memory-ticket-barcode .bar {
+  width: 2rpx;
+  background: #252527;
+}
+
+.memory-ticket-barcode .bar.is-wide { width: 4rpx; }
+.memory-ticket-barcode .bar.is-thin { width: 1rpx; }
+
+.memory-ticket-code {
+  position: absolute;
+  right: 5rpx;
+  bottom: 14rpx;
+  left: 5rpx;
+  overflow: hidden;
+  color: var(--muted);
+  font-size: 9rpx;
+  letter-spacing: -.5rpx;
+  text-align: center;
+  text-overflow: ellipsis;
   white-space: nowrap;
 }
 
@@ -559,7 +630,7 @@
   line-height: 1.5;
 }
 
-.place-ring-compare-side image {
+.place-ring-compare-image {
   width: 100%;
   height: 150rpx;
   border-radius: 10rpx;
@@ -572,7 +643,8 @@
   margin: 26rpx 0 48rpx;
 }
 
-.place-ring-actions button {
+.place-ring-actions .amber-button,
+.place-ring-actions .secondary-button {
   margin: 0;
   font-size: 24rpx;
 }

@@ -18,13 +18,6 @@
       "memorySize": 256
     },
     {
-      "name": "aiAssistant",
-      "runtime": "Nodejs20.19",
-      "handler": "index.main",
-      "timeout": 10,
-      "memorySize": 256
-    },
-    {
       "name": "accountMutation",
       "runtime": "Nodejs20.19",
       "handler": "index.main",

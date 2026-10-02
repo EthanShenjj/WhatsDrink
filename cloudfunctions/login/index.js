@@ -3,7 +3,7 @@ const cloud = require('wx-server-sdk')
 cloud.init({ env: cloud.DYNAMIC_CURRENT_ENV })
 const db = cloud.database()
 
-const DEFAULT_NICKNAME = '拾光者'
+const DEFAULT_NICKNAME = ''
 
 exports.main = async () => {
   try {
@@ -40,7 +40,7 @@ exports.main = async () => {
     }
 
     // Migrate only the former product's untouched default profile label.
-    const legacyDefault = profile.nickname === '饮品记录者' && !profile.avatarUrl
+    const legacyDefault = (profile.nickname === '饮品记录者' || profile.nickname === '拾光者') && !profile.avatarUrl
     if (legacyDefault) {
       await collection.doc(profile._id).update({ data: { nickname: DEFAULT_NICKNAME, updatedAt: now } })
     }

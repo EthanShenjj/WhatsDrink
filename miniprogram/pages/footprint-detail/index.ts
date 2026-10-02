@@ -1,5 +1,5 @@
 import type { Footprint } from '../../domain/types'
-import { getFootprintSnapshot, listFootprints, deleteFootprint, saveFootprint } from '../../services/repository'
+import { getFootprint, getFootprintSnapshot, listFootprints, deleteFootprint, saveFootprint } from '../../services/repository'
 import { placeKey, visitsAtPlace } from '../../utils/footprint'
 import { formatVisitDate } from '../../utils/date'
 import {
@@ -12,9 +12,31 @@ import { installUpdatePerformanceLogger, recordInteraction } from '../../utils/p
 
 interface TicketVisit extends Footprint {
   ticketNumber: number
+  ticketNumberLabel: string
+  ticketCode: string
   displayDate: string
+  ticketDate: string
+  ticketYear: string
+  ticketLocation: string
+  ticketColor: string
   isCurrent: boolean
   hasPhoto: boolean
+  previewPhoto: string
+}
+
+const ticketDateParts = (visit: Footprint): { date: string; year: string } => {
+  const rawDate = visit.visitDate || new Date(visit.createdAt).toISOString()
+  const date = new Date(rawDate)
+  if (Number.isNaN(date.getTime())) return { date: '--.--', year: 'MEMORY' }
+  const month = String(date.getMonth() + 1).padStart(2, '0')
+  const day = String(date.getDate()).padStart(2, '0')
+  return { date: `${month}.${day}`, year: String(date.getFullYear()) }
+}
+
+const ticketCode = (visit: Footprint, ticketNumber: number): string => {
+  const compactId = visit.id.replace(/[^a-z0-9]/gi, '').toUpperCase()
+  const suffix = compactId.slice(-5).padStart(5, '0')
+  return `SGJ-${String(ticketNumber).padStart(2, '0')}-${suffix}`
 }
 
 interface PageData {
@@ -98,29 +120,43 @@ Page<PageData, WechatMiniprogram.IAnyObject>({
   async loadFootprint(id: string, force = false) {
     if (!this.data.footprint) this.setData({ loading: true })
     try {
-      const all = force
-        ? await listFootprints()
-        : getFootprintSnapshot() || await listFootprints({ maxAgeMs: 60_000 })
+      const [all, fullFootprint] = await Promise.all([
+        force
+          ? listFootprints()
+          : Promise.resolve(getFootprintSnapshot() || listFootprints({ maxAgeMs: 60_000 })),
+        getFootprint(id, { force }),
+      ])
       if (!force && all === this.lastSnapshot && this.data.footprint?.id === id) return
       this.lastSnapshot = all
-      const fp = all.find((f) => f.id === id)
+      const fp = fullFootprint || all.find((f) => f.id === id)
       if (!fp) {
         wx.showToast({ title: '足迹不存在或已删除', icon: 'none' })
         setTimeout(() => wx.navigateBack(), 600)
         return
       }
-      const related = visitsAtPlace(all, fp)
+      const related = visitsAtPlace(all.map((item) => item.id === fp.id ? fp : item), fp)
       const visitIndex = Math.max(
         0,
         related.findIndex((f) => f.id === id),
       )
-      const ticketVisits = related.map((visit, index) => ({
-        ...visit,
-        ticketNumber: related.length - index,
-        displayDate: formatVisitDate(visit.visitDate),
-        isCurrent: visit.id === id,
-        hasPhoto: visit.photos.length > 0,
-      }))
+      const ticketVisits = related.map((visit, index) => {
+        const ticketNumber = related.length - index
+        const dateParts = ticketDateParts(visit)
+        return {
+          ...visit,
+          ticketNumber,
+          ticketNumberLabel: String(ticketNumber).padStart(2, '0'),
+          ticketCode: ticketCode(visit, ticketNumber),
+          displayDate: formatVisitDate(visit.visitDate),
+          ticketDate: dateParts.date,
+          ticketYear: dateParts.year,
+          ticketLocation: visit.district || visit.city || visit.province || visit.address || '未标注地点',
+          ticketColor: visit.markerStyle?.color || '#5B6CFF',
+          isCurrent: visit.id === id,
+          hasPhoto: (visit.photoCount ?? visit.photos.length) > 0,
+          previewPhoto: visit.photoThumbs?.[0] || visit.photos[0] || '',
+        }
+      })
       const ticketsExpanded = related.length > 3 && visitIndex >= 3
       const locationParts = [fp.province, fp.city, fp.district].filter(Boolean) as string[]
       this.setData({
@@ -141,7 +177,7 @@ Page<PageData, WechatMiniprogram.IAnyObject>({
         categoryEmoji: categoryEmoji(fp.category),
         formattedDate: formatVisitDate(fp.visitDate),
         locationText: locationParts.join(' · '),
-        hasPhoto: fp.photos.length > 0,
+        hasPhoto: (fp.photoCount ?? fp.photos.length) > 0,
         isWishlist: fp.status === 'wishlist',
         isFulfilled: fp.status === 'fulfilled',
         isVisit: fp.status === 'visited',

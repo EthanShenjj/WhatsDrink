@@ -181,7 +181,7 @@ exports.main = async (event = {}) => {
       ])
       const plusUntil = Number(profileResult.data[0]?.growth?.plusUntil) || 0
       if (capsuleCount.total >= FREE_CAPSULE_LIMIT && plusUntil <= Date.now()) {
-        throw new Error('免费版最多可创建 3 个时光胶囊，开通拾光+ 后不限数量')
+        throw new Error('免费版最多可创建 3 个时光胶囊，开通会员后不限数量')
       }
       const data = sanitizeCapsule(input, OPENID)
       await assertOwnedFootprint(data.footprintId, OPENID)

@@ -14,20 +14,40 @@
 
 .photo-marker-callout {
   position: relative;
-  width: 82rpx;
-  height: 66rpx;
-  padding: 5rpx;
-  border: 2rpx solid rgba(255, 255, 255, .96);
-  border-radius: 18rpx;
-  background: #fff;
-  box-shadow: 0 8rpx 20rpx rgba(40, 45, 84, .24);
+  width: 150rpx;
+  height: 136rpx;
+  padding: 6rpx;
+  border: 2rpx solid rgba(255, 255, 255, 0.98);
+  border-radius: 20rpx;
+  background: #FFFFFF;
+  box-shadow: 0 10rpx 26rpx rgba(40, 45, 84, 0.24);
   overflow: hidden;
 }
 
 .photo-marker-image {
   width: 100%;
-  height: 100%;
-  border-radius: 12rpx;
+  height: 88rpx;
+  border-radius: 14rpx 14rpx 8rpx 8rpx;
+}
+
+.photo-marker-caption {
+  display: flex;
+  height: 36rpx;
+  align-items: center;
+  padding: 0 8rpx;
+  background: #FFFFFF;
+}
+
+.photo-marker-title {
+  width: 100%;
+  overflow: hidden;
+  color: #17182B;
+  font-size: 20rpx;
+  font-weight: 700;
+  line-height: 30rpx;
+  text-align: center;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 /* Top bar */
@@ -71,7 +91,7 @@
   align-items: center;
   gap: 6rpx;
   min-height: 68rpx;
-  padding: 0 24rpx;
+  padding: 0 20rpx;
   border-radius: 99rpx;
   color: var(--muted);
   font-size: 26rpx;
@@ -89,32 +109,17 @@
   color: #93620B;
 }
 
-.mode-pill.is-active.visited local-icon { filter: brightness(0) invert(1); }
-
-.lighting-shortcut {
-  display: flex;
-  width: 88rpx;
-  height: 88rpx;
-  align-items: center;
-  justify-content: center;
-  border-radius: 44rpx;
-  background: rgba(255,255,255,.94);
-  box-shadow: 0 5rpx 16rpx rgba(68, 76, 145, 0.11);
-}
-
-.lighting-shortcut.is-active {
+.mode-pill.is-active.lighting {
   background: linear-gradient(135deg, #5B76FF, var(--brand-lavender));
+  color: #fff;
 }
 
-.lighting-shortcut.is-active local-icon { filter: brightness(0) invert(1); }
-.map-topbar > growth-state-chip {
-  margin-top: 12rpx;
-  pointer-events: auto;
-}
+.mode-pill.is-active.visited local-icon,
+.mode-pill.is-active.lighting local-icon { filter: brightness(0) invert(1); }
 
 .active-filter-bar {
   position: absolute;
-  top: calc(var(--status-bar) + 226rpx);
+  top: calc(var(--status-bar) + 150rpx);
   right: 0;
   left: 0;
   z-index: 28;
@@ -151,7 +156,7 @@
 /* Lighting panel */
 .lighting-panel {
   position: absolute;
-  top: calc(var(--status-bar) + 236rpx);
+  top: calc(var(--status-bar) + 160rpx);
   right: 32rpx;
   left: 32rpx;
   z-index: 20;
@@ -240,82 +245,51 @@
   visibility: hidden;
 }
 
-.map-memory-cue {
-  margin-right: 120rpx;
-  display: flex;
-  flex-direction: column;
-  gap: 6rpx;
-  padding: 18rpx 22rpx;
-  border-radius: 22rpx;
-  background: rgba(255, 255, 255, 0.96);
-  box-shadow: var(--shadow-control);
-  pointer-events: auto;
-}
-
-.map-memory-cue-eyebrow {
-  color: var(--brand-primary-deep);
-  font-size: 20rpx;
-  font-weight: 700;
-}
-
-.map-memory-cue-title {
-  color: var(--ink);
-  font-size: 24rpx;
-  line-height: 1.45;
-}
-
 .map-checkin-cta {
-  margin-right: 120rpx;
   display: flex;
+  width: 226rpx;
+  min-height: 72rpx;
   align-items: center;
-  gap: 18rpx;
-  min-height: 96rpx;
-  padding: 14rpx 22rpx;
-  border: 1rpx solid rgba(255, 255, 255, 0.88);
-  border-radius: 28rpx;
-  background: rgba(255, 255, 255, 0.97);
-  box-shadow: 0 8rpx 22rpx rgba(55, 64, 134, 0.14);
+  justify-content: center;
+  align-self: flex-start;
+  gap: 10rpx;
+  padding: 8rpx 18rpx;
+  border: 1rpx solid rgba(91, 108, 255, 0.16);
+  border-radius: 36rpx;
+  background: rgba(255, 255, 255, 0.96);
+  box-shadow: 0 7rpx 20rpx rgba(55, 64, 134, 0.14);
   pointer-events: auto;
+  transition: opacity 160ms ease, transform 160ms ease;
+}
+
+.map-checkin-cta--pressed {
+  opacity: 0.82;
+  transform: scale(0.985);
 }
 
 .map-checkin-icon {
   display: flex;
+  width: 40rpx;
+  height: 40rpx;
+  flex: 0 0 40rpx;
   align-items: center;
   justify-content: center;
-  width: 68rpx;
-  height: 68rpx;
-  border-radius: 24rpx;
-  background: var(--brand-gradient);
-  box-shadow: 0 8rpx 22rpx rgba(91, 108, 255, 0.26);
+  border-radius: 20rpx;
+  background: #F0F1FF;
 }
 
-.map-checkin-icon local-icon { filter: brightness(0) invert(1); }
-
-.map-checkin-copy {
-  display: flex;
-  min-width: 0;
-  flex: 1;
-  flex-direction: column;
-  gap: 4rpx;
+.map-checkin-icon-image {
+  width: 24rpx;
+  height: 24rpx;
 }
 
 .map-checkin-title {
-  color: var(--ink);
-  font-size: 28rpx;
-  font-weight: 700;
+  color: #3E47C8;
+  font-size: 24rpx;
+  font-weight: 600;
+  line-height: 34rpx;
 }
 
-.map-checkin-subtitle {
-  color: var(--muted);
-  font-size: 22rpx;
-}
-
-.map-checkin-arrow {
-  color: var(--brand-primary-deep);
-  font-size: 44rpx;
-  font-weight: 300;
-  line-height: 1;
-}
 
 /* Map empty overlay */
 .map-empty {
@@ -701,8 +675,5 @@
 
 /* 按压反馈过渡 */
 .mode-pill,
-.lighting-shortcut,
 .map-empty-action { transition: transform 160ms ease; }
-.map-checkin-cta,
-.map-memory-cue,
 .active-filter-chip { transition: opacity 160ms ease; }

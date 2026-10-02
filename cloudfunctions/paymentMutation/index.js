@@ -6,26 +6,26 @@ cloud.init({ env: cloud.DYNAMIC_CURRENT_ENV })
 const db = cloud.database()
 
 const DAY = 86400000
-const DEFAULT_NICKNAME = '拾光者'
+const DEFAULT_NICKNAME = ''
 
 const PRODUCTS = {
   plus_31d_v1: {
     productId: process.env.VIRTUAL_PAY_PRODUCT_PLUS_31D || 'plus_31d_v1',
-    name: '拾光+ 31 天',
+    name: 'Plus 31 天',
     priceFen: 600,
     days: 31,
     entitlementKey: 'plus',
   },
   plus_372d_v1: {
     productId: process.env.VIRTUAL_PAY_PRODUCT_PLUS_372D || 'plus_372d_v1',
-    name: '拾光+ 372 天',
+    name: 'Plus 372 天',
     priceFen: 4900,
     days: 372,
     entitlementKey: 'plus',
   },
   pro_372d_v1: {
     productId: process.env.VIRTUAL_PAY_PRODUCT_PRO_372D || 'pro_372d_v1',
-    name: '拾光 Pro 年卡',
+    name: 'Pro 年卡',
     priceFen: 9900,
     days: 372,
     entitlementKey: 'pro',

@@ -9,7 +9,6 @@
     "footprint-card": "/components/footprint-card/index",
     "empty-state": "/components/empty-state/index",
     "ip-mascot": "/components/ip-mascot/index",
-    "growth-state-chip": "/components/growth-state-chip/index",
     "privacy-popup": "/components/privacy-popup/index"
   }
 }

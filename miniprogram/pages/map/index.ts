@@ -6,13 +6,13 @@ import type {
   LightingStats,
   ClusterMarker,
   CityGrowth,
-  MemoryDrop,
   GrowthOverview,
 } from '../../domain/types'
 import {
   listFootprints,
   loginForAccess,
-  ensureProfile,
+  getLocalProfile,
+  hasCloudAccess,
   getMapSettings,
   saveMapSettings,
 } from '../../services/repository'
@@ -20,9 +20,9 @@ import { clusterFootprints, fitBounds, footprintsForMapMode, markerPhotoForZoom 
 import {
   buildCheckinRoute,
   findNearbyCheckinCandidate,
-  type CheckinCandidate,
 } from '../../utils/checkin'
-import { matchesFilter, computeLighting, computeCityGrowth, buildMemoryDrops, placeKey, usedMoods, usedCategories } from '../../utils/footprint'
+import type { CheckinCandidate } from '../../utils/checkin'
+import { matchesFilter, computeLighting, computeCityGrowth, placeKey, usedMoods, usedCategories } from '../../utils/footprint'
 import { formatVisitDate, todayKey } from '../../utils/date'
 import { moodEmoji } from '../../data/options'
 import { MAP_STYLE_IDS, MAP_STYLE_SUBKEY } from '../../services/config'
@@ -112,9 +112,6 @@ interface PageData {
   lighting: LightingStats | null
   growthCities: CityGrowth[]
   growthCircles: GrowthCircle[]
-  todayDrop: MemoryDrop | null
-  nearbyMemory: Footprint | null
-  nearbyDistance: number
   checkinVisible: boolean
   checkinClosing: boolean
   checkinCandidate: CheckinCandidate | null
@@ -145,6 +142,7 @@ const DEFAULT_SCALE = 4
 // 与 repository 的共享缓存配合：热切回地图 60 秒内不重新请求足迹
 const FOOTPRINTS_MAX_AGE_MS = 60_000
 const MAP_MODE_STORAGE_KEY = 'sgj:map-mode'
+const PENDING_MAP_ACTION_STORAGE_KEY = 'sgj:pending-map-action'
 
 const app = getApp<IAppOption>()
 let mapContext: WechatMiniprogram.MapContext | undefined
@@ -218,7 +216,7 @@ const buildMarker = (
 const buildUnplacedFootprintItem = (fp: Footprint): UnplacedFootprintItem => ({
   id: fp.id,
   poiName: fp.poiName,
-  photo: fp.photos?.[0] || '',
+  photo: fp.photoThumbs?.[0] || fp.photos?.[0] || '',
   dateLabel: formatVisitDate(fp.visitDate),
   statusLabel: fp.status === 'wishlist' ? '想去' : fp.status === 'fulfilled' ? '已实现' : '已到访',
   isWishlist: fp.status !== 'visited',
@@ -316,6 +314,7 @@ Page<PageData, WechatMiniprogram.IAnyObject>({
   markerCacheKey: '',
   markerCache: null as MarkerIndex | null,
   isVisible: false,
+  mapReady: false,
   loadSequence: 0,
   pendingFootprints: null as Footprint[] | null,
 
@@ -347,9 +346,6 @@ Page<PageData, WechatMiniprogram.IAnyObject>({
     lighting: null,
     growthCities: [],
     growthCircles: [],
-    todayDrop: null,
-    nearbyMemory: null,
-    nearbyDistance: 0,
     checkinVisible: false,
     checkinClosing: false,
     checkinCandidate: null,
@@ -380,6 +376,10 @@ Page<PageData, WechatMiniprogram.IAnyObject>({
       wx.removeStorageSync(MAP_MODE_STORAGE_KEY)
       if (requestedMode !== this.data.mode) this.applyMode(requestedMode, { fit: true })
     }
+    if (wx.getStorageSync<string>(PENDING_MAP_ACTION_STORAGE_KEY) === 'checkin') {
+      wx.removeStorageSync(PENDING_MAP_ACTION_STORAGE_KEY)
+      this.onCheckin()
+    }
     const settings = getMapSettings()
     if (JSON.stringify(settings) !== JSON.stringify(this.data.settings)) {
       this.setData({
@@ -405,15 +405,25 @@ Page<PageData, WechatMiniprogram.IAnyObject>({
 
   onReady() {
     mapContext = wx.createMapContext('sgjMap', this)
+    this.mapReady = true
+    this.setData({ growthCircles: buildGrowthCircles(this.data.growthCities) }, () => {
+      this.refreshMarkers()
+    })
   },
 
   async initData() {
     try {
       this.setData({ loading: true })
-      await loginForAccess()
-      const profile = await ensureProfile()
+      const profile = getLocalProfile()
       app.globalData.profile = profile
       await this.loadFootprints(true, true)
+      // 首屏先使用本地缓存；云端成功后再静默刷新，断网也不阻塞地图。
+      setTimeout(() => {
+        loginForAccess().then((cloudProfile) => {
+          app.globalData.profile = cloudProfile
+          if (hasCloudAccess()) this.loadFootprints(false, true)
+        }).catch(() => undefined)
+      }, 350)
     } catch (err) {
       console.warn('[map] init failed', err)
       this.setData({ loading: false, empty: true })
@@ -474,8 +484,7 @@ Page<PageData, WechatMiniprogram.IAnyObject>({
       categories: usedCategories(list),
       lighting: computeLighting(filtered),
       growthCities,
-      growthCircles: buildGrowthCircles(growthCities),
-      todayDrop: buildMemoryDrops(list, todayKey(), 1)[0] || null,
+      growthCircles: this.mapReady ? buildGrowthCircles(growthCities) : [],
       loading: false,
       empty: list.length === 0,
       activeFilterCount: chips.length,
@@ -610,6 +619,7 @@ Page<PageData, WechatMiniprogram.IAnyObject>({
 
   /** 仅在标记内容真正变化时提交 markers，减少原生地图重绘 */
   refreshMarkers() {
+    if (!this.mapReady) return
     const update = this.buildMarkers()
     if (update) this.setData({ markers: update.markers })
   },
@@ -707,9 +717,6 @@ Page<PageData, WechatMiniprogram.IAnyObject>({
           res.longitude,
           this.allFootprints,
         )
-        const nearbyMemory = candidate?.footprint.status === 'visited'
-          ? candidate.footprint
-          : null
         const distance = candidate ? Math.round(candidate.distance) : 0
         this.mapScale = 16
         this.zoomTier = scaleToZoom(16)
@@ -717,8 +724,6 @@ Page<PageData, WechatMiniprogram.IAnyObject>({
           center: { latitude: res.latitude, longitude: res.longitude },
           scale: 16,
           hasLocationAuth: true,
-          nearbyMemory,
-          nearbyDistance: nearbyMemory ? distance : 0,
           checkinVisible: true,
           checkinCandidate: candidate,
           checkinDistance: distance,
@@ -774,45 +779,10 @@ Page<PageData, WechatMiniprogram.IAnyObject>({
     })
   },
 
-  onMemoryCueTap() {
-    const id = this.data.nearbyMemory?.id || this.data.todayDrop?.footprint.id
-    if (id) wx.navigateTo({ url: `/pages/footprint-detail/index?id=${id}` })
-  },
-
-  onSearch() {
-    wx.chooseLocation({
-      success: (res) => {
-        const status = this.data.mode === 'wishlist' ? 'wishlist' : 'visited'
-        const draft = {
-          poiName: res.name || '未命名地点',
-          address: res.address,
-          lat: res.latitude,
-          lng: res.longitude,
-          visitDate: status === 'visited' ? todayKey() : undefined,
-          status,
-          photos: [] as string[],
-          tags: [] as string[],
-          source: 'manual' as const,
-        }
-        wx.setStorageSync('sgj:quick-place', draft)
-        wx.navigateTo({ url: `/pages/footprint-form/index?from=place&status=${status}` })
-      },
-      fail: () => {},
-    })
-  },
-
   onFilter() {
     recordInteraction('map.filter')
     this.setData({ filterVisible: true })
     this.syncTabBarForSheets()
-  },
-
-  onAiTap() {
-    wx.navigateTo({ url: '/pages/ai-assistant/index' })
-  },
-
-  onSettings() {
-    wx.navigateTo({ url: '/pages/settings/index' })
   },
 
   onFilterApply(e: WechatMiniprogram.CustomEvent<{ filter: FilterState }>) {

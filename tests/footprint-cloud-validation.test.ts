@@ -1,12 +1,13 @@
 import { describe, expect, it } from 'vitest'
 
-const { sanitizeFootprint } = require('../cloudfunctions/footprintMutation/validation.js') as {
+const { sanitizeFootprint, toFootprintSummary } = require('../cloudfunctions/footprintMutation/validation.js') as {
   sanitizeFootprint: (
     input: Record<string, unknown>,
     openid: string,
     existing?: Record<string, unknown>,
     now?: number,
   ) => Record<string, unknown>
+  toFootprintSummary: (input: Record<string, unknown>) => Record<string, unknown>
 }
 
 describe('cloud footprint validation', () => {
@@ -25,6 +26,45 @@ describe('cloud footprint validation', () => {
       poiName: '公园',
       photos: ['cloud://env/footprint-photos/other/photo.jpg'],
     }, 'owner')).toThrow()
+  })
+
+  it('validates thumbnail ownership and returns lightweight list summaries', () => {
+    const saved = sanitizeFootprint({
+      poiName: '公园',
+      photos: [
+        'cloud://env/footprint-photos/owner/full-1.jpg',
+        'cloud://env/footprint-photos/owner/full-2.jpg',
+      ],
+      photoThumbs: [
+        'cloud://env/footprint-photos/owner/thumb-1.jpg',
+        'cloud://env/footprint-photos/owner/thumb-2.jpg',
+      ],
+    }, 'owner')
+    const summary = toFootprintSummary(saved)
+
+    expect(summary.photos).toEqual([])
+    expect(summary.photoThumbs).toEqual(['cloud://env/footprint-photos/owner/thumb-1.jpg'])
+    expect(summary.photoCount).toBe(2)
+    expect(summary.isSummary).toBe(true)
+    expect(() => sanitizeFootprint({
+      poiName: '公园',
+      photos: ['cloud://env/footprint-photos/owner/full.jpg'],
+      photoThumbs: ['cloud://env/footprint-photos/other/thumb.jpg'],
+    }, 'owner')).toThrow('缩略图')
+    expect(() => sanitizeFootprint({
+      poiName: '公园',
+      photos: [
+        'cloud://env/footprint-photos/owner/full-1.jpg',
+        'cloud://env/footprint-photos/owner/full-2.jpg',
+      ],
+      photoThumbs: ['cloud://env/footprint-photos/owner/thumb-1.jpg'],
+    }, 'owner')).toThrow('数量不一致')
+  })
+
+  it('keeps one original preview for legacy records without thumbnails', () => {
+    const summary = toFootprintSummary({ photos: ['legacy-1.jpg', 'legacy-2.jpg'] })
+    expect(summary.photos).toEqual(['legacy-1.jpg'])
+    expect(summary.photoCount).toBe(2)
   })
 
   it('keeps the original wishlist date and links the fulfilled wish to a separate visit', () => {

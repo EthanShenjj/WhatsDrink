@@ -5,13 +5,13 @@
       <text class="display-title">让每段足迹，都有更完整的回响</text>
       <text class="hero-note">完整回顾、专属表达与更安心的保存。</text>
     </view>
-    <ip-mascot state="companion" expression="happy" size="190rpx" motion="float" label="陪伴状态的小拾" />
+    <ip-mascot state="companion" expression="happy" size="190rpx" motion="float" label="陪伴状态的 Lumi" />
   </view>
 
   <view wx:if="{{isPlus}}" class="active-card card {{isPro ? 'is-pro' : ''}} {{membershipExpiring ? 'is-expiring' : ''}}">
     <view class="active-icon"><local-icon name="check-circle" size="38rpx" /></view>
     <view class="active-copy">
-      <text class="active-title">{{isPro ? '拾光 Pro 已生效' : '拾光+ 已生效'}}</text>
+      <text class="active-title">{{isPro ? 'Pro 会员已生效' : 'Plus 会员已生效'}}</text>
       <text class="active-note">{{activeExpiryLabel}}</text>
       <text wx:if="{{membershipExpiring}}" class="active-hint">续购会从当前到期日顺延，剩余时长不会清零。</text>
     </view>
@@ -30,8 +30,8 @@
   </view>
 
   <view class="benefit-card card">
-    <view class="benefit-row"><local-icon name="sparkles" size="34rpx" /><view><text>自由锁定成长颜色</text><text>把喜欢的已解锁颜色留在小拾身上</text></view></view>
-    <view class="benefit-row"><local-icon name="heart" size="34rpx" /><view><text>小拾专属图标主题</text><text>让应用里的陪伴状态更像你</text></view></view>
+    <view class="benefit-row"><local-icon name="sparkles" size="34rpx" /><view><text>自由锁定 Lumi 颜色</text><text>把喜欢的已解锁颜色留在 Lumi 身上</text></view></view>
+    <view class="benefit-row"><local-icon name="heart" size="34rpx" /><view><text>Lumi 专属主题</text><text>让应用里的陪伴状态更像你</text></view></view>
     <view class="benefit-row"><local-icon name="secured" size="34rpx" /><view><text>不限数量的时光胶囊</text><text>继续为未来的自己封存重要回忆</text></view></view>
   </view>
 
@@ -67,20 +67,20 @@
       <text class="pro-preview-badge">PRO</text>
       <text>面向未来的年度会员</text>
     </view>
-    <text>完整包含当前拾光+权益，并获得未来新功能的优先体验机会，包括 AI 回忆整理、智能洞察等探索能力。</text>
+    <text>完整包含 Plus 权益，并获得未来新功能的优先体验机会。</text>
     <text class="pro-preview-note">未来能力将分阶段上线，具体功能、开放范围和使用额度以上线说明为准。</text>
   </view>
 
   <button class="primary-button buy-button" loading="{{purchasing}}" disabled="{{purchasing}}" bindtap="onBuy">
     {{purchasing ? '正在处理…' : ('开通 ' + selectedProductName)}}
   </button>
-  <text class="purchase-note">同一等级续购会从该等级到期日顺延；Pro 生效后同时包含拾光+权益，已有 Plus 到期日不会缩短。</text>
+  <text class="purchase-note">同一等级续购会从该等级到期日顺延；Pro 生效后同时包含 Plus 权益，已有 Plus 到期日不会缩短。</text>
 
   <view class="policy-card card">
     <text class="policy-title">购买与数据说明</text>
     <text>· 本商品为一次性购买的时长卡，不是自动续费订阅；支付时一次性收取所选方案全额，到期后可自主续购。</text>
     <text>· 授权到期提醒后，我们将在到期前 {{remindDaysLabel}} 天尝试发送一条微信提醒，实际送达以微信为准，可随时关闭。</text>
-    <text>· Pro 年卡包含拾光+权益；未来功能与 AI 能力以上线时的实际说明为准。</text>
+    <text>· Pro 年卡包含 Plus 权益；未来功能以上线时的实际说明为准。</text>
     <text>· 权益到期后，已创建的足迹与照片仍可查看，不会因会员到期而删除。</text>
     <text>· 退款渠道以支付终端为准：Android 等终端请联系客服处理；iOS 订单需通过 App Store 申请并由 Apple 审核。</text>
   </view>

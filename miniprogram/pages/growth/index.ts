@@ -18,6 +18,7 @@ interface PageData {
   reportVisible: boolean
   unlockedColorCount: number
   distanceCalculating: boolean
+  heavySectionsReady: boolean
 }
 
 const app = getApp<IAppOption>()
@@ -25,6 +26,7 @@ const app = getApp<IAppOption>()
 Page<PageData, WechatMiniprogram.IAnyObject>({
   isVisible: false,
   loadSequence: 0,
+  heavyObserver: null as WechatMiniprogram.IntersectionObserver | null,
   data: {
     profile: null,
     snapshot: null,
@@ -35,6 +37,7 @@ Page<PageData, WechatMiniprogram.IAnyObject>({
     reportVisible: false,
     unlockedColorCount: 0,
     distanceCalculating: false,
+    heavySectionsReady: false,
   },
 
   onLoad() {
@@ -48,6 +51,17 @@ Page<PageData, WechatMiniprogram.IAnyObject>({
 
   onHide() {
     this.isVisible = false
+    this.disconnectHeavyObserver()
+  },
+
+  onUnload() {
+    this.disconnectHeavyObserver()
+  },
+
+  onPageScroll(event: WechatMiniprogram.Page.IPageScrollOption) {
+    if (!this.data.heavySectionsReady && event.scrollTop > 520) {
+      this.revealHeavySections()
+    }
   },
 
   async loadGrowth() {
@@ -69,7 +83,7 @@ Page<PageData, WechatMiniprogram.IAnyObject>({
         iconColorId: profile.growth?.iconColorId || snapshot.activeColorId,
         unlockedColorCount: snapshot.colors.filter((item) => item.unlocked).length,
         distanceCalculating: true,
-      })
+      }, () => this.observeHeavySections())
       const hasDistantPair = await hasDistantPairDeferred(footprints)
       if (sequence !== this.loadSequence || !this.isVisible) return
       const current = this.data.snapshot
@@ -96,7 +110,7 @@ Page<PageData, WechatMiniprogram.IAnyObject>({
       return
     }
     if (!this.data.snapshot?.isPlus) {
-      await this.offerTrial('拾光+ 可以自由切换并锁定所有已解锁颜色。')
+      await this.offerTrial('会员可以自由切换并锁定所有已解锁颜色。')
       return
     }
     const next = this.data.profile?.growth?.lockedColorId === id ? undefined : id
@@ -112,7 +126,7 @@ Page<PageData, WechatMiniprogram.IAnyObject>({
       return
     }
     if (!this.data.snapshot?.isPlus) {
-      await this.offerTrial('拾光+ 可以让小拾头像使用你的专属颜色。')
+      await this.offerTrial('会员可以让 Lumi 使用你的专属颜色。')
       return
     }
     await this.persistPreferences({ iconColorId: id })
@@ -140,6 +154,31 @@ Page<PageData, WechatMiniprogram.IAnyObject>({
     // Keep taps inside the report panel from closing the mask.
   },
 
+  observeHeavySections() {
+    if (this.data.heavySectionsReady || this.heavyObserver || !this.isVisible) return
+    wx.nextTick(() => {
+      if (this.data.heavySectionsReady || this.heavyObserver || !this.isVisible) return
+      const observer = this.createIntersectionObserver({ thresholds: [0, 0.01], nativeMode: true })
+      this.heavyObserver = observer
+      observer
+        .relativeToViewport({ bottom: 320 })
+        .observe('#growth-heavy-anchor', (result) => {
+          if (result.intersectionRatio > 0) this.revealHeavySections()
+        })
+    })
+  },
+
+  revealHeavySections() {
+    if (this.data.heavySectionsReady) return
+    this.disconnectHeavyObserver()
+    this.setData({ heavySectionsReady: true })
+  },
+
+  disconnectHeavyObserver() {
+    this.heavyObserver?.disconnect()
+    this.heavyObserver = null
+  },
+
   async onStartTrial() {
     await this.activateTrial()
   },
@@ -151,7 +190,7 @@ Page<PageData, WechatMiniprogram.IAnyObject>({
   async offerTrial(content: string) {
     const confirmed = await new Promise<boolean>((resolve) => {
       wx.showModal({
-        title: '让小拾更像你',
+        title: '让 Lumi 更像你',
         content,
         confirmText: '体验 7 天',
         cancelText: '继续成长',
@@ -168,7 +207,7 @@ Page<PageData, WechatMiniprogram.IAnyObject>({
       return
     }
     if (this.data.snapshot?.isPlus) {
-      wx.showToast({ title: '拾光+ 体验中', icon: 'none' })
+      wx.showToast({ title: '会员体验中', icon: 'none' })
       return
     }
     this.setData({ saving: true })

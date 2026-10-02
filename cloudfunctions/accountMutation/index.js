@@ -3,7 +3,7 @@ const cloud = require('wx-server-sdk')
 cloud.init({ env: cloud.DYNAMIC_CURRENT_ENV })
 const db = cloud.database()
 
-const DEFAULT_NICKNAME = '拾光者'
+const DEFAULT_NICKNAME = ''
 const GROWTH_COLORS = new Set(['journey', 'explore', 'discover', 'highlight', 'companion', 'dawn'])
 
 const text = (value, max = 80) => String(value || '').trim().slice(0, max)

@@ -19,12 +19,16 @@ import { DEFAULT_MAP_SETTINGS } from '../data/options'
 import { todayKey } from '../utils/date'
 import { placeKey } from '../utils/footprint'
 import { hasTimeCapsuleCapacity } from '../utils/payment'
+import { fitImageWithin } from '../utils/image'
 
 let sessionReady = false
 let cloudReady = false
+let cloudInitialized = false
+let cloudRetryAfter = 0
 let loginPromise: Promise<UserProfile> | null = null
 let profileCache: UserProfile | null = null
 const LEGACY_SHARE_SNAPSHOTS_KEY = 'shiguangji:share-snapshots'
+const CLOUD_RETRY_DELAY_MS = 30_000
 
 const getStored = <T>(key: string, fallback: T): T => {
   try {
@@ -58,19 +62,43 @@ let footprintWriteQueue: Promise<void> = Promise.resolve()
 
 const syncFootprintCache = (list: Footprint[]): Promise<void> => {
   const snapshot = [...list]
+  const storedDetails = new Map(
+    getStored<Footprint[]>(STORAGE_KEYS.footprints, [])
+      .filter((item) => !item.isSummary)
+      .map((item) => [item.id, item]),
+  )
+  const persisted = snapshot.map((item) => item.isSummary ? storedDetails.get(item.id) || item : item)
   rememberFootprints(snapshot)
+  wx.removeStorageSync(STORAGE_KEYS.footprintSummaries)
   footprintWriteQueue = footprintWriteQueue
     .catch(() => undefined)
-    .then(() => setStoredAsync(STORAGE_KEYS.footprints, snapshot))
+    .then(() => setStoredAsync(STORAGE_KEYS.footprints, persisted))
   return footprintWriteQueue
 }
 
 const persistCloudSnapshot = async (list: Footprint[]): Promise<void> => {
   try {
-    await syncFootprintCache(list)
+    rememberFootprints(list)
+    footprintWriteQueue = footprintWriteQueue
+      .catch(() => undefined)
+      .then(() => setStoredAsync(STORAGE_KEYS.footprintSummaries, list))
+    await footprintWriteQueue
   } catch (error) {
     // 云端操作已经成功时不能因本地缓存写入失败向用户报告业务失败。
     console.warn('[repository] footprint cache persistence failed', error)
+  }
+}
+
+const persistCloudDetail = async (footprint: Footprint): Promise<void> => {
+  footprintDetailCache.set(footprint.id, footprint)
+  const stored = getStored<Footprint[]>(STORAGE_KEYS.footprints, [])
+  const next = stored.some((item) => item.id === footprint.id)
+    ? stored.map((item) => item.id === footprint.id ? footprint : item)
+    : [footprint, ...stored]
+  try {
+    await setStoredAsync(STORAGE_KEYS.footprints, next)
+  } catch (error) {
+    console.warn('[repository] footprint detail persistence failed', error)
   }
 }
 
@@ -98,8 +126,8 @@ const rememberProfile = (profile: UserProfile): UserProfile => {
 }
 
 const migrateLegacyDefaultProfile = (profile: UserProfile): UserProfile =>
-  profile.nickname === '饮品记录者' && !profile.avatarUrl
-    ? { ...profile, nickname: '拾光者' }
+  (profile.nickname === '饮品记录者' || profile.nickname === '拾光者') && !profile.avatarUrl
+    ? { ...profile, nickname: '' }
     : profile
 
 const ensureLocalProfile = (): UserProfile => {
@@ -113,7 +141,7 @@ const ensureLocalProfile = (): UserProfile => {
   const now = Date.now()
   const profile: UserProfile = {
     id: 'local-user',
-    nickname: '拾光者',
+    nickname: '',
     avatarUrl: '',
     createdAt: now,
     updatedAt: now,
@@ -145,8 +173,10 @@ const deleteLocalFiles = async (paths: Array<string | undefined>): Promise<void>
 
 export const initializeCloud = (): boolean => {
   if (!USE_CLOUD || !wx.cloud) return false
+  if (cloudInitialized) return true
   try {
     wx.cloud.init({ env: CLOUD_ENV_ID, traceUser: true })
+    cloudInitialized = true
     return true
   } catch {
     return false
@@ -154,11 +184,13 @@ export const initializeCloud = (): boolean => {
 }
 
 export const ensureProfile = async (): Promise<UserProfile> => {
-  if (USE_CLOUD && !sessionReady) return loginForAccess()
+  if (USE_CLOUD && !cloudReady && Date.now() >= cloudRetryAfter) return loginForAccess()
   return ensureLocalProfile()
 }
 
 export const hasSessionAccess = (): boolean => sessionReady
+export const hasCloudAccess = (): boolean => cloudReady
+export const getLocalProfile = (): UserProfile => ensureLocalProfile()
 
 export const loginForAccess = async (): Promise<UserProfile> => {
   if (!USE_CLOUD && sessionReady) return ensureLocalProfile()
@@ -167,16 +199,24 @@ export const loginForAccess = async (): Promise<UserProfile> => {
     return ensureLocalProfile()
   }
   if (cloudReady) return ensureLocalProfile()
+  if (Date.now() < cloudRetryAfter) return ensureLocalProfile()
   if (loginPromise) return loginPromise
+  if (!initializeCloud()) {
+    sessionReady = true
+    return ensureLocalProfile()
+  }
 
   loginPromise = (async () => {
     try {
       const profile = migrateLegacyDefaultProfile(await callCloud<UserProfile>('login', {}))
       cloudReady = true
+      cloudRetryAfter = 0
       sessionReady = true
       setStored(STORAGE_KEYS.profile, profile)
       return rememberProfile(profile)
     } catch {
+      cloudReady = false
+      cloudRetryAfter = Date.now() + CLOUD_RETRY_DELAY_MS
       sessionReady = true
       return ensureLocalProfile()
     }
@@ -342,14 +382,32 @@ export const saveReminderSubscription = async (
 const listCloudFootprints = (): Promise<Footprint[]> =>
   callCloud<Footprint[]>('footprintMutation', { action: 'list' })
 
+const getCloudFootprint = (id: string): Promise<Footprint> =>
+  callCloud<Footprint>('footprintMutation', { action: 'get', id })
+
+const toFootprintSummary = (footprint: Footprint): Footprint => {
+  const photoThumbs = footprint.photoThumbs?.slice(0, 1) || []
+  return {
+    ...footprint,
+    photos: photoThumbs.length ? [] : footprint.photos.slice(0, 1),
+    photoThumbs,
+    photoCount: footprint.photoCount ?? footprint.photos.length,
+    isSummary: true,
+  }
+}
+
 // 内存级足迹缓存：配合 maxAgeMs 供多个页面复用同一次全量请求
 let footprintListCache: Footprint[] | null = null
 let footprintListCachedAt = 0
+const footprintDetailCache = new Map<string, Footprint>()
 // 多页面同时触发刷新时共享同一个进行中的请求，避免重复云调用
 let footprintsInFlight: Promise<Footprint[]> | null = null
 
-const readStoredFootprints = (): Footprint[] =>
-  getStored<Footprint[]>(STORAGE_KEYS.footprints, [])
+const readStoredFootprints = (): Footprint[] => {
+  const summaries = getStored<Footprint[]>(STORAGE_KEYS.footprintSummaries, [])
+  const details = getStored<Footprint[]>(STORAGE_KEYS.footprints, [])
+  return summaries.length ? summaries : details
+}
 
 export const listFootprints = async (
   options: { maxAgeMs?: number } = {},
@@ -384,12 +442,28 @@ export const getFootprintSnapshot = (): Footprint[] | null => footprintListCache
 
 export const getProfileSnapshot = (): UserProfile | null => profileCache
 
-export const getFootprint = async (id: string): Promise<Footprint | undefined> => {
-  if (footprintListCache) {
+export const getFootprint = async (
+  id: string,
+  options: { force?: boolean } = {},
+): Promise<Footprint | undefined> => {
+  const detail = footprintDetailCache.get(id)
+  if (detail && !options.force) return detail
+  if (footprintListCache && !options.force) {
     const cached = footprintListCache.find((fp) => fp.id === id)
-    if (cached) return cached
+    if (cached && !cached.isSummary) return cached
   }
-  return (await listFootprints()).find((fp) => fp.id === id)
+  if (USE_CLOUD && cloudReady) {
+    try {
+      const footprint = await getCloudFootprint(id)
+      await persistCloudDetail(footprint)
+      return footprint
+    } catch {
+      // 网络抖动时继续尝试本地快照。
+    }
+  }
+  const storedDetail = getStored<Footprint[]>(STORAGE_KEYS.footprints, [])
+    .find((fp) => fp.id === id && !fp.isSummary)
+  return storedDetail || (await listFootprints()).find((fp) => fp.id === id)
 }
 
 export const saveFootprint = async (draft: FootprintDraft): Promise<Footprint> => {
@@ -414,10 +488,12 @@ export const saveFootprint = async (draft: FootprintDraft): Promise<Footprint> =
       action: draft.id ? 'update' : 'create',
       footprint,
     })
+    await persistCloudDetail(saved)
     const cached = footprintListCache || readStoredFootprints()
+    const summary = toFootprintSummary(saved)
     const next = cached.some((fp) => fp.id === saved.id)
-      ? cached.map((fp) => fp.id === saved.id ? saved : fp)
-      : [saved, ...cached]
+      ? cached.map((fp) => fp.id === saved.id ? summary : fp)
+      : [summary, ...cached]
     await persistCloudSnapshot(next)
     return saved
   }
@@ -445,11 +521,17 @@ export const deleteFootprint = async (id: string): Promise<void> => {
   }
   if (USE_CLOUD && cloudReady) {
     await callCloud('footprintMutation', { action: 'delete', id })
+    footprintDetailCache.delete(id)
+    const storedDetails = getStored<Footprint[]>(STORAGE_KEYS.footprints, [])
+    await setStoredAsync(STORAGE_KEYS.footprints, storedDetails.filter((item) => item.id !== id))
     const cached = footprintListCache || readStoredFootprints()
     await persistCloudSnapshot(updateAfterDelete(cached))
     return
   }
-  await syncFootprintCache(updateAfterDelete(await listFootprints()))
+  const local = await listFootprints()
+  const deleted = local.find((item) => item.id === id)
+  await syncFootprintCache(updateAfterDelete(local))
+  if (deleted) await deleteLocalFiles([...(deleted.photos || []), ...(deleted.photoThumbs || [])])
 }
 
 export const fulfillWishlistFootprint = async (
@@ -474,8 +556,13 @@ export const fulfillWishlistFootprint = async (
       id: wishId,
       visit: visitDraft,
     })
+    await persistCloudDetail(result.visit)
+    await persistCloudDetail(result.wish)
     const cached = footprintListCache || readStoredFootprints()
-    await persistCloudSnapshot([result.visit, ...cached.map((item) => item.id === wishId ? result.wish : item)])
+    await persistCloudSnapshot([
+      toFootprintSummary(result.visit),
+      ...cached.map((item) => item.id === wishId ? toFootprintSummary(result.wish) : item),
+    ])
     return result
   }
   const now = Date.now()
@@ -499,20 +586,85 @@ export const fulfillWishlistFootprint = async (
   return { wish: fulfilledWish, visit }
 }
 
-export const uploadPhoto = async (tempFilePath: string): Promise<string> => {
-  if (!USE_CLOUD || !cloudReady) {
-    return new Promise<string>((resolve, reject) => {
-      wx.getFileSystemManager().saveFile({
-        tempFilePath,
-        success: (res) => resolve(res.savedFilePath),
+const prepareImage = async (
+  tempFilePath: string,
+  maxEdge: number,
+  quality: number,
+): Promise<string> => {
+  try {
+    const info = await new Promise<WechatMiniprogram.GetImageInfoSuccessCallbackResult>((resolve, reject) => {
+      wx.getImageInfo({ src: tempFilePath, success: resolve, fail: reject })
+    })
+    const target = fitImageWithin(info.width, info.height, maxEdge)
+    return await new Promise<string>((resolve, reject) => {
+      wx.compressImage({
+        src: tempFilePath,
+        quality,
+        compressedWidth: target.width,
+        compressedHeight: target.height,
+        success: (result) => resolve(result.tempFilePath),
         fail: reject,
       })
     })
+  } catch {
+    // 个别旧格式或旧基础库不支持尺寸压缩时仍允许保存原图。
+    return tempFilePath
   }
-  const profile = await ensureProfile()
-  const cloudPath = `footprint-photos/${profile.id}/${Date.now()}-${Math.random().toString(36).slice(2)}.jpg`
+}
+
+const saveLocalImage = (tempFilePath: string): Promise<string> =>
+  new Promise<string>((resolve, reject) => {
+    wx.getFileSystemManager().saveFile({
+      tempFilePath,
+      success: (res) => resolve(res.savedFilePath),
+      fail: reject,
+    })
+  })
+
+const uploadPreparedImage = async (tempFilePath: string, cloudPath: string): Promise<string> => {
+  if (!USE_CLOUD || !cloudReady) return saveLocalImage(tempFilePath)
   const res = await wx.cloud.uploadFile({ cloudPath, filePath: tempFilePath })
   return res.fileID
+}
+
+const uploadToken = (): string => `${Date.now()}-${Math.random().toString(36).slice(2)}`
+
+export const uploadPhoto = async (tempFilePath: string): Promise<string> => {
+  const prepared = await prepareImage(tempFilePath, 1600, 82)
+  const profile = await ensureProfile()
+  return uploadPreparedImage(
+    prepared,
+    `footprint-photos/${profile.id}/${uploadToken()}.jpg`,
+  )
+}
+
+export interface UploadedFootprintPhoto {
+  photo: string
+  thumbnail: string
+}
+
+/** 足迹原图限制长边 1600px，同时生成 480px 列表缩略图。 */
+export const uploadFootprintPhoto = async (tempFilePath: string): Promise<UploadedFootprintPhoto> => {
+  const profile = await ensureProfile()
+  const token = uploadToken()
+  const [preparedPhoto, preparedThumbnail] = await Promise.all([
+    prepareImage(tempFilePath, 1600, 82),
+    prepareImage(tempFilePath, 480, 72),
+  ])
+  const photo = await uploadPreparedImage(
+    preparedPhoto,
+    `footprint-photos/${profile.id}/${token}-full.jpg`,
+  )
+  try {
+    const thumbnail = await uploadPreparedImage(
+      preparedThumbnail,
+      `footprint-photos/${profile.id}/${token}-thumb.jpg`,
+    )
+    return { photo, thumbnail }
+  } catch (error) {
+    await deletePhotos([photo])
+    throw error
+  }
 }
 
 export const uploadPhotos = async (tempPaths: string[]): Promise<string[]> =>
@@ -536,14 +688,15 @@ const runWithConcurrency = async <T, R>(
   return results
 }
 
-export const deletePhotos = async (paths: string[]): Promise<void> => {
+export const deletePhotos = async (paths: Array<string | undefined>): Promise<void> => {
+  const validPaths = paths.filter((path): path is string => Boolean(path))
   if (USE_CLOUD && cloudReady) {
-    const cloudPaths = paths.filter((p) => p.startsWith('cloud://'))
+    const cloudPaths = validPaths.filter((p) => p.startsWith('cloud://'))
     if (cloudPaths.length) {
       await wx.cloud.deleteFile({ fileList: cloudPaths }).catch(() => undefined)
     }
   }
-  await deleteLocalFiles(paths)
+  await deleteLocalFiles(validPaths)
 }
 
 // ─── Map Settings ───
@@ -637,7 +790,7 @@ export const saveTimeCapsule = async (draft: TimeCapsuleDraft): Promise<TimeCaps
   if (!draft.id) {
     const existingCapsules = await listTimeCapsules()
     if (!hasTimeCapsuleCapacity(existingCapsules.length, profile.growth, now)) {
-      throw new Error('免费版最多可创建 3 个时光胶囊，开通拾光+ 后不限数量')
+      throw new Error('免费版最多可创建 3 个时光胶囊，开通会员后不限数量')
     }
   }
   const existing = draft.id
@@ -711,26 +864,6 @@ export const unlockTimeCapsule = async (id: string): Promise<TimeCapsule> => {
   return unlocked
 }
 
-// ─── AI Assistant ───
-
-export const generateAIDraft = async (
-  text: string,
-  photoIds: string[] = [],
-): Promise<import('../domain/types').FootprintDraftAI> => {
-  if (USE_CLOUD && cloudReady) {
-    return callCloud('aiAssistant', { action: 'draft', text, photoIds })
-  }
-  // Local fallback: simple heuristic extraction
-  return {
-    poiName: text.slice(0, 20),
-    visitDate: todayKey(),
-    note: text,
-    confidence: 0.3,
-    needsPoiConfirmation: true,
-    dateWasDefaulted: true,
-  }
-}
-
 // ─── Account ───
 
 export const clearAllData = async (): Promise<void> => {
@@ -740,7 +873,7 @@ export const clearAllData = async (): Promise<void> => {
   if (USE_CLOUD && cloudReady) {
     await callCloud('accountMutation', { action: 'clearAll' })
   }
-  await deletePhotos(allFootprints.flatMap((fp) => fp.photos))
+  await deletePhotos(allFootprints.flatMap((fp) => [...fp.photos, ...(fp.photoThumbs || [])]))
   await deleteLocalFiles(legacySnapshots.map((snapshot) => snapshot.imageUrl))
   Object.values(STORAGE_KEYS).forEach((key) => {
     if (key !== STORAGE_KEYS.profile) wx.removeStorageSync(key)
@@ -748,6 +881,7 @@ export const clearAllData = async (): Promise<void> => {
   wx.removeStorageSync(LEGACY_SHARE_SNAPSHOTS_KEY)
   footprintListCache = null
   footprintListCachedAt = 0
+  footprintDetailCache.clear()
   try {
     const app = getApp<IAppOption>()
     app.globalData.footprints = []
@@ -767,15 +901,17 @@ export const deleteAccount = async (): Promise<void> => {
   }
   await deleteLocalFiles([
     profile?.avatarUrl,
-    ...footprints.flatMap((fp) => fp.photos),
+    ...footprints.flatMap((fp) => [...fp.photos, ...(fp.photoThumbs || [])]),
     ...legacySnapshots.map((snapshot) => snapshot.imageUrl),
   ])
   Object.values(STORAGE_KEYS).forEach((key) => wx.removeStorageSync(key))
   wx.removeStorageSync(LEGACY_SHARE_SNAPSHOTS_KEY)
   footprintListCache = null
   footprintListCachedAt = 0
+  footprintDetailCache.clear()
   sessionReady = false
   cloudReady = false
+  cloudRetryAfter = 0
   loginPromise = null
   profileCache = null
 }

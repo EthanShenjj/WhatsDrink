@@ -89,6 +89,11 @@ describe('computeLighting', () => {
     expect(stats.photoCount).toBe(3)
   })
 
+  it('keeps the full photo count when list data is summarized', () => {
+    const fps = [makeFP({ photos: ['preview.jpg'], photoCount: 9, isSummary: true })]
+    expect(computeLighting(fps).photoCount).toBe(9)
+  })
+
   it('counts repeat visits to one POI as one place', () => {
     const fps = [
       makeFP({ id: 'a', poiName: '人民公园', lat: 30.658, lng: 104.064, visitDate: '2025-09-01' }),

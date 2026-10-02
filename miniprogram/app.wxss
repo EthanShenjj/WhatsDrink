@@ -346,7 +346,7 @@ button::after {
   }
 }
 
-/* 公共表单控件：ai-assistant / time-capsule / travel-plan 共用同一套规格 */
+/* 公共表单控件：time-capsule / travel-plan 共用同一套规格 */
 .field-label {
   display: block;
   margin: 26rpx 0 12rpx;

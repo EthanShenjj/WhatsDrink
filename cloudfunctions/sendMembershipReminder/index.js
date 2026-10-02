@@ -56,7 +56,7 @@ const sendReminder = async (openid, target) => {
       templateId,
       page,
       data: {
-        [fields.title]: { value: target.isPro ? '拾光 Pro 会员' : '拾光+ 会员' },
+        [fields.title]: { value: target.isPro ? 'Pro 会员' : 'Plus 会员' },
         [fields.date]: { value: formatDateCN(target.until) },
         [fields.note]: {
           value: expired ? '会员已到期，续购可从现在起算' : '会员即将到期，续购可顺延剩余时长',

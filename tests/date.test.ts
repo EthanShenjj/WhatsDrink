@@ -61,6 +61,19 @@ describe('buildMonthGrid', () => {
     expect(cellWithFootprint?.previewPhoto).toBe('photo.jpg')
   })
 
+  it('prefers a lightweight thumbnail for calendar cells', () => {
+    const fps: Footprint[] = [
+      {
+        id: 'thumb', userId: 'u', status: 'visited', poiName: 'Thumbnail',
+        visitDate: '2026-09-15', photos: ['original.jpg'], photoThumbs: ['thumb.jpg'], tags: [],
+        source: 'manual', clientRequestId: 'thumb-request',
+        createdAt: 0, updatedAt: 0,
+      },
+    ]
+    const grid = buildMonthGrid(2026, 8, fps)
+    expect(grid.find((cell) => cell.key === '2026-09-15')?.previewPhoto).toBe('thumb.jpg')
+  })
+
   it('starts on Monday', () => {
     const grid = buildMonthGrid(2026, 8, []) // Sep 2026
     // Sep 1, 2026 is a Tuesday, so the grid should start on Mon Aug 31

@@ -4,7 +4,7 @@ import path from 'node:path'
 const root = process.cwd()
 const miniprogram = path.join(root, 'miniprogram')
 const errors = []
-const maxMediaBytes = 200 * 1024
+const maxMediaBytes = 320 * 1024
 const mediaExtensions = new Set([
   '.png',
   '.jpg',
@@ -19,6 +19,21 @@ const mediaExtensions = new Set([
   '.ogg',
 ])
 let totalMediaBytes = 0
+let growthDecodedBytes = 0
+const maxGrowthDecodedBytes = 8 * 1024 * 1024
+
+const readPngDimensions = (file) => {
+  const header = Buffer.alloc(24)
+  const fd = fs.openSync(file, 'r')
+  try {
+    if (fs.readSync(fd, header, 0, header.length, 0) !== header.length) return null
+  } finally {
+    fs.closeSync(fd)
+  }
+  const pngSignature = '89504e470d0a1a0a'
+  if (header.subarray(0, 8).toString('hex') !== pngSignature) return null
+  return { width: header.readUInt32BE(16), height: header.readUInt32BE(20) }
+}
 
 const readJson = (file) => {
   try {
@@ -34,6 +49,57 @@ const cloudBaseConfig = readJson(path.join(root, 'cloudbaserc.json'))
 const packageJson = readJson(path.join(root, 'package.json'))
 readJson(path.join(root, 'project.config.json'))
 readJson(path.join(miniprogram, 'sitemap.json'))
+
+const requiredGrowthAssets = [
+  'journey.png',
+  'explore.png',
+  'discover.png',
+  'highlight.png',
+  'companion.png',
+  'dawn.png',
+  'acc-thinking.png',
+  'acc-depart.png',
+  'acc-explore.png',
+  'acc-collect.png',
+  'acc-record.png',
+  'acc-companion.png',
+  'acc-reunion.png',
+  'pose-dawn.png',
+  'pose-seasons.png',
+  'pose-distance.png',
+  'pose-hometown.png',
+  'pose-reunion.png',
+  'pose-annual.png',
+]
+
+for (const fileName of requiredGrowthAssets) {
+  const file = path.join(miniprogram, 'assets', 'growth', fileName)
+  if (!fs.existsSync(file)) {
+    errors.push(`缺少 IP 形象资源：${path.relative(root, file)}`)
+    continue
+  }
+  const dimensions = readPngDimensions(file)
+  if (!dimensions) {
+    errors.push(`无法读取 IP 形象尺寸：${path.relative(root, file)}`)
+    continue
+  }
+  const maxDimension = fileName.startsWith('pose-') ? 144 : 360
+  if (dimensions.width > maxDimension || dimensions.height > maxDimension) {
+    errors.push(
+      `IP 形象像素过大：${path.relative(root, file)} 为 ${dimensions.width}x${dimensions.height}，上限 ${maxDimension}x${maxDimension}`,
+    )
+  }
+  if (fs.statSync(file).size > 40 * 1024) {
+    errors.push(`单张 IP 形象不得超过 40 KB：${path.relative(root, file)}`)
+  }
+  growthDecodedBytes += dimensions.width * dimensions.height * 4
+}
+
+if (growthDecodedBytes > maxGrowthDecodedBytes) {
+  errors.push(
+    `IP 形象总解码预算不得超过 8 MB：当前 ${Math.ceil(growthDecodedBytes / 1024 / 1024)} MB`,
+  )
+}
 
 const appConfigSource = fs.readFileSync(path.join(miniprogram, 'services', 'config.ts'), 'utf8')
 const appVersion = appConfigSource.match(/export const APP_VERSION = ['"]([^'"]+)['"]/)?.[1]
@@ -67,7 +133,7 @@ visitMediaFiles(miniprogram)
 
 if (totalMediaBytes > maxMediaBytes) {
   errors.push(
-    `代码包图片和音频资源总量不得超过 200 KB：当前 ${Math.ceil(totalMediaBytes / 1024)} KB`,
+    `代码包图片和音频资源总量不得超过 320 KB：当前 ${Math.ceil(totalMediaBytes / 1024)} KB`,
   )
 }
 
@@ -75,7 +141,6 @@ const requiredCloudFunctions = [
   'login',
   'footprintMutation',
   'accountMutation',
-  'aiAssistant',
   'travelPlanMutation',
   'timeCapsuleMutation',
   'sendCapsuleReminder',
@@ -100,5 +165,5 @@ if (errors.length) {
 }
 
 console.log(
-  `项目结构检查通过：${appJson.pages.length} 个页面、${requiredCloudFunctions.length} 个云函数、媒体总量 ${Math.ceil(totalMediaBytes / 1024)} KB`,
+  `项目结构检查通过：${appJson.pages.length} 个页面、${requiredCloudFunctions.length} 个云函数、媒体总量 ${Math.ceil(totalMediaBytes / 1024)} KB、IP 解码预算 ${Math.ceil(growthDecodedBytes / 1024)} KB`,
 )

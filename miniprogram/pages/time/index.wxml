@@ -1,46 +1,24 @@
 <view class="page-shell time-page">
   <view class="time-header">
     <text class="eyebrow">TIMELINE</text>
-    <view class="time-title-row">
-      <text class="display-title">我的时光</text>
-      <button class="time-capsule-button" hover-class="time-capsule-button--pressed" bindtap="onCapsuleTap">
-        <local-icon name="clock-brand" size="28rpx" />
-        <text>时光胶囊</text>
-      </button>
-    </view>
+    <text class="display-title">我的时光</text>
   </view>
 
-  <brand-card wx:if="{{growth}}" variant="tint" interactive ariaLabel="查看本周小拾状态" bind:tap="onGrowthTap">
-    <view class="time-state-card">
-      <view class="time-state-copy">
-        <text class="time-state-kicker">本周小拾状态</text>
-        <text class="time-state-title">{{growth.weeklyTitle}}</text>
-        <text class="time-state-message">{{growth.weeklyMessage}}</text>
-        <growth-state-chip state="{{growth.activeColorId}}" label="{{growth.nextGoalText}}" interactive="{{false}}" />
-      </view>
-      <ip-mascot state="{{growth.activeColorId}}" expression="companion" size="172rpx" motion="none" label="本周的小拾" />
+  <view
+    class="time-capsule-entry"
+    hover-class="time-capsule-entry--pressed"
+    bindtap="onCapsuleTap"
+    role="button"
+    aria-label="打开时光胶囊"
+  >
+    <view class="time-capsule-icon">
+      <local-icon name="clock-brand" size="30rpx" />
     </view>
-  </brand-card>
-
-  <view wx:if="{{memoryDrops.length}}" class="memory-drop-section">
-    <view class="memory-drop-heading">
-      <text class="section-title">今日掉落</text>
-      <text class="muted">过去的记忆，今天重新遇见</text>
+    <view class="time-capsule-copy">
+      <text class="time-capsule-title">时光胶囊</text>
+      <text class="time-capsule-description">封存此刻，留给未来开启</text>
     </view>
-    <view class="memory-drop-wrap {{memoryDrops.length === 1 ? 'is-single' : ''}}">
-      <scroll-view scroll-x class="memory-drop-scroll" show-scrollbar="{{false}}">
-        <view class="memory-drop-row">
-          <view wx:for="{{memoryDrops}}" wx:key="id" class="memory-drop-card card" hover-class="press-dim" role="button" data-id="{{item.id}}" bindtap="onMemoryDropTap">
-            <image wx:if="{{item.footprint.photos.length}}" class="memory-drop-image {{memoryImgLoaded[item.id] ? 'is-loaded' : ''}}" src="{{item.footprint.photos[0]}}" mode="aspectFill" data-id="{{item.id}}" bindload="onMemoryImgLoad" />
-            <view wx:else class="memory-drop-mascot"><ip-mascot state="companion" expression="happy" size="126rpx" label="重新遇见记忆的小拾" /></view>
-            <text class="memory-drop-kind">{{item.kind === 'anniversary' ? '周年记忆' : '最近的回忆'}}</text>
-            <text class="memory-drop-title">{{item.title}}</text>
-            <text wx:if="{{item.footprint.note}}" class="memory-drop-note">{{item.footprint.note}}</text>
-          </view>
-        </view>
-      </scroll-view>
-      <view class="memory-drop-fade" aria-hidden="true"></view>
-    </view>
+    <text class="time-capsule-arrow">›</text>
   </view>
 
   <view class="time-view-switcher">
@@ -61,25 +39,94 @@
   </view>
 
   <block wx:if="{{viewMode === 'calendar'}}">
-    <view class="month-nav">
-      <view class="month-nav-btn" hover-class="press-scale" bindtap="onPrevMonth" role="button" aria-label="上个月">
-        <text class="month-nav-arrow">‹</text>
+    <view class="album-hero">
+      <view class="album-stage {{albumMotionEnabled ? 'is-animated' : ''}}" aria-hidden="true">
+        <view class="album-cover album-cover--left">
+          <view class="album-cover-image">
+            <image wx:if="{{monthPreviewPhotos[0]}}" class="album-cover-photo" src="{{monthPreviewPhotos[0]}}" mode="aspectFill" lazy-load />
+            <view wx:else class="album-cover-placeholder">
+              <ip-mascot state="companion" expression="happy" size="76rpx" motion="none" label="默认 Lumi 相册封面" />
+            </view>
+          </view>
+          <view class="album-cover-caption">
+            <text class="album-cover-title">拾光 01</text>
+            <text class="album-cover-date">{{monthLabel}}</text>
+          </view>
+        </view>
+        <view class="album-cover album-cover--middle">
+          <view class="album-cover-image">
+            <image wx:if="{{monthPreviewPhotos[1]}}" class="album-cover-photo" src="{{monthPreviewPhotos[1]}}" mode="aspectFill" lazy-load />
+            <view wx:else class="album-cover-placeholder">
+              <ip-mascot state="companion" expression="happy" size="76rpx" motion="none" label="默认 Lumi 相册封面" />
+            </view>
+          </view>
+          <view class="album-cover-caption">
+            <text class="album-cover-title">沿途 02</text>
+            <text class="album-cover-date">LIFEMAP</text>
+          </view>
+        </view>
+        <view class="album-cover album-cover--front">
+          <view class="album-cover-tape"></view>
+          <view class="album-cover-image">
+            <image wx:if="{{monthPreviewPhotos[2]}}" class="album-cover-photo" src="{{monthPreviewPhotos[2]}}" mode="aspectFill" lazy-load />
+            <view wx:else class="album-cover-placeholder">
+              <ip-mascot state="companion" expression="happy" size="76rpx" motion="none" label="默认 Lumi 相册封面" />
+            </view>
+          </view>
+          <view class="album-cover-caption">
+            <text class="album-cover-title">本月拾光</text>
+            <text class="album-cover-date">{{monthLabel}}</text>
+          </view>
+        </view>
+        <view class="album-cover album-cover--right">
+          <view class="album-cover-image">
+            <image wx:if="{{monthPreviewPhotos[3]}}" class="album-cover-photo" src="{{monthPreviewPhotos[3]}}" mode="aspectFill" lazy-load />
+            <view wx:else class="album-cover-placeholder">
+              <ip-mascot state="companion" expression="happy" size="76rpx" motion="none" label="默认 Lumi 相册封面" />
+            </view>
+          </view>
+          <view class="album-cover-caption">
+            <text class="album-cover-title">留迹 04</text>
+            <text class="album-cover-date">MEMORY</text>
+          </view>
+        </view>
+        <view class="album-film-strip">
+          <view wx:for="{{monthPreviewPhotos}}" wx:key="*this" class="album-film-frame">
+            <image class="album-film-photo" src="{{item}}" mode="aspectFill" lazy-load />
+          </view>
+          <view wx:if="{{!monthPreviewPhotos.length}}" class="album-film-empty">
+            <text class="album-film-empty-title">LIFEMAP</text>
+            <text class="album-film-empty-date">{{monthLabel}} · 待显影</text>
+          </view>
+        </view>
       </view>
-      <view class="month-nav-center">
+    </view>
+
+    <view class="month-nav">
+      <view class="month-nav-copy">
         <text class="month-nav-label">{{monthLabel}}</text>
+        <text class="month-nav-count">{{monthFootprintCount}} 个足迹</text>
+      </view>
+      <view class="month-nav-actions">
         <text
           class="month-nav-today {{selectedKey !== todayKey ? '' : 'is-hidden'}}"
           hover-class="press-dim"
           bindtap="onTodayJump"
         >回到今天</text>
-      </view>
-      <view class="month-nav-btn" hover-class="press-scale" bindtap="onNextMonth" role="button" aria-label="下个月">
-        <text class="month-nav-arrow">›</text>
+        <view class="month-nav-stepper">
+          <view class="month-nav-btn" hover-class="press-scale" bindtap="onPrevMonth" role="button" aria-label="上个月">
+            <text class="month-nav-arrow">‹</text>
+          </view>
+          <view class="month-nav-divider"></view>
+          <view class="month-nav-btn" hover-class="press-scale" bindtap="onNextMonth" role="button" aria-label="下个月">
+            <text class="month-nav-arrow">›</text>
+          </view>
+        </view>
       </view>
     </view>
 
     <view
-      class="calendar-wrapper card"
+      class="calendar-wrapper"
       bindtouchstart="onTouchStart"
       bindtouchend="onTouchEnd"
     >
@@ -90,10 +137,6 @@
         selectedKey="{{selectedKey}}"
         bind:select="onCellSelect"
       ></calendar-grid>
-    </view>
-
-    <view class="calendar-meta">
-      <text class="muted">本月共 {{monthFootprintCount}} 个足迹</text>
     </view>
 
     <view class="timeline-section">
@@ -190,6 +233,25 @@
         </view>
       </view>
     </view>
+  </view>
+
+  <view wx:if="{{memoryDrops.length}}" class="memory-drop-section">
+    <view class="memory-drop-heading">
+      <text class="section-title">今天想起</text>
+      <text class="memory-drop-caption">过去的记忆，今天重新遇见</text>
+    </view>
+    <scroll-view scroll-x class="memory-drop-scroll" show-scrollbar="{{false}}">
+      <view class="memory-drop-row">
+        <view wx:for="{{memoryDrops}}" wx:key="id" class="memory-drop-card" hover-class="press-dim" role="button" data-id="{{item.id}}" bindtap="onMemoryDropTap">
+          <image wx:if="{{item.footprint.photoCount || item.footprint.photos.length}}" class="memory-drop-image {{memoryImgLoaded[item.id] ? 'is-loaded' : ''}}" src="{{(item.footprint.photoThumbs && item.footprint.photoThumbs[0]) || item.footprint.photos[0]}}" mode="aspectFill" lazy-load data-id="{{item.id}}" bindload="onMemoryImgLoad" />
+          <view wx:else class="memory-drop-mascot"><ip-mascot state="companion" expression="happy" size="104rpx" label="重新遇见记忆的 Lumi" /></view>
+          <view class="memory-drop-copy">
+            <text class="memory-drop-kind">{{item.kind === 'anniversary' ? '周年记忆' : '最近的回忆'}}</text>
+            <text class="memory-drop-title">{{item.title}}</text>
+          </view>
+        </view>
+      </view>
+    </scroll-view>
   </view>
 
   <privacy-popup></privacy-popup>

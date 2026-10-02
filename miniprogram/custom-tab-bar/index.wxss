@@ -1,3 +1,24 @@
+/* custom-tab-bar 在页面树之外，app.wxss 里 page{} 定义的 token 继承不到这里，
+   所有 var() 必须在本组件内兜底定义，取值与 app.wxss 保持一致。 */
+.tab-bar-backdrop,
+.tab-bar,
+.tab-sheet-layer {
+  --surface: #FFFFFF;
+  --surface-soft: #F8F8FF;
+  --surface-highest: #E7E9FB;
+  --brand-surface-tint: #F0F1FF;
+  --brand-primary: #5B6CFF;
+  --brand-primary-deep: #3E47C8;
+  --amber-soft: #FFF2CF;
+  --amber-deep: #A86E08;
+  --ink: #17182B;
+  --muted: #6F7489;
+  --outline: #A5A9BC;
+  --line: #E6E8F5;
+  --radius-sm: 16rpx;
+  --control-height: 88rpx;
+}
+
 .tab-bar-backdrop {
   position: fixed;
   z-index: 99;
@@ -143,6 +164,11 @@
 .tab-sheet-icon.is-wish {
   background: var(--amber-soft);
   color: var(--amber-deep);
+}
+
+.tab-sheet-icon.is-checkin {
+  background: var(--brand-primary);
+  color: #FFFFFF;
 }
 
 .tab-sheet-copy {

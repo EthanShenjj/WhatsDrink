@@ -21,7 +21,7 @@ export const computeLighting = (footprints: Footprint[]): LightingStats => {
   const cities = new Set(visited.filter((fp) => fp.city).map((fp) => `${fp.province || ''}/${fp.city}`))
   const places = new Set(visited.map(placeKey))
   const legacyFulfilled = new Set(visited.filter((fp) => fp.convertedFromWishlist && !fp.wishId).map((fp) => fp.id))
-  const photoCount = visited.reduce((sum, fp) => sum + fp.photos.length, 0)
+  const photoCount = visited.reduce((sum, fp) => sum + (fp.photoCount ?? fp.photos.length), 0)
   return {
     countries: countries.size,
     provinces: provinces.size,

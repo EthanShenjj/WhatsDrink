@@ -7,45 +7,12 @@
       <image wx:if="{{profile.avatarUrl}}" class="profile-avatar" src="{{profile.avatarUrl}}" mode="aspectFill" />
       <view wx:else class="profile-avatar profile-avatar-empty">拾</view>
       <view class="profile-copy">
-        <text class="profile-name">{{profile.nickname || '拾光者'}}</text>
+        <text class="profile-name">{{profile.nickname || '你好'}}</text>
         <text class="profile-hint">个人资料、数据与隐私设置</text>
       </view>
       <text class="profile-arrow">›</text>
     </view>
   </brand-card>
-
-  <view class="membership-card {{growth.isPlus ? 'is-active' : ''}} {{growth.isPro ? 'is-pro' : ''}}" hover-class="press-dim" bindtap="onMembershipTap" role="button" aria-label="查看拾光付费方案">
-    <view class="membership-symbol" aria-hidden="true">
-      <view class="membership-sparkles">
-        <text class="membership-sparkle-main">✦</text>
-        <text class="membership-sparkle-small">✦</text>
-      </view>
-    </view>
-    <view class="membership-copy">
-      <view class="membership-title-row">
-        <text class="membership-title">{{growth.isPro ? '拾光 Pro 已开通' : (growth.isPlus ? '拾光+ 已开通' : '开通拾光会员')}}</text>
-        <text class="membership-pill">{{growth.isPro ? '年度 PRO' : (growth.isPlus ? '已生效' : '31 天 ¥6 起')}}</text>
-      </view>
-      <text class="membership-note">{{growth.isPro ? ('Pro 剩余 ' + growth.proDaysLeft + ' 天 · 新功能优先体验') : (growth.isPlus ? ('当前权益剩余 ' + growth.plusDaysLeft + ' 天') : '专属主题 · 无限时光胶囊 · Pro 新能力')}}</text>
-    </view>
-    <text class="membership-arrow">›</text>
-  </view>
-
-  <view wx:if="{{growth}}" class="growth-card growth-{{growth.activeColorId}}" hover-class="press-dim" bindtap="onGrowthTap" role="button" aria-label="查看小拾成长计划">
-    <view class="growth-card-copy">
-      <view class="growth-label-row">
-        <text class="growth-label">小拾成长计划</text>
-        <text wx:if="{{growth.isPlus}}" class="growth-plus">{{growth.isPro ? '拾光 PRO' : '拾光+'}}</text>
-      </view>
-      <text class="growth-title">{{growth.weeklyTitle}}</text>
-      <text class="growth-message">{{growth.weeklyMessage}}</text>
-      <view class="growth-goal">
-        <text>{{growth.nextGoalText}}</text>
-        <text class="growth-goal-arrow">查看成长 ›</text>
-      </view>
-    </view>
-    <ip-mascot state="{{growth.activeColorId}}" expression="companion" size="190rpx" motion="none" label="当前状态的小拾" />
-  </view>
 
   <view class="stats-card card">
     <view class="stats-heading">
@@ -57,11 +24,19 @@
       <view class="stat-item"><text class="stat-number">{{stats.cities || 0}}</text><text class="stat-label">点亮城市</text></view>
       <view class="stat-item"><text class="stat-number">{{stats.wishlistCount || 0}}</text><text class="stat-label">想去清单</text></view>
     </view>
-    <view class="stats-secondary">
-      <text>{{stats.photoCount || 0}} 张照片</text>
-      <text>{{stats.provinces || 0}} 个省份</text>
-      <text>{{stats.fulfilledWishCount || 0}} 个愿望实现</text>
+  </view>
+
+  <view wx:if="{{growth}}" class="growth-card growth-{{growth.activeColorId}}" hover-class="press-dim" bindtap="onGrowthTap" role="button" aria-label="查看 Lumi 成长">
+    <ip-mascot state="{{growth.activeColorId}}" expression="companion" size="112rpx" motion="none" label="当前状态的 Lumi" />
+    <view class="growth-card-copy">
+      <view class="growth-label-row">
+        <text class="growth-label">Lumi 成长</text>
+        <text wx:if="{{growth.isPlus}}" class="growth-plus">{{growth.isPro ? 'PRO' : 'PLUS'}}</text>
+      </view>
+      <text class="growth-title">{{growth.weeklyTitle}}</text>
+      <text class="growth-goal-text">{{growth.nextGoalText}}</text>
     </view>
+    <text class="growth-card-arrow">›</text>
   </view>
 
   <view class="menu-card card">
@@ -71,6 +46,23 @@
       <text wx:if="{{item.hint}}" class="menu-hint">{{item.hint}}</text>
       <text class="menu-arrow">›</text>
     </view>
+  </view>
+
+  <view class="membership-card {{growth.isPlus ? 'is-active' : ''}} {{growth.isPro ? 'is-pro' : ''}}" hover-class="press-dim" bindtap="onMembershipTap" role="button" aria-label="查看会员方案">
+    <view class="membership-symbol" aria-hidden="true">
+      <view class="membership-sparkles">
+        <text class="membership-sparkle-main">✦</text>
+        <text class="membership-sparkle-small">✦</text>
+      </view>
+    </view>
+    <view class="membership-copy">
+      <view class="membership-title-row">
+        <text class="membership-title">{{growth.isPro ? 'Pro 会员已开通' : (growth.isPlus ? 'Plus 会员已开通' : '会员')}}</text>
+        <text class="membership-pill">{{growth.isPro ? '年度 PRO' : (growth.isPlus ? '已生效' : '31 天 ¥6 起')}}</text>
+      </view>
+      <text class="membership-note">{{growth.isPro ? ('剩余 ' + growth.proDaysLeft + ' 天') : (growth.isPlus ? ('剩余 ' + growth.plusDaysLeft + ' 天') : '完整回顾、专属主题与更多时光胶囊')}}</text>
+    </view>
+    <text class="membership-arrow">›</text>
   </view>
 
   <text class="version-label">拾光迹 · LifeMap v{{version}}</text>

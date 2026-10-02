@@ -75,6 +75,27 @@ const sanitizePhotos = (value, openid) => {
   return photos
 }
 
+const sanitizePhotoThumbs = (value, openid) => {
+  const thumbnails = sanitizeStringArray(value, 9, 500)
+  if (thumbnails.some((photo) => !isOwnedCloudFile(photo, openid))) {
+    throw new Error('照片缩略图必须来自当前用户的云存储目录')
+  }
+  return thumbnails
+}
+
+const toFootprintSummary = (footprint) => {
+  const photos = Array.isArray(footprint.photos) ? footprint.photos : []
+  const photoThumbs = Array.isArray(footprint.photoThumbs) ? footprint.photoThumbs.slice(0, 1) : []
+  return {
+    ...footprint,
+    // 新记录只下发缩略图；旧记录没有缩略图时才回退首张原图。
+    photos: photoThumbs.length ? [] : photos.slice(0, 1),
+    photoThumbs,
+    photoCount: photos.length,
+    isSummary: true,
+  }
+}
+
 const sanitizeMarkerStyle = (value) => {
   if (value === undefined || value === null) return undefined
   if (typeof value !== 'object' || Array.isArray(value)) throw new Error('标记样式不合法')
@@ -136,6 +157,11 @@ const sanitizeFootprint = (input, openid, existing, now = Date.now()) => {
   if (status === 'fulfilled' && (!fulfilledAt || !fulfilledVisitId)) {
     throw new Error('已实现愿望必须关联到访记录')
   }
+  const photos = sanitizePhotos(input.photos, openid)
+  const photoThumbs = sanitizePhotoThumbs(input.photoThumbs, openid)
+  if (photoThumbs.length && photoThumbs.length !== photos.length) {
+    throw new Error('照片与缩略图数量不一致')
+  }
 
   return {
     _openid: openid,
@@ -149,7 +175,8 @@ const sanitizeFootprint = (input, openid, existing, now = Date.now()) => {
     city: optionalText(input.city, 40),
     district: optionalText(input.district, 40),
     visitDate,
-    photos: sanitizePhotos(input.photos, openid),
+    photos,
+    photoThumbs,
     mood: optionalText(input.mood, 30),
     category: optionalText(input.category, 30),
     tags: sanitizeStringArray(input.tags, 20, 30),
@@ -174,6 +201,8 @@ module.exports = {
   optionalDate,
   sanitizeFootprint,
   sanitizePhotos,
+  sanitizePhotoThumbs,
   text,
   todayKey,
+  toFootprintSummary,
 }

@@ -104,26 +104,6 @@ try {
   await sleep(3000)
   await shot('06-map-after-save')
 
-  // ⑦ AI 助手:文本生成足迹草稿(含"选择地图 POI"按钮)
-  page = await miniProgram.navigateTo('/pages/ai-assistant/index')
-  await page.waitFor(1200)
-  await page.setData({ text: '今天下午去了天府广场散步,吃了火锅,心情特别棒' })
-  await page.callMethod('onGenerateDraft')
-  await sleep(4000)
-  const aiData = await page.data()
-  if (aiData.stage !== 'preview') {
-    console.warn(`[warn] AI 草稿未生成(stage=${aiData.stage}),用等价表单状态代替`)
-    await page.setData({
-      stage: 'preview',
-      poiName: '天府广场',
-      poiConfirmed: false,
-      visitDate: new Date().toISOString().slice(0, 10),
-      mood: 'happy',
-    })
-    await sleep(600)
-  }
-  await shot('07-ai-draft')
-
   // ⑧ 我的页
   page = await miniProgram.switchTab('/pages/mine/index')
   await sleep(1800)

@@ -32,15 +32,23 @@
   <view class="tab-sheet-mask" bindtap="closeSheet"></view>
   <view class="tab-sheet" role="dialog" aria-label="添加记录">
     <view class="tab-sheet-handle"></view>
-    <view class="tab-sheet-option" data-index="0" bindtap="chooseAction" role="button" aria-label="记录足迹">
-      <view class="tab-sheet-icon"><local-icon name="location" size="34rpx" /></view>
+    <view class="tab-sheet-option" data-index="0" bindtap="chooseAction" role="button" aria-label="当前位置打卡">
+      <view class="tab-sheet-icon is-checkin"><local-icon name="locate-white" size="34rpx" /></view>
       <view class="tab-sheet-copy">
-        <text class="tab-sheet-title">记录足迹</text>
-        <text class="tab-sheet-sub">到访打卡或手动记录一个地方</text>
+        <text class="tab-sheet-title">当前位置打卡</text>
+        <text class="tab-sheet-sub">到店后获取位置，快速记录这次到访</text>
       </view>
       <text class="tab-sheet-arrow">›</text>
     </view>
-    <view class="tab-sheet-option" data-index="1" bindtap="chooseAction" role="button" aria-label="添加想去">
+    <view class="tab-sheet-option" data-index="1" bindtap="chooseAction" role="button" aria-label="手动记录足迹">
+      <view class="tab-sheet-icon"><local-icon name="location" size="34rpx" /></view>
+      <view class="tab-sheet-copy">
+        <text class="tab-sheet-title">手动记录足迹</text>
+        <text class="tab-sheet-sub">选择地点，也可以只填写地点名称</text>
+      </view>
+      <text class="tab-sheet-arrow">›</text>
+    </view>
+    <view class="tab-sheet-option" data-index="2" bindtap="chooseAction" role="button" aria-label="添加想去">
       <view class="tab-sheet-icon is-wish"><local-icon name="heart" size="34rpx" /></view>
       <view class="tab-sheet-copy">
         <text class="tab-sheet-title">添加想去</text>

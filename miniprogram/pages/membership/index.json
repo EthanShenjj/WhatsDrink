@@ -1,5 +1,5 @@
 {
-  "navigationBarTitleText": "拾光+",
+  "navigationBarTitleText": "会员",
   "usingComponents": {
     "ip-mascot": "/components/ip-mascot/index",
     "local-icon": "/components/local-icon/index",

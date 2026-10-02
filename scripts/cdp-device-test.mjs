@@ -52,7 +52,6 @@ const pages = () =>
     { key: '06-settings', url: '/pages/settings/index', settle: 1800 },
     { key: '07-personal-settings', url: '/pages/personal-settings/index', settle: 1800 },
     { key: '08-mine-edit', url: '/pages/mine-edit/index', settle: 2200 },
-    { key: '09-ai-assistant', url: '/pages/ai-assistant/index', settle: 2200 },
     { key: '10-privacy', url: '/pages/privacy/index', settle: 1800 },
     { key: '11-travel-plan', url: '/pages/travel-plan/index', settle: 2200 },
     { key: '12-time-capsule', url: '/pages/time-capsule/index', settle: 2200 },

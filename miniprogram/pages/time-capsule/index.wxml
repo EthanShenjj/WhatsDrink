@@ -43,7 +43,7 @@
       <text class="section-title">{{selectedCapsule.title}}</text>
       <text class="detail-date">{{selectedCapsule.unlockDate}} · 已解锁</text>
       <text wx:if="{{selectedCapsule.text}}" class="detail-text">{{selectedCapsule.text}}</text>
-      <image wx:for="{{selectedCapsule.photos}}" wx:key="*this" class="detail-photo" src="{{item}}" mode="aspectFill" />
+      <image wx:for="{{selectedCapsule.photos}}" wx:key="*this" class="detail-photo" src="{{item}}" mode="aspectFill" lazy-load />
       <button class="secondary-button" bindtap="onCloseDetail">收起</button>
       <button class="delete-button" data-id="{{selectedCapsule.id}}" bindtap="onDelete">删除胶囊</button>
     </view>

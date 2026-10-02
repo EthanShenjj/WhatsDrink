@@ -11,7 +11,7 @@
         <image wx:if="{{profile.avatarUrl}}" class="profile-avatar" src="{{profile.avatarUrl}}" mode="aspectFill" />
         <view wx:else class="profile-avatar profile-avatar-empty">拾</view>
         <view class="row-copy">
-          <text class="row-title">{{profile.nickname || '拾光者'}}</text>
+          <text class="row-title">{{profile.nickname || '你好'}}</text>
           <text class="row-hint">{{isLoggedIn ? '修改头像和昵称' : '完善头像和昵称'}}</text>
         </view>
         <text class="row-arrow">›</text>

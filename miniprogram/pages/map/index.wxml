@@ -24,7 +24,10 @@
     <cover-view slot="callout">
       <block wx:for="{{markers}}" wx:key="id">
         <cover-view wx:if="{{item.photo}}" marker-id="{{item.id}}" class="photo-marker-callout">
-          <cover-image class="photo-marker-image" src="{{item.photo}}" />
+          <cover-image class="photo-marker-image" src="{{item.photo}}" mode="aspectFill" />
+          <cover-view class="photo-marker-caption">
+            <cover-view class="photo-marker-title">{{item.title}}</cover-view>
+          </cover-view>
         </cover-view>
       </block>
     </cover-view>
@@ -57,52 +60,23 @@
           <local-icon name="heart" size="28rpx" />
           <text class="mode-pill-label">想去</text>
         </view>
-      </view>
-      <view
-        class="lighting-shortcut {{mode === 'lighting' ? 'is-active' : ''}}"
-        hover-class="press-scale"
-        data-mode="lighting"
-        bindtap="onModeTap"
-        role="button"
-        aria-label="查看点亮地图"
-      >
-        <local-icon name="sparkles" size="34rpx" />
+        <view
+          class="mode-pill {{mode === 'lighting' ? 'is-active lighting' : ''}}"
+          hover-class="press-scale"
+          data-mode="lighting"
+          bindtap="onModeTap"
+          role="button"
+          aria-label="查看点亮地图"
+        >
+          <local-icon name="sparkles" size="28rpx" />
+          <text class="mode-pill-label">点亮</text>
+        </view>
       </view>
     </view>
-    <growth-state-chip
-      wx:if="{{growth}}"
-      state="{{growth.activeColorId}}"
-      label="{{growth.weeklyTitle}}"
-      timeframe="查看成长"
-      bind:tap="onGrowthTap"
-    />
   </view>
 
-  <!-- 底部浮层栈：自上而下为打卡入口/记忆提示/未标注面板/空态，flex 排布避免互相遮挡 -->
+  <!-- 底部浮层栈：状态信息在上，快捷打卡固定靠近底部导航。 -->
   <view class="map-bottom-stack {{checkinVisible || checkinClosing || detailVisible || detailClosing || filterVisible ? 'is-covered' : ''}}">
-  <view
-    wx:if="{{mode === 'visited' && tabReady}}"
-    class="map-checkin-cta"
-    hover-class="press-dim"
-    bindtap="onCheckin"
-    role="button"
-    aria-label="当前位置打卡"
-  >
-    <view class="map-checkin-icon">
-      <local-icon name="locate" size="34rpx" />
-    </view>
-    <view class="map-checkin-copy">
-      <text class="map-checkin-title">当前位置打卡</text>
-      <text class="map-checkin-subtitle">到店后获取位置并记录到访</text>
-    </view>
-    <text class="map-checkin-arrow">›</text>
-  </view>
-
-  <view wx:if="{{mode === 'visited' && (nearbyMemory || todayDrop)}}" class="map-memory-cue" hover-class="press-dim" bindtap="onMemoryCueTap">
-    <text class="map-memory-cue-eyebrow">{{nearbyMemory ? '附近的旧记忆' : '今日掉落'}}</text>
-    <text class="map-memory-cue-title">{{nearbyMemory ? '距离 ' + nearbyMemory.poiName + ' 约 ' + nearbyDistance + ' 米' : todayDrop.title}}</text>
-  </view>
-
   <view wx:if="{{unplacedFootprints.length && mode !== 'lighting'}}" class="unplaced-panel">
     <view class="unplaced-head">
       <text class="unplaced-title">待补充位置</text>
@@ -138,7 +112,7 @@
   </view>
 
   <view wx:if="{{modeEmpty && !loading && mode !== 'lighting'}}" class="map-empty">
-    <ip-mascot state="{{growth.activeColorId || 'journey'}}" expression="think" size="104rpx" motion="none" label="正在等你出发的小拾" />
+    <ip-mascot state="{{growth.activeColorId || 'journey'}}" expression="think" size="104rpx" motion="none" label="正在等你出发的 Lumi" />
     <view class="map-empty-copy">
       <text class="map-empty-title">{{modeEmptyTitle}}</text>
       <text class="map-empty-description">{{modeEmptyDescription}}</text>
@@ -153,6 +127,20 @@
       <local-icon name="add-white" size="34rpx" />
     </view>
   </view>
+
+  <cover-view
+    wx:if="{{mode === 'visited' && tabReady}}"
+    class="map-checkin-cta"
+    hover-class="map-checkin-cta--pressed"
+    bindtap="onCheckin"
+    role="button"
+    aria-label="当前位置快捷打卡"
+  >
+    <cover-view class="map-checkin-icon">
+      <cover-image class="map-checkin-icon-image" src="/assets/icons/locate.svg" />
+    </cover-view>
+    <cover-view class="map-checkin-title">快捷打卡</cover-view>
+  </cover-view>
   </view>
 
   <scroll-view
@@ -224,10 +212,7 @@
     clusterEnabled="{{clusterEnabled}}"
     filterActive="{{activeFilterCount > 0}}"
     raised="{{modeEmpty && mode !== 'lighting'}}"
-    bind:search="onSearch"
-    bind:ai="onAiTap"
     bind:filter="onFilter"
-    bind:settings="onSettings"
     bind:clusterToggle="onMapControlClusterToggle"
   ></map-controls>
 

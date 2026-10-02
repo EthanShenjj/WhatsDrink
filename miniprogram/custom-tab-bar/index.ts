@@ -7,6 +7,7 @@ interface TabItem {
 }
 
 const sheetTimers = new WeakMap<object, number>()
+const PENDING_MAP_ACTION_STORAGE_KEY = 'sgj:pending-map-action'
 
 Component({
   data: {
@@ -36,7 +37,7 @@ Component({
           clearTimeout(timer)
           sheetTimers.delete(this)
         }
-        this.setData({ sheetVisible: true, sheetClosing: false })
+        this.setData({ hidden: true, sheetVisible: true, sheetClosing: false })
         return
       }
       if (index === this.data.selected) return
@@ -52,15 +53,35 @@ Component({
       this.setData({ sheetVisible: false, sheetClosing: true })
       const timerId = setTimeout(() => {
         sheetTimers.delete(this)
-        this.setData({ sheetClosing: false })
+        this.setData({ sheetClosing: false, hidden: false })
       }, 260) as unknown as number
       sheetTimers.set(this, timerId)
     },
     chooseAction(event: WechatMiniprogram.TouchEvent) {
       const index = Number(event.currentTarget.dataset.index)
-      this.setData({ sheetVisible: false, sheetClosing: false })
+      this.setData({ sheetVisible: false, sheetClosing: false, hidden: false })
+      if (index === 0) {
+        const pages = getCurrentPages()
+        const currentPage = pages[pages.length - 1] as unknown as {
+          route?: string
+          onCheckin?: () => void
+        }
+        if (currentPage?.route === 'pages/map/index' && currentPage.onCheckin) {
+          currentPage.onCheckin()
+          return
+        }
+        wx.setStorageSync(PENDING_MAP_ACTION_STORAGE_KEY, 'checkin')
+        wx.switchTab({
+          url: '/pages/map/index',
+          fail: () => {
+            wx.removeStorageSync(PENDING_MAP_ACTION_STORAGE_KEY)
+            wx.showToast({ title: '暂时无法打开地图', icon: 'none' })
+          },
+        })
+        return
+      }
       wx.navigateTo({
-        url: index === 0
+        url: index === 1
           ? '/pages/footprint-form/index'
           : '/pages/footprint-form/index?status=wishlist',
       })

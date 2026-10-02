@@ -4,6 +4,10 @@ Component({
       type: Array,
       value: [] as string[],
     },
+    thumbnails: {
+      type: Array,
+      value: [] as string[],
+    },
     pending: {
       type: Array,
       value: [] as string[],
@@ -14,14 +18,19 @@ Component({
     },
   },
   data: {
-    photoList: [] as Array<{ url: string; index: number; pending: boolean }>,
+    photoList: [] as Array<{ url: string; originalUrl: string; index: number; pending: boolean }>,
     showAdd: true,
     addLabel: '添加照片',
   },
   observers: {
-    'photos,pending,max'(photos: string[], pending: string[], max: number) {
-      const uploaded = (photos || []).map((url, index) => ({ url, index, pending: false }))
-      const waiting = (pending || []).map((url) => ({ url, index: -1, pending: true }))
+    'photos,thumbnails,pending,max'(photos: string[], thumbnails: string[], pending: string[], max: number) {
+      const uploaded = (photos || []).map((originalUrl, index) => ({
+        url: thumbnails?.[index] || originalUrl,
+        originalUrl,
+        index,
+        pending: false,
+      }))
+      const waiting = (pending || []).map((url) => ({ url, originalUrl: url, index: -1, pending: true }))
       const list = [...uploaded, ...waiting]
       this.setData({
         photoList: list,
@@ -42,7 +51,7 @@ Component({
     onPreview(e: WechatMiniprogram.TouchEvent) {
       const index = Number(e.currentTarget.dataset.index)
       if (index < 0) return
-      const urls = this.data.photoList.filter((p) => !p.pending).map((p) => p.url)
+      const urls = this.data.photoList.filter((p) => !p.pending).map((p) => p.originalUrl)
       wx.previewImage({ current: urls[index], urls })
     },
     preventMove() {},

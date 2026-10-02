@@ -20,8 +20,10 @@ export const haversine = (
 }
 
 /** 近景地图用足迹首图作为标记；远景保持轻量图钉，避免照片互相遮挡。 */
-export const markerPhotoForZoom = (footprint: Pick<Footprint, 'photos'>, zoom: number): string =>
-  zoom >= 12 ? footprint.photos?.[0] || '' : ''
+export const markerPhotoForZoom = (
+  footprint: Pick<Footprint, 'photos' | 'photoThumbs'>,
+  zoom: number,
+): string => zoom >= 12 ? footprint.photoThumbs?.[0] || footprint.photos?.[0] || '' : ''
 
 export const footprintsForMapMode = (footprints: Footprint[], mode: MapMode): Footprint[] => {
   return footprints.filter((footprint) =>

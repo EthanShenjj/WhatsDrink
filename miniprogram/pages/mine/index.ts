@@ -29,10 +29,8 @@ interface PageData {
 const app = getApp<IAppOption>()
 
 const MENU: MenuRow[] = [
-  { key: 'membership', label: '拾光+ 与购买记录', icon: 'sparkles' },
   { key: 'settings', label: '地图设置', icon: 'settings' },
-  { key: 'explore', label: '探索与轻攻略', icon: 'compass' },
-  { key: 'capsule', label: '时光胶囊', icon: 'clock' },
+  { key: 'explore', label: '想去与计划', icon: 'compass' },
   { key: 'about', label: '关于拾光迹', icon: 'info' },
 ]
 
@@ -117,17 +115,11 @@ Page<PageData, WechatMiniprogram.IAnyObject>({
     recordInteraction('mine.menu')
     const key = String(e.currentTarget.dataset.key || '')
     switch (key) {
-      case 'membership':
-        wx.navigateTo({ url: '/pages/membership/index' })
-        break
       case 'settings':
         wx.navigateTo({ url: '/pages/settings/index' })
         break
       case 'explore':
         wx.navigateTo({ url: '/pages/guide/index' })
-        break
-      case 'capsule':
-        wx.navigateTo({ url: '/pages/time-capsule/index' })
         break
       case 'about':
         this.showAbout()

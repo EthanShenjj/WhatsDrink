@@ -73,7 +73,7 @@ const productViews: ProductView[] = PAYMENT_PRODUCTS.map((product) => ({
   ...product,
   priceLabel: formatPrice(product.priceFen),
   perMonthLabel: product.days > 100
-    ? `${product.tier === 'pro' ? '含拾光+ · ' : ''}一次性支付，折合约 ¥${(product.priceFen / 100 / 12).toFixed(1)}/月`
+    ? `${product.tier === 'pro' ? '含 Plus · ' : ''}一次性支付，折合约 ¥${(product.priceFen / 100 / 12).toFixed(1)}/月`
     : '一次购买，31 天有效',
 }))
 
@@ -116,7 +116,7 @@ const supportsPayment = (): boolean => {
   if (!wx.canIUse('requestVirtualPayment')) {
     wx.showModal({
       title: '微信版本较旧',
-      content: '请将微信更新至最新版后再购买拾光会员。',
+      content: '请将微信更新至最新版后再购买会员方案。',
       showCancel: false,
     })
     return false
@@ -153,7 +153,7 @@ Page<PageData, WechatMiniprogram.IAnyObject>({
     plusUntilLabel: '',
     proUntilLabel: '',
     selectedIsPro: false,
-    selectedProductName: '拾光+ 372 天',
+    selectedProductName: 'Plus 372 天',
     activeExpiryLabel: '',
     membershipExpiring: false,
     hasExpiredMembership: false,
@@ -261,7 +261,7 @@ Page<PageData, WechatMiniprogram.IAnyObject>({
       this.setData({
         selectedProductId: productId,
         selectedIsPro: product?.tier === 'pro',
-        selectedProductName: product?.name || '拾光+',
+        selectedProductName: product?.name || 'Plus',
       })
     }
   },
@@ -281,7 +281,7 @@ Page<PageData, WechatMiniprogram.IAnyObject>({
       wx.hideLoading()
       await this.loadAccount()
       if (fulfilled) {
-        wx.showToast({ title: product.tier === 'pro' ? '拾光 Pro 已生效' : '拾光+ 已生效', icon: 'success' })
+        wx.showToast({ title: product.tier === 'pro' ? 'Pro 会员已生效' : 'Plus 会员已生效', icon: 'success' })
       } else {
         wx.showModal({
           title: '支付结果确认中',

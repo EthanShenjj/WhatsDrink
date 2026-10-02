@@ -6,8 +6,8 @@ export const PAYMENT_PRODUCTS: readonly PaymentProduct[] = [
   {
     id: 'plus_31d_v1',
     tier: 'plus',
-    name: '拾光+ 31 天',
-    shortName: '31 天卡',
+    name: 'Plus 31 天',
+    shortName: 'Plus 31 天',
     description: '轻松体验完整回顾与专属表达',
     priceFen: 600,
     days: 31,
@@ -15,8 +15,8 @@ export const PAYMENT_PRODUCTS: readonly PaymentProduct[] = [
   {
     id: 'plus_372d_v1',
     tier: 'plus',
-    name: '拾光+ 372 天',
-    shortName: '372 天卡',
+    name: 'Plus 372 天',
+    shortName: 'Plus 372 天',
     description: '把一整年的足迹，留成完整的回响',
     badge: '推荐',
     priceFen: 4900,
@@ -25,9 +25,9 @@ export const PAYMENT_PRODUCTS: readonly PaymentProduct[] = [
   {
     id: 'pro_372d_v1',
     tier: 'pro',
-    name: '拾光 Pro 年卡',
+    name: 'Pro 年卡',
     shortName: 'Pro 年卡',
-    description: '包含拾光+，优先体验未来新功能与 AI 能力',
+    description: '包含 Plus 权益，优先体验未来新功能',
     badge: 'PRO',
     priceFen: 9900,
     days: 372,

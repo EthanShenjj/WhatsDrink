@@ -103,8 +103,8 @@ Page({
   showMembershipOffer() {
     wx.showModal({
       title: '三个胶囊已经装满啦',
-      content: '免费版可以保存 3 个时光胶囊。开通拾光+ 后，可以继续为未来封存回忆。',
-      confirmText: '看看拾光+',
+      content: '免费版可以保存 3 个时光胶囊。开通会员后，可以继续为未来封存回忆。',
+      confirmText: '查看会员',
       cancelText: '暂不需要',
       success: (result) => {
         if (result.confirm) wx.navigateTo({ url: '/pages/membership/index' })

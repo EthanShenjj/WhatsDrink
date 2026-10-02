@@ -28,14 +28,14 @@ const makeFootprint = (id: string, visitDate: string, overrides: Partial<Footpri
 
 const makeProfile = (overrides: Partial<UserProfile> = {}): UserProfile => ({
   id: 'user',
-  nickname: '拾光者',
+  nickname: '',
   avatarUrl: '',
   createdAt: at('2025-01-01'),
   updatedAt: at('2026-09-24'),
   ...overrides,
 })
 
-describe('小拾成长计划', () => {
+describe('Lumi 成长', () => {
   it('uses recent real-life records to create an exploration state and goal progress', () => {
     const now = at('2026-09-24')
     const snapshot = computeGrowthSnapshot([
@@ -73,6 +73,16 @@ describe('小拾成长计划', () => {
 
     expect(snapshot.hiddenStates.find((item) => item.id === 'dawn')?.unlocked).toBe(true)
     expect(snapshot.colors.find((item) => item.id === 'dawn')?.unlocked).toBe(true)
+  })
+
+  it('gives every hidden state a distinct mascot color and pose', () => {
+    const snapshot = computeGrowthSnapshot([], makeProfile(), at('2026-09-24'))
+    const states = snapshot.hiddenStates
+
+    expect(states).toHaveLength(6)
+    const combos = states.map((item) => `${item.mascotState}|${item.expression}`)
+    expect(new Set(combos).size).toBe(combos.length)
+    expect(new Set(states.map((item) => item.mascotState)).size).toBe(states.length)
   })
 
   it('only applies a locked color while the Plus trial is active', () => {

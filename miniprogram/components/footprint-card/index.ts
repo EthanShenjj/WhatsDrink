@@ -50,7 +50,7 @@ Component({
         this.setData({ derived: emptyDerived, imgLoaded: false })
         return
       }
-      const photo = fp.photos && fp.photos.length > 0 ? fp.photos[0] : ''
+      const photo = fp.photoThumbs?.[0] || (fp.photos && fp.photos.length > 0 ? fp.photos[0] : '')
       const notePreview = fp.note
         ? fp.note.length > 48
           ? fp.note.slice(0, 48) + '…'

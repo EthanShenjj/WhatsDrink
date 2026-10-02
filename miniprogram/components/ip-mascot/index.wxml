@@ -4,5 +4,8 @@
   role="img"
   aria-label="{{label}}"
 >
-  <image class="ip-mascot-image" src="{{imageSrc}}" mode="aspectFit" />
+  <view class="ip-mascot-art">
+    <image class="ip-mascot-image" src="{{imageSrc}}" mode="aspectFit" lazy-load="{{true}}" fade-show="{{false}}" />
+    <image wx:if="{{accessorySrc}}" class="ip-mascot-accessory" src="{{accessorySrc}}" mode="aspectFit" lazy-load="{{true}}" fade-show="{{false}}" aria-hidden="true" />
+  </view>
 </view>

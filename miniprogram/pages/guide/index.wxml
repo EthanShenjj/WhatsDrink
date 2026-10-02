@@ -2,7 +2,7 @@
   <view class="guide-header">
     <text class="eyebrow">WISHLIST & PLANS</text>
     <view class="guide-title-row">
-      <text class="display-title">攻略</text>
+      <text class="display-title">想去与计划</text>
       <button wx:if="{{wishlist.length}}" class="guide-plan-button" bindtap="onGeneratePlan">
         <local-icon name="add-white" size="28rpx" />
         <text>生成攻略</text>

@@ -1,6 +1,6 @@
 {
   "name": "shiguangji-miniprogram",
-  "version": "1.2.0",
+  "version": "1.2.1",
   "private": true,
   "description": "拾光迹 - 个人足迹地图微信小程序",
   "scripts": {
@@ -14,7 +14,7 @@
   "devDependencies": {
     "@cloudbase/manager-node": "^5.9.0",
     "@types/node": "^24.0.0",
-    "miniprogram-api-typings": "^4.1.0",
+    "miniprogram-api-typings": "^5.2.3",
     "miniprogram-automator": "^0.12.1",
     "typescript": "^5.8.3",
     "vitest": "^3.2.4"

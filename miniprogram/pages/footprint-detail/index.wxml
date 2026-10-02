@@ -88,7 +88,7 @@
     >
       <view class="detail-cover-copy">
         <text class="detail-cover-kicker">这次的回忆封面</text>
-        <text class="detail-cover-title">小拾替你守着这一刻</text>
+        <text class="detail-cover-title">Lumi 替你守着这一刻</text>
         <view class="detail-cover-action">
           <local-icon name="camera" size="28rpx" />
           <text>点击添加照片</text>
@@ -96,7 +96,7 @@
       </view>
       <view class="detail-cover-mascot">
         <view class="detail-cover-halo"></view>
-        <ip-mascot state="journey" expression="collect" size="188rpx" motion="none" label="守护这段回忆的小拾" />
+        <ip-mascot state="journey" expression="collect" size="188rpx" motion="none" label="守护这段回忆的 Lumi" />
       </view>
     </view>
 
@@ -161,15 +161,15 @@
       </view>
     </view>
 
-    <view wx:if="{{relatedVisits.length}}" class="place-ring card">
+    <view wx:if="{{relatedVisits.length}}" class="place-ring">
       <view class="place-ring-heading">
         <view class="place-ring-heading-copy">
           <text class="section-title">回忆票根</text>
           <text class="place-ring-subtitle">这个地方，收藏了 {{relatedVisits.length}} 次抵达</text>
         </view>
-        <view class="place-ring-count">{{relatedVisits.length}} 张</view>
+        <text class="place-ring-count">共 {{relatedVisits.length}} 张</text>
       </view>
-      <text class="place-ring-summary">第一次 {{firstVisit.visitDate}} · 最近一次 {{latestVisit.visitDate}}</text>
+      <text class="place-ring-summary">{{firstVisit.visitDate}} 第一次抵达，{{latestVisit.visitDate}} 最近一次抵达</text>
       <view class="memory-ticket-list">
         <view
           wx:for="{{visibleTicketVisits}}"
@@ -184,27 +184,42 @@
         >
           <view class="memory-ticket-main">
             <view class="memory-ticket-media">
-              <image wx:if="{{item.hasPhoto}}" class="memory-ticket-photo" src="{{item.photos[0]}}" mode="aspectFill" lazy-load />
-              <view wx:else class="memory-ticket-mascot">
-                <image src="/assets/growth/journey.webp" mode="aspectFit" />
+              <image wx:if="{{item.hasPhoto}}" class="memory-ticket-photo" src="{{item.previewPhoto}}" mode="aspectFill" lazy-load />
+              <view wx:else class="memory-ticket-date-cover" style="background: {{item.ticketColor}};">
+                <text class="memory-ticket-cover-date">{{item.ticketDate}}</text>
+                <text class="memory-ticket-cover-year">{{item.ticketYear}}</text>
+              </view>
+              <view wx:if="{{item.hasPhoto}}" class="memory-ticket-media-shade"></view>
+              <view class="memory-ticket-media-mark">
+                <text>拾光迹</text>
+                <text>{{item.ticketYear}}</text>
               </view>
             </view>
             <view class="memory-ticket-copy">
               <view class="memory-ticket-meta">
-                <text class="memory-ticket-date">{{item.displayDate}}</text>
+                <text class="memory-ticket-admit">第 {{item.ticketNumber}} 次抵达</text>
                 <text wx:if="{{item.isCurrent}}" class="memory-ticket-current">正在看</text>
               </view>
               <text class="memory-ticket-place">{{item.poiName}}</text>
-              <text class="memory-ticket-note">{{item.note || '这一次，回忆留在了路上'}}</text>
-              <view wx:if="{{item.isImportant}}" class="memory-ticket-stamp">珍藏时刻</view>
+              <view class="memory-ticket-details">
+                <text class="memory-ticket-location">{{item.ticketLocation}}</text>
+                <text class="memory-ticket-full-date">{{item.ticketYear}}.{{item.ticketDate}}</text>
+              </view>
+              <view wx:if="{{item.isImportant}}" class="memory-ticket-stamp">珍藏</view>
             </view>
           </view>
           <view class="memory-ticket-stub">
             <view class="memory-ticket-notch is-top"></view>
             <view class="memory-ticket-notch is-bottom"></view>
-            <text class="memory-ticket-stub-label">VISIT</text>
-            <text class="memory-ticket-number">{{item.ticketNumber}}</text>
-            <text class="memory-ticket-stub-unit">第 {{item.ticketNumber}} 次</text>
+            <text class="memory-ticket-stub-label">留存联</text>
+            <text class="memory-ticket-number">{{item.ticketNumberLabel}}</text>
+            <view class="memory-ticket-barcode" aria-hidden="true">
+              <view class="bar is-wide"></view><view class="bar"></view><view class="bar"></view>
+              <view class="bar is-wide"></view><view class="bar"></view><view class="bar is-thin"></view>
+              <view class="bar is-wide"></view><view class="bar"></view><view class="bar is-thin"></view>
+              <view class="bar"></view><view class="bar is-wide"></view><view class="bar"></view>
+            </view>
+            <text class="memory-ticket-code">{{item.ticketCode}}</text>
           </view>
         </view>
       </view>
@@ -215,12 +230,12 @@
       <view wx:if="{{comparisonOpen && relatedVisits.length > 1}}" class="place-ring-comparison">
         <view class="place-ring-compare-side">
           <text class="muted">第一次 · {{firstVisit.visitDate}}</text>
-          <image wx:if="{{firstVisit.photos.length}}" src="{{firstVisit.photos[0]}}" mode="aspectFill" />
+          <image wx:if="{{firstVisit.photoCount || firstVisit.photos.length}}" class="place-ring-compare-image" src="{{(firstVisit.photoThumbs && firstVisit.photoThumbs[0]) || firstVisit.photos[0]}}" mode="aspectFill" lazy-load />
           <text>{{firstVisit.note || '那时没有写下短记'}}</text>
         </view>
         <view class="place-ring-compare-side">
           <text class="muted">最近一次 · {{latestVisit.visitDate}}</text>
-          <image wx:if="{{latestVisit.photos.length}}" src="{{latestVisit.photos[0]}}" mode="aspectFill" />
+          <image wx:if="{{latestVisit.photoCount || latestVisit.photos.length}}" class="place-ring-compare-image" src="{{(latestVisit.photoThumbs && latestVisit.photoThumbs[0]) || latestVisit.photos[0]}}" mode="aspectFill" lazy-load />
           <text>{{latestVisit.note || '这次没有写下短记'}}</text>
         </view>
       </view>

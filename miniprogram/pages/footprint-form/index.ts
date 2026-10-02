@@ -5,7 +5,7 @@ import {
   getFootprintSnapshot,
   deleteFootprint,
   getFootprint,
-  uploadPhoto,
+  uploadFootprintPhoto,
   deletePhotos,
   saveDraft,
   loadDraft,
@@ -36,7 +36,9 @@ interface PageData {
   district: string
   visitDate?: string
   photos: string[]
+  photoThumbs: string[]
   originalPhotos: string[]
+  originalPhotoThumbs: string[]
   mood?: string
   category?: string
   tags: string[]
@@ -93,7 +95,9 @@ Page<PageData, WechatMiniprogram.IAnyObject>({
     district: '',
     visitDate: todayKey(),
     photos: [],
+    photoThumbs: [],
     originalPhotos: [],
+    originalPhotoThumbs: [],
     mood: '',
     category: '',
     tags: [],
@@ -182,7 +186,13 @@ Page<PageData, WechatMiniprogram.IAnyObject>({
             district: fp.district || '',
             visitDate: convertingWishlist || revisiting ? todayKey() : fp.visitDate || (fp.status === 'visited' ? todayKey() : ''),
             photos: convertingWishlist || revisiting ? [] : fp.photos || [],
+            photoThumbs: convertingWishlist || revisiting
+              ? []
+              : fp.photoThumbs?.length ? fp.photoThumbs : fp.photos || [],
             originalPhotos: convertingWishlist || revisiting ? [] : fp.photos || [],
+            originalPhotoThumbs: convertingWishlist || revisiting
+              ? []
+              : fp.photoThumbs?.length ? fp.photoThumbs : fp.photos || [],
             mood: convertingWishlist || revisiting ? '' : fp.mood || '',
             category: fp.category || '',
             tags: revisiting ? [] : fp.tags || [],
@@ -278,6 +288,7 @@ Page<PageData, WechatMiniprogram.IAnyObject>({
       district: saved.district || this.data.district,
       visitDate: saved.visitDate || this.data.visitDate,
       photos: saved.photos || this.data.photos,
+      photoThumbs: saved.photoThumbs || this.data.photoThumbs,
       mood: saved.mood || this.data.mood,
       category: saved.category || this.data.category,
       tags: saved.tags || this.data.tags,
@@ -318,6 +329,7 @@ Page<PageData, WechatMiniprogram.IAnyObject>({
         district: this.data.district || undefined,
         visitDate: this.data.visitDate,
         photos: this.data.photos,
+        photoThumbs: this.data.photoThumbs,
         mood: this.data.mood || undefined,
         category: this.data.category || undefined,
         tags: this.data.tags,
@@ -438,18 +450,20 @@ Page<PageData, WechatMiniprogram.IAnyObject>({
     if (!tempPaths.length) return
     wx.showLoading({ title: '上传中…', mask: true })
     this.setData({ pendingUploads: tempPaths, uploadFailedCount: 0 })
-    const uploaded: string[] = []
+    const uploaded: Array<{ photo: string; thumbnail: string }> = []
     const failed: string[] = []
     try {
       for (let index = 0; index < tempPaths.length; index += 2) {
         const batch = tempPaths.slice(index, index + 2)
-        const results = await Promise.allSettled(batch.map((path) => uploadPhoto(path)))
+        const results = await Promise.allSettled(batch.map((path) => uploadFootprintPhoto(path)))
         results.forEach((result, resultIndex) => {
           if (result.status === 'fulfilled') uploaded.push(result.value)
           else failed.push(batch[resultIndex])
         })
+        const completed = uploaded.splice(0)
         this.setData({
-          photos: [...this.data.photos, ...uploaded.splice(0)],
+          photos: [...this.data.photos, ...completed.map((item) => item.photo)],
+          photoThumbs: [...this.data.photoThumbs, ...completed.map((item) => item.thumbnail)],
           pendingUploads: [...failed, ...tempPaths.slice(index + batch.length)],
         })
       }
@@ -491,11 +505,13 @@ Page<PageData, WechatMiniprogram.IAnyObject>({
   onPhotoRemove(e: WechatMiniprogram.CustomEvent<{ index: number }>) {
     const index = (e.detail && e.detail.index) ?? 0
     const photos = [...this.data.photos]
+    const photoThumbs = [...this.data.photoThumbs]
     const [removed] = photos.splice(index, 1)
+    const [removedThumbnail] = photoThumbs.splice(index, 1)
     if (removed && !this.data.originalPhotos.includes(removed)) {
-      deletePhotos([removed]).catch(() => undefined)
+      deletePhotos([removed, removedThumbnail]).catch(() => undefined)
     }
-    this.setData({ photos })
+    this.setData({ photos, photoThumbs })
     this.updateFormState()
   },
 
@@ -529,6 +545,7 @@ Page<PageData, WechatMiniprogram.IAnyObject>({
       district: this.data.district || undefined,
       visitDate: this.data.status === 'visited' ? this.data.visitDate : undefined,
       photos: this.data.photos,
+      photoThumbs: this.data.photoThumbs,
       mood: this.data.mood || undefined,
       category: this.data.category || undefined,
       tags: this.data.tags,
@@ -550,7 +567,12 @@ Page<PageData, WechatMiniprogram.IAnyObject>({
       const removedLocalPhotos = this.data.originalPhotos.filter(
         (path) => path.startsWith('wxfile://') && !this.data.photos.includes(path),
       )
-      if (removedLocalPhotos.length) deletePhotos(removedLocalPhotos).catch(() => undefined)
+      const removedLocalThumbs = this.data.originalPhotoThumbs.filter(
+        (path) => path.startsWith('wxfile://') && !this.data.photoThumbs.includes(path),
+      )
+      if (removedLocalPhotos.length || removedLocalThumbs.length) {
+        deletePhotos([...removedLocalPhotos, ...removedLocalThumbs]).catch(() => undefined)
+      }
       clearDraft()
       this.setData({ id: saved.id, saved: true })
       wx.vibrateShort({ type: 'light', fail: () => {} })
@@ -581,7 +603,7 @@ Page<PageData, WechatMiniprogram.IAnyObject>({
           saving: false,
           successVisible: true,
           successTitle: count > 1 ? `第 ${count} 次来到这里` : '这个地方亮起来了',
-          successDescription: count > 1 ? '熟悉的地方，又多了一段新的故事。' : '小拾已经把这段生活收进你的地图。',
+          successDescription: count > 1 ? '熟悉的地方，又多了一段新的故事。' : 'Lumi 已经把这段生活收进你的地图。',
           successState: count > 1 ? 'companion' : 'journey',
         })
       }

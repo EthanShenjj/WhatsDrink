@@ -11,7 +11,7 @@ import {
 
 const DAY = 86_400_000
 
-describe('拾光+ 商品与权益', () => {
+describe('Plus 商品与权益', () => {
   it('offers the two Plus durations and the Pro annual tier', () => {
     expect(PAYMENT_PRODUCTS.map((product) => product.id)).toEqual([
       'plus_31d_v1',

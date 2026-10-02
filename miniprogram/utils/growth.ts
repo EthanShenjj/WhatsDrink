@@ -197,14 +197,14 @@ export const computeGrowthOverview = (
       ? { text: '再走进 1 座新城市，点亮发现青蓝', progress: uniqueCities.size, target: 2 }
       : activeWeeks < 3
         ? { text: `再坚持 ${3 - activeWeeks} 周，点亮陪伴粉`, progress: activeWeeks, target: 3 }
-        : { text: '去实现一个想去，让小拾迎来高光', progress: fulfilledCount > 0 ? 1 : 0, target: 1 }
+        : { text: '去实现一个想去，让 Lumi 迎来高光', progress: fulfilledCount > 0 ? 1 : 0, target: 1 }
   const weeklyColor = COLORS.find((item) => item.id === weeklyColorId) || COLORS[0]
   const result: GrowthOverview = {
     weeklyColorId,
     activeColorId,
     weeklyTitle: `本周状态 · ${weeklyColor.name}`,
     weeklyMessage: weeklyColorId === 'journey'
-      ? '小拾正在等你一起出发。'
+      ? 'Lumi 正在等你一起出发。'
       : weeklyColorId === 'highlight'
         ? '这一周，你把一个想去变成了去过。'
         : weeklyColorId === 'discover'
@@ -301,7 +301,7 @@ export const computeGrowthSnapshot = (
     { id: 'thinking', name: '思考', description: '添加一个想去', unlocked: wishes.length >= 1, mascotState: 'discover' },
     { id: 'depart', name: '出发', description: '记录 3 个地点', unlocked: visits.length >= 3, mascotState: 'explore' },
     { id: 'explore', name: '探索', description: '走进 2 座城市', unlocked: uniqueCities.size >= 2, mascotState: 'discover' },
-    { id: 'record', name: '记录', description: '保存一张照片', unlocked: visits.some((item) => item.photos.length > 0), mascotState: 'highlight' },
+    { id: 'record', name: '记录', description: '保存一张照片', unlocked: visits.some((item) => (item.photoCount ?? item.photos.length) > 0), mascotState: 'highlight' },
     { id: 'companion', name: '陪伴', description: '连续 3 周记录', unlocked: activeWeeks >= 3, mascotState: 'companion' },
     { id: 'reunion', name: '又见面', description: '第五次回到同一地点', unlocked: placeVisitPeak >= 5, mascotState: 'dawn' },
   ]
@@ -329,12 +329,12 @@ export const computeGrowthSnapshot = (
   ].every((season) => season.some((month) => months.has(month)))
   const firstRecordAt = visits[0] ? visitTime(visits[0]) : profile?.createdAt || effectiveNow
   const hiddenStates: GrowthHiddenStateView[] = [
-    { id: 'dawn', name: '晨曦', hint: '当过去和现在再次相遇时，也许会出现。', unlocked: dawnUnlocked },
-    { id: 'seasons', name: '四季', hint: '让春夏秋冬都留下一段记录。', unlocked: seasons },
-    { id: 'distance', name: '远方', hint: '让足迹跨越一段很远的距离。', unlocked: maxDistance >= 1000 },
-    { id: 'hometown', name: '故乡', hint: '在同一座城市留下 30 段生活。', unlocked: Math.max(0, ...cityCounts.values()) >= 30 },
-    { id: 'reunion', name: '重逢', hint: '多次回到一个熟悉的地方。', unlocked: placeVisitPeak >= 5 },
-    { id: 'annual', name: '年轮', hint: '让小拾陪你走过完整的一年。', unlocked: effectiveNow - firstRecordAt >= 365 * DAY },
+    { id: 'dawn', name: '晨曦', hint: '当过去和现在再次相遇时，也许会出现。', unlocked: dawnUnlocked, mascotState: 'dawn', expression: 'happy' },
+    { id: 'seasons', name: '四季', hint: '让春夏秋冬都留下一段记录。', unlocked: seasons, mascotState: 'companion', expression: 'companion' },
+    { id: 'distance', name: '远方', hint: '让足迹跨越一段很远的距离。', unlocked: maxDistance >= 1000, mascotState: 'journey', expression: 'depart' },
+    { id: 'hometown', name: '故乡', hint: '在同一座城市留下 30 段生活。', unlocked: Math.max(0, ...cityCounts.values()) >= 30, mascotState: 'highlight', expression: 'collect' },
+    { id: 'reunion', name: '重逢', hint: '多次回到一个熟悉的地方。', unlocked: placeVisitPeak >= 5, mascotState: 'explore', expression: 'reunion' },
+    { id: 'annual', name: '年轮', hint: '让 Lumi 陪你走过完整的一年。', unlocked: effectiveNow - firstRecordAt >= 365 * DAY, mascotState: 'discover', expression: 'thinking' },
   ]
 
   const shards = visits.length
@@ -349,7 +349,7 @@ export const computeGrowthSnapshot = (
       ? { text: '再走进 1 座新城市，点亮发现青蓝', progress: uniqueCities.size, target: 2 }
       : activeWeeks < 3
         ? { text: `再坚持 ${3 - activeWeeks} 周，点亮陪伴粉`, progress: activeWeeks, target: 3 }
-        : { text: '去实现一个想去，让小拾迎来高光', progress: fulfilledCount > 0 ? 1 : 0, target: 1 }
+        : { text: '去实现一个想去，让 Lumi 迎来高光', progress: fulfilledCount > 0 ? 1 : 0, target: 1 }
 
   const weeklyColor = COLORS.find((item) => item.id === weeklyColorId) || COLORS[0]
   const monthlyColor = COLORS.find((item) => item.id === monthlyColorId) || COLORS[0]
@@ -368,7 +368,7 @@ export const computeGrowthSnapshot = (
     activeColorId: isPlus && lockedColor && unlockedColorIds.has(lockedColor) ? lockedColor : weeklyColorId,
     weeklyTitle: `本周状态 · ${weeklyColor.name}`,
     weeklyMessage: weeklyColorId === 'journey'
-      ? '小拾正在等你一起出发。'
+      ? 'Lumi 正在等你一起出发。'
       : weeklyColorId === 'highlight'
         ? '这一周，你把一个想去变成了去过。'
         : weeklyColorId === 'discover'
@@ -377,7 +377,7 @@ export const computeGrowthSnapshot = (
             ? '这一周，你一直在往新的地方走。'
             : '稳定的记录，让生活慢慢有了形状。',
     monthlyColorId,
-    monthlyTitle: `${monthNumber} 月拾光色 · ${monthlyColor.name}`,
+    monthlyTitle: `${monthNumber} 月 · ${monthlyColor.name}`,
     monthKey: currentMonth,
     monthLabel: `${monthNumber} 月`,
     monthlySummary,

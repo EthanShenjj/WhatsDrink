@@ -17,9 +17,9 @@
   </view>
   <block wx:elif="{{snapshot}}">
     <view class="growth-heading">
-      <text class="eyebrow">XIAOSHI GROWTH</text>
-      <text class="display-title">小拾成长计划</text>
-      <text class="growth-intro">你越持续记录生活，小拾就越丰富。</text>
+      <text class="eyebrow">LUMI GROWTH</text>
+      <text class="display-title">Lumi 成长</text>
+      <text class="growth-intro">每次记录，都让 Lumi 多一种生活颜色。</text>
     </view>
 
     <view class="state-card state-{{snapshot.activeColorId}}">
@@ -28,10 +28,10 @@
         <text class="state-message">{{snapshot.weeklyMessage}}</text>
         <view class="state-metrics">
           <text>近 7 天 {{snapshot.recentVisitCount}} 条足迹</text>
-          <text>{{snapshot.shards}} 枚碎片</text>
+          <text>{{snapshot.shards}} 点成长值</text>
         </view>
       </view>
-      <ip-mascot state="{{snapshot.activeColorId}}" expression="happy" size="224rpx" motion="float" label="当前状态的小拾" />
+      <ip-mascot state="{{snapshot.activeColorId}}" expression="happy" size="224rpx" motion="none" label="当前状态的 Lumi" />
     </view>
 
     <view class="goal-card card">
@@ -44,11 +44,11 @@
     </view>
 
     <view class="section-head">
-      <view><text class="section-title">本月拾光色</text><text class="section-sub">每月 1 日重新结算</text></view>
+      <view><text class="section-title">本月 Lumi 颜色</text><text class="section-sub">每月 1 日重新结算</text></view>
       <button class="section-action" bindtap="onMonthlyReport">查看报告</button>
     </view>
     <view class="monthly-card card" role="button" bindtap="onMonthlyReport">
-      <ip-mascot state="{{snapshot.monthlyColorId}}" expression="companion" size="150rpx" label="本月的小拾" />
+      <ip-mascot state="{{snapshot.monthlyColorId}}" expression="companion" size="150rpx" label="本月的 Lumi" />
       <view class="monthly-copy">
         <text class="monthly-title">{{snapshot.monthlyTitle}}</text>
         <text class="monthly-summary">{{snapshot.monthlySummary}}</text>
@@ -58,7 +58,7 @@
     </view>
 
     <view class="section-head">
-      <view><text class="section-title">成长色谱</text><text class="section-sub">拾光+ 可锁定已解锁颜色</text></view>
+      <view><text class="section-title">Lumi 颜色</text><text class="section-sub">会员可锁定已解锁颜色</text></view>
     </view>
     <scroll-view class="color-scroll" scroll-x enhanced show-scrollbar="{{false}}">
       <view class="color-list">
@@ -73,7 +73,7 @@
         >
           <text wx:if="{{profile.growth.lockedColorId === item.id}}" class="selected-pill">已锁定</text>
           <text wx:elif="{{!item.unlocked}}" class="locked-pill">{{item.hidden ? '???' : '待解锁'}}</text>
-          <ip-mascot state="{{item.id}}" expression="default" size="150rpx" label="{{item.name}}小拾" />
+          <ip-mascot state="{{item.id}}" expression="default" size="150rpx" label="{{item.name}} Lumi" />
           <text class="color-name">{{item.unlocked ? item.name : (item.hidden ? '隐藏款' : item.shortName)}}</text>
           <text class="color-description">{{item.description}}</text>
         </view>
@@ -81,16 +81,19 @@
     </scroll-view>
 
     <view class="plus-card plus-card-inline">
-      <view class="plus-badge">{{snapshot.isPro ? '拾光 PRO' : '拾光+'}}</view>
-      <text class="plus-title">{{snapshot.isPro ? '与小拾一起走向更多可能' : '让小拾更像你'}}</text>
-      <text class="plus-copy">{{snapshot.isPro ? '已获得拾光+全部权益，以及未来新功能与 AI 能力的优先体验机会。' : '自由切换、锁定和组合已解锁的颜色，让每段成长有自己的表达。'}}</text>
+      <view class="plus-badge">{{snapshot.isPro ? 'PRO' : '会员'}}</view>
+      <text class="plus-title">{{snapshot.isPro ? '与 Lumi 一起走向更多可能' : '让 Lumi 更像你'}}</text>
+      <text class="plus-copy">{{snapshot.isPro ? '已获得全部会员权益，以及未来新功能的优先体验机会。' : '自由切换、锁定和组合已解锁的颜色，让每段成长有自己的表达。'}}</text>
       <button class="plus-button" bindtap="onStartTrial" loading="{{saving}}">
-        {{snapshot.isPro ? ('拾光 Pro · 剩余 ' + snapshot.proDaysLeft + ' 天') : (snapshot.isPlus ? ('拾光+ · 剩余 ' + snapshot.plusDaysLeft + ' 天') : (profile.growth.trialStartedAt ? '查看拾光会员' : '免费体验 7 天'))}}
+        {{snapshot.isPro ? ('Pro 会员 · 剩余 ' + snapshot.proDaysLeft + ' 天') : (snapshot.isPlus ? ('Plus 会员 · 剩余 ' + snapshot.plusDaysLeft + ' 天') : (profile.growth.trialStartedAt ? '查看会员' : '免费体验 7 天'))}}
       </button>
-      <button class="plus-plan-link" bindtap="onMembershipTap">{{snapshot.isPlus ? '查看权益与购买记录' : '查看拾光+ / Pro 付费方案'}}</button>
-      <text class="plus-footnote">基础成长色、表情和隐藏成就均可免费获得。</text>
+      <button class="plus-plan-link" bindtap="onMembershipTap">{{snapshot.isPlus ? '查看权益与购买记录' : '查看会员方案'}}</button>
+      <text class="plus-footnote">基础颜色、表情和隐藏成就均可免费获得。</text>
     </view>
 
+    <view wx:if="{{!heavySectionsReady}}" id="growth-heavy-anchor" class="growth-heavy-anchor" aria-hidden="true"></view>
+
+    <block wx:if="{{heavySectionsReady}}">
     <view class="section-head">
       <view><text class="section-title">表情收集</text><text class="section-sub">{{snapshot.expressions.length}} 种生活表情</text></view>
     </view>
@@ -110,10 +113,11 @@
         <view class="hidden-mascot">
           <view class="hidden-mascot-art">
             <ip-mascot
-              state="{{item.unlocked ? 'dawn' : 'journey'}}"
-              expression="{{item.unlocked ? 'happy' : 'default'}}"
+              state="{{item.mascotState}}"
+              expression="{{item.expression}}"
+              pose="{{item.id}}"
               size="82rpx"
-              label="{{item.unlocked ? item.name + '小拾' : '尚未发现的小拾形象'}}"
+              label="{{item.unlocked ? item.name + ' Lumi' : '尚未发现的 Lumi 形象'}}"
             />
           </view>
           <view wx:if="{{!item.unlocked}}" class="hidden-mascot-mark"></view>
@@ -127,7 +131,7 @@
     </view>
 
     <view class="section-head">
-      <view><text class="section-title">小拾图标主题</text><text class="section-sub">应用到小拾头像</text></view>
+      <view><text class="section-title">Lumi 主题</text><text class="section-sub">应用到 Lumi 形象</text></view>
     </view>
     <view class="icon-card card">
       <view class="icon-preview icon-{{iconColorId}}">
@@ -135,7 +139,7 @@
       </view>
       <view class="icon-copy">
         <text class="icon-title">当前图标主题</text>
-        <text class="icon-note">微信暂不支持运行时替换入口图标，主题会用于应用内的小拾形象。</text>
+        <text class="icon-note">微信暂不支持运行时替换入口图标，主题会用于应用内的 Lumi 形象。</text>
       </view>
       <scroll-view class="icon-options" scroll-x>
         <view class="icon-option-list">
@@ -145,18 +149,19 @@
         </view>
       </scroll-view>
     </view>
+    </block>
 
     <view wx:if="{{reportVisible}}" class="report-mask" catchtouchmove="noop" bindtap="onReportClose">
       <view class="report-panel" catchtap="noop">
         <view class="report-handle"></view>
         <text class="report-kicker">MONTHLY MOMENTS</text>
         <text class="report-title">{{snapshot.monthlyTitle}}</text>
-        <ip-mascot state="{{snapshot.monthlyColorId}}" expression="happy" size="190rpx" motion="pop" label="月度拾光色小拾" />
+        <ip-mascot state="{{snapshot.monthlyColorId}}" expression="happy" size="190rpx" motion="pop" label="月度 Lumi 颜色" />
         <text class="report-summary">{{snapshot.monthlySummary}}</text>
         <view class="report-stats">
           <view><text class="report-number">{{snapshot.monthVisitCount}}</text><text>新增地点</text></view>
           <view><text class="report-number">{{snapshot.monthCityCount}}</text><text>新增城市</text></view>
-          <view><text class="report-number">+5</text><text>拾光碎片</text></view>
+          <view><text class="report-number">+5</text><text>成长值</text></view>
         </view>
         <button class="report-close" bindtap="onReportClose">稍后再看</button>
       </view>

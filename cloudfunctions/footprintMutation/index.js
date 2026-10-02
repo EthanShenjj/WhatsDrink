@@ -1,6 +1,6 @@
 const crypto = require('crypto')
 const cloud = require('wx-server-sdk')
-const { isOwnedCloudFile, sanitizeFootprint, text } = require('./validation')
+const { isOwnedCloudFile, sanitizeFootprint, text, toFootprintSummary } = require('./validation')
 
 cloud.init({ env: cloud.DYNAMIC_CURRENT_ENV })
 const db = cloud.database()
@@ -25,9 +25,10 @@ const ownedFootprint = async (id, openid) => {
   return footprint
 }
 
-const publicFootprint = (footprint, id) => {
+const publicFootprint = (footprint, id, summary = false) => {
   const { _openid, _id, ...data } = footprint
-  return { ...data, id: id || _id, userId: _openid }
+  const result = { ...data, id: id || _id, userId: _openid }
+  return summary ? toFootprintSummary(result) : result
 }
 
 const listOwned = async (openid) => {
@@ -42,7 +43,7 @@ const listOwned = async (openid) => {
         .limit(100)
         .get()
     ).data
-    result.push(...page.map((item) => publicFootprint(item)))
+    result.push(...page.map((item) => publicFootprint(item, undefined, true)))
     if (page.length < 100) break
     offset += page.length
   }
@@ -67,6 +68,12 @@ exports.main = async (event = {}) => {
 
     if (action === 'list') {
       return { ok: true, data: await listOwned(OPENID) }
+    }
+
+    if (action === 'get') {
+      const id = validId(event.id)
+      if (!id) throw new Error('足迹 ID 不能为空')
+      return { ok: true, data: publicFootprint(await ownedFootprint(id, OPENID), id) }
     }
 
     if (action === 'create') {
@@ -117,8 +124,8 @@ exports.main = async (event = {}) => {
       if (existing.wishId) input.wishId = existing.wishId
       const data = sanitizeFootprint(input, OPENID, existing)
       await footprints.doc(id).set({ data })
-      const removedPhotos = (existing.photos || []).filter(
-        (path) => !(data.photos || []).includes(path),
+      const removedPhotos = [...(existing.photos || []), ...(existing.photoThumbs || [])].filter(
+        (path) => ![...(data.photos || []), ...(data.photoThumbs || [])].includes(path),
       )
       if (removedPhotos.length) await deleteCloudFiles(removedPhotos, OPENID)
       return { ok: true, data: publicFootprint(data, id) }
@@ -188,8 +195,9 @@ exports.main = async (event = {}) => {
         }
       }
       await footprints.doc(id).remove()
-      if (existing.photos && existing.photos.length) {
-        await deleteCloudFiles(existing.photos, OPENID)
+      const media = [...(existing.photos || []), ...(existing.photoThumbs || [])]
+      if (media.length) {
+        await deleteCloudFiles(media, OPENID)
       }
       return { ok: true, data: null }
     }
