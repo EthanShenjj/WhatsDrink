@@ -57,7 +57,7 @@
             <text>选择位置</text>
           </button>
         </view>
-        <text class="form-field-hint">只填地点也可保存；选择位置后会在地图上显示标记。</text>
+        <text class="form-field-hint">请选择地图位置，保存后会立即显示对应标记。</text>
         <view
           wx:if="{{address}}"
           class="form-address-bar"

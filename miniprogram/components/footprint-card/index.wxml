@@ -17,8 +17,13 @@
       binderror="onImgError"
     />
     <view wx:else class="fp-thumb-placeholder">
-      <text wx:if="{{derived.categoryEmoji || derived.moodEmoji}}" class="fp-thumb-emoji">{{derived.categoryEmoji || derived.moodEmoji}}</text>
-      <image wx:else class="fp-thumb-icon" src="/assets/icons/location.svg" mode="aspectFit" />
+      <ip-mascot
+        state="{{footprint.status !== 'visited' ? 'explore' : 'companion'}}"
+        expression="happy"
+        size="{{compact ? '68rpx' : '82rpx'}}"
+        motion="none"
+        label="默认 Lumi 足迹封面"
+      />
     </view>
     <view wx:if="{{derived.photo}}" class="fp-status-badge">{{derived.statusLabel}}</view>
   </view>

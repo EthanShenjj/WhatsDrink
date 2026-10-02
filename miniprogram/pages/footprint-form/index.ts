@@ -1,4 +1,4 @@
-import type { FootprintDraft, FootprintStatus } from '../../domain/types'
+import type { Footprint, FootprintDraft, FootprintStatus } from '../../domain/types'
 import {
   saveFootprint,
   fulfillWishlistFootprint,
@@ -21,6 +21,10 @@ import {
   moodLabel,
 } from '../../data/options'
 import { installUpdatePerformanceLogger, recordInteraction } from '../../utils/performance'
+import { hasMapCoordinates } from '../../utils/map'
+import { CHECKIN_SOURCE_STORAGE_KEY } from '../../utils/checkin'
+
+const MAP_MODE_STORAGE_KEY = 'sgj:map-mode'
 
 interface PageData {
   id?: string
@@ -162,6 +166,14 @@ Page<PageData, WechatMiniprogram.IAnyObject>({
     const revisiting = Boolean(query.revisit)
     const sourceId = query.id || query.revisit
     if (sourceId) {
+      const checkinSource = isCheckin
+        ? wx.getStorageSync<Footprint | undefined>(CHECKIN_SOURCE_STORAGE_KEY)
+        : undefined
+      if (isCheckin) wx.removeStorageSync(CHECKIN_SOURCE_STORAGE_KEY)
+      if (checkinSource?.id === sourceId) {
+        this.applySourceFootprint(checkinSource, revisiting, convertingWishlist, isCheckin)
+        return
+      }
       this.setData({ id: revisiting ? undefined : sourceId, loading: true, isEditing: !revisiting })
       wx.showLoading({ title: '加载中…', mask: true })
       getFootprint(sourceId)
@@ -172,48 +184,7 @@ Page<PageData, WechatMiniprogram.IAnyObject>({
             wx.hideLoading()
             return
           }
-          this.setData({
-            id: revisiting ? undefined : fp.id,
-            placeId: fp.placeId || placeKey(fp),
-            status: convertingWishlist || revisiting ? 'visited' : fp.status,
-            poiName: fp.poiName,
-            address: fp.address || '',
-            lat: fp.lat,
-            lng: fp.lng,
-            country: fp.country || '',
-            province: fp.province || '',
-            city: fp.city || '',
-            district: fp.district || '',
-            visitDate: convertingWishlist || revisiting ? todayKey() : fp.visitDate || (fp.status === 'visited' ? todayKey() : ''),
-            photos: convertingWishlist || revisiting ? [] : fp.photos || [],
-            photoThumbs: convertingWishlist || revisiting
-              ? []
-              : fp.photoThumbs?.length ? fp.photoThumbs : fp.photos || [],
-            originalPhotos: convertingWishlist || revisiting ? [] : fp.photos || [],
-            originalPhotoThumbs: convertingWishlist || revisiting
-              ? []
-              : fp.photoThumbs?.length ? fp.photoThumbs : fp.photos || [],
-            mood: convertingWishlist || revisiting ? '' : fp.mood || '',
-            category: fp.category || '',
-            tags: revisiting ? [] : fp.tags || [],
-            note: convertingWishlist || revisiting ? '' : fp.note || '',
-            markerColor: fp.markerStyle?.color || MARKER_COLORS[0].value,
-            markerEmoji: fp.markerStyle?.emoji || '',
-            source: fp.source,
-            wishlistCreatedAt: fp.wishlistCreatedAt,
-            convertedFromWishlist: convertingWishlist || (!revisiting && !!fp.convertedFromWishlist),
-            wishId: revisiting || convertingWishlist ? undefined : fp.wishId,
-            fulfilledAt: revisiting || convertingWishlist ? undefined : fp.fulfilledAt,
-            fulfilledVisitId: revisiting || convertingWishlist ? undefined : fp.fulfilledVisitId,
-            isImportant: revisiting || convertingWishlist ? false : !!fp.isImportant,
-            fulfillingWish: convertingWishlist,
-            optionalOpen: convertingWishlist || revisiting,
-            loading: false,
-          })
-          wx.setNavigationBarTitle({
-            title: isCheckin ? '到访打卡' : convertingWishlist ? '记录这次到访' : revisiting ? '再记一次' : fp.status === 'wishlist' ? '编辑想去' : fp.status === 'fulfilled' ? '编辑已实现愿望' : '编辑足迹',
-          })
-          this.updateFormState()
+          this.applySourceFootprint(fp, revisiting, convertingWishlist, isCheckin)
           wx.hideLoading()
         })
         .catch(() => {
@@ -256,6 +227,57 @@ Page<PageData, WechatMiniprogram.IAnyObject>({
         this.setData({ draftRestorable: true, pendingDraft: saved })
       }
     }
+  },
+
+  applySourceFootprint(
+    fp: Footprint,
+    revisiting: boolean,
+    convertingWishlist: boolean,
+    isCheckin: boolean,
+  ) {
+    this.setData({
+      id: revisiting ? undefined : fp.id,
+      placeId: fp.placeId || placeKey(fp),
+      status: convertingWishlist || revisiting ? 'visited' : fp.status,
+      poiName: fp.poiName,
+      address: fp.address || '',
+      lat: fp.lat,
+      lng: fp.lng,
+      country: fp.country || '',
+      province: fp.province || '',
+      city: fp.city || '',
+      district: fp.district || '',
+      visitDate: convertingWishlist || revisiting ? todayKey() : fp.visitDate || (fp.status === 'visited' ? todayKey() : ''),
+      photos: convertingWishlist || revisiting ? [] : fp.photos || [],
+      photoThumbs: convertingWishlist || revisiting
+        ? []
+        : fp.photoThumbs?.length ? fp.photoThumbs : fp.photos || [],
+      originalPhotos: convertingWishlist || revisiting ? [] : fp.photos || [],
+      originalPhotoThumbs: convertingWishlist || revisiting
+        ? []
+        : fp.photoThumbs?.length ? fp.photoThumbs : fp.photos || [],
+      mood: convertingWishlist || revisiting ? '' : fp.mood || '',
+      category: fp.category || '',
+      tags: revisiting ? [] : fp.tags || [],
+      note: convertingWishlist || revisiting ? '' : fp.note || '',
+      markerColor: fp.markerStyle?.color || MARKER_COLORS[0].value,
+      markerEmoji: fp.markerStyle?.emoji || '',
+      source: fp.source,
+      wishlistCreatedAt: fp.wishlistCreatedAt,
+      convertedFromWishlist: convertingWishlist || (!revisiting && !!fp.convertedFromWishlist),
+      wishId: revisiting || convertingWishlist ? undefined : fp.wishId,
+      fulfilledAt: revisiting || convertingWishlist ? undefined : fp.fulfilledAt,
+      fulfilledVisitId: revisiting || convertingWishlist ? undefined : fp.fulfilledVisitId,
+      isImportant: revisiting || convertingWishlist ? false : !!fp.isImportant,
+      fulfillingWish: convertingWishlist,
+      optionalOpen: convertingWishlist || revisiting,
+      loading: false,
+      isEditing: !revisiting,
+    })
+    wx.setNavigationBarTitle({
+      title: isCheckin ? '到访打卡' : convertingWishlist ? '记录这次到访' : revisiting ? '再记一次' : fp.status === 'wishlist' ? '编辑想去' : fp.status === 'fulfilled' ? '编辑已实现愿望' : '编辑足迹',
+    })
+    this.updateFormState()
   },
 
   updateFormState() {
@@ -526,6 +548,18 @@ Page<PageData, WechatMiniprogram.IAnyObject>({
       wx.showToast({ title: '请选择日期', icon: 'none' })
       return
     }
+    if (!hasMapCoordinates(this.data)) {
+      wx.showModal({
+        title: '选择地图位置',
+        content: '需要选择具体位置，保存后才能立即在地图上显示标记。',
+        confirmText: '选择位置',
+        cancelText: '稍后再说',
+        success: ({ confirm }) => {
+          if (confirm) this.onChooseLocation()
+        },
+      })
+      return
+    }
     if (this.data.pendingUploads.length || this.data.uploadRetrying) {
       wx.showToast({ title: '请等待照片上传完成', icon: 'none' })
       return
@@ -575,6 +609,11 @@ Page<PageData, WechatMiniprogram.IAnyObject>({
       }
       clearDraft()
       this.setData({ id: saved.id, saved: true })
+      const pages = getCurrentPages()
+      const previousPage = pages[pages.length - 2]
+      if (previousPage?.route === 'pages/map/index') {
+        wx.setStorageSync(MAP_MODE_STORAGE_KEY, saved.status === 'visited' ? 'visited' : 'wishlist')
+      }
       wx.vibrateShort({ type: 'light', fail: () => {} })
       if (this.data.isCheckin) {
         const distanceCopy = this.data.checkinDistance > 0

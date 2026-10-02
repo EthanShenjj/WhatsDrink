@@ -3,8 +3,10 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "dev": "npx --yes hyperframes@0.7.76 preview",
-    "check": "npx --yes hyperframes@0.7.76 check",
-    "render": "npx --yes hyperframes@0.7.76 render"
+    "dev": "node ./node_modules/hyperframes/bin/hyperframes.mjs preview",
+    "lint": "node ./node_modules/hyperframes/bin/hyperframes.mjs lint",
+    "validate": "node ./node_modules/hyperframes/bin/hyperframes.mjs validate",
+    "inspect": "node ./node_modules/hyperframes/bin/hyperframes.mjs inspect --samples 15",
+    "render": "node ./node_modules/hyperframes/bin/hyperframes.mjs render"
   }
 }

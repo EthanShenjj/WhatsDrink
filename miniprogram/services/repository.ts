@@ -488,13 +488,16 @@ export const saveFootprint = async (draft: FootprintDraft): Promise<Footprint> =
       action: draft.id ? 'update' : 'create',
       footprint,
     })
-    await persistCloudDetail(saved)
     const cached = footprintListCache || readStoredFootprints()
     const summary = toFootprintSummary(saved)
     const next = cached.some((fp) => fp.id === saved.id)
       ? cached.map((fp) => fp.id === saved.id ? summary : fp)
       : [summary, ...cached]
-    await persistCloudSnapshot(next)
+    // 两份缓存写入不同 storage key，可并行落盘；云函数成功后不再串行等待两次 IO。
+    await Promise.all([
+      persistCloudDetail(saved),
+      persistCloudSnapshot(next),
+    ])
     return saved
   }
 

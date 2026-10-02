@@ -77,14 +77,6 @@
   height: 100%;
 }
 
-.fp-thumb-icon {
-  width: 38rpx;
-  height: 38rpx;
-  opacity: .48;
-}
-
-.fp-thumb-emoji { font-size: 42rpx; line-height: 1; }
-
 .fp-status-badge {
   position: absolute;
   top: 10rpx;

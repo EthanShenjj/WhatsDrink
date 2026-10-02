@@ -25,6 +25,15 @@ export const markerPhotoForZoom = (
   zoom: number,
 ): string => zoom >= 12 ? footprint.photoThumbs?.[0] || footprint.photos?.[0] || '' : ''
 
+/** 地图标记必须同时具备有效的经纬度；0 是合法坐标，不能用 truthy 判断。 */
+export const hasMapCoordinates = (
+  footprint: Pick<Footprint, 'lat' | 'lng'>,
+): boolean =>
+  typeof footprint.lat === 'number'
+  && Number.isFinite(footprint.lat)
+  && typeof footprint.lng === 'number'
+  && Number.isFinite(footprint.lng)
+
 export const footprintsForMapMode = (footprints: Footprint[], mode: MapMode): Footprint[] => {
   return footprints.filter((footprint) =>
     mode === 'wishlist' ? footprint.status !== 'visited' : footprint.status === 'visited')

@@ -116,6 +116,41 @@ for (const page of appJson?.pages || []) {
   }
 }
 
+// 本地组件路径和静态资源路径在 TypeScript 检查中不可见；发布前显式验证，
+// 避免模拟器缓存正常但真机分包缺文件。
+const sourceFiles = []
+const collectProjectFiles = (directory) => {
+  for (const entry of fs.readdirSync(directory, { withFileTypes: true })) {
+    const file = path.join(directory, entry.name)
+    if (entry.isDirectory()) collectProjectFiles(file)
+    else sourceFiles.push(file)
+  }
+}
+collectProjectFiles(miniprogram)
+
+for (const jsonFile of sourceFiles.filter((file) => path.extname(file) === '.json')) {
+  const config = readJson(jsonFile)
+  for (const [name, reference] of Object.entries(config?.usingComponents || {})) {
+    if (typeof reference !== 'string' || !reference.startsWith('/')) continue
+    const base = path.join(miniprogram, reference.slice(1))
+    if (!['.json', '.wxml', '.wxss'].every((extension) => fs.existsSync(base + extension))) {
+      errors.push(`${path.relative(root, jsonFile)}: 组件 ${name} 指向不存在的路径 ${reference}`)
+    }
+  }
+}
+
+const staticAssetPattern = /['"(](\/assets\/[^'"\s){}?]+)(?:\?[^'"\s)]*)?['")]/g
+for (const sourceFile of sourceFiles.filter((file) => ['.ts', '.wxml', '.wxss'].includes(path.extname(file)))) {
+  const source = fs.readFileSync(sourceFile, 'utf8')
+  let match
+  while ((match = staticAssetPattern.exec(source))) {
+    const asset = path.join(miniprogram, match[1].slice(1))
+    if (!fs.existsSync(asset)) {
+      errors.push(`${path.relative(root, sourceFile)}: 引用了不存在的资源 ${match[1]}`)
+    }
+  }
+}
+
 const visitMediaFiles = (directory) => {
   for (const entry of fs.readdirSync(directory, { withFileTypes: true })) {
     const file = path.join(directory, entry.name)
@@ -153,7 +188,7 @@ for (const name of requiredCloudFunctions) {
   if (!cloudBaseConfig?.functions?.some((entry) => entry.name === name)) {
     errors.push(`云函数未列入 cloudbaserc.json：${name}`)
   }
-  for (const fileName of ['index.js', 'package.json']) {
+  for (const fileName of ['index.js', 'package.json', 'package-lock.json']) {
     const file = path.join(root, 'cloudfunctions', name, fileName)
     if (!fs.existsSync(file)) errors.push(`缺少云函数文件：${path.relative(root, file)}`)
   }

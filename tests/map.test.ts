@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { clusterFootprints, fitBounds, footprintsForMapMode, haversine, markerPhotoForZoom } from '../miniprogram/utils/map'
+import { clusterFootprints, fitBounds, footprintsForMapMode, hasMapCoordinates, haversine, markerPhotoForZoom } from '../miniprogram/utils/map'
 import type { Footprint } from '../miniprogram/domain/types'
 
 const makeFootprint = (lat: number, lng: number, id?: string): Footprint => ({
@@ -37,6 +37,18 @@ describe('markerPhotoForZoom', () => {
   it('keeps distant map views on lightweight pins', () => {
     expect(markerPhotoForZoom({ photos: ['cloud://photo.jpg'] }, 9)).toBe('')
     expect(markerPhotoForZoom({ photos: [] }, 16)).toBe('')
+  })
+})
+
+describe('hasMapCoordinates', () => {
+  it('accepts valid coordinates including zero', () => {
+    expect(hasMapCoordinates({ lat: 0, lng: 0 })).toBe(true)
+    expect(hasMapCoordinates({ lat: 31.2304, lng: 121.4737 })).toBe(true)
+  })
+
+  it('rejects missing or non-finite coordinates', () => {
+    expect(hasMapCoordinates({ lat: 31.2304 })).toBe(false)
+    expect(hasMapCoordinates({ lat: Number.NaN, lng: 121.4737 })).toBe(false)
   })
 })
 

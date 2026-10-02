@@ -44,7 +44,9 @@ const devices = (() => {
 let fpId = ''
 const pages = () =>
   [
-    { key: '01-map', url: '/pages/map/index', tab: true, settle: 3500, isMap: true },
+    // 原生地图瓦片与自定义图层不会跟随 WebView DOM 就绪；给冷启动留出
+    // 更长稳定窗口，避免截图把“尚未加载”误判为“底图空白”。
+    { key: '01-map', url: '/pages/map/index', tab: true, settle: 10000, isMap: true },
     { key: '02-time', url: '/pages/time/index', tab: true, settle: 2200 },
     { key: '03-mine', url: '/pages/mine/index', tab: true, settle: 2200 },
     { key: '04-footprint-form', url: '/pages/footprint-form/index', settle: 2200 },

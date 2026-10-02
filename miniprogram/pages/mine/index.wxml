@@ -2,7 +2,7 @@
   <text class="eyebrow">SHIGUANGJI · LIFEMAP</text>
   <text class="display-title">我的拾光</text>
 
-  <brand-card variant="gradient" interactive ariaLabel="进入个人设置" bind:tap="onProfileTap">
+  <brand-card variant="default" interactive ariaLabel="进入个人设置" bind:tap="onProfileTap">
     <view class="profile-hero">
       <image wx:if="{{profile.avatarUrl}}" class="profile-avatar" src="{{profile.avatarUrl}}" mode="aspectFill" />
       <view wx:else class="profile-avatar profile-avatar-empty">拾</view>

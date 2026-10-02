@@ -44,7 +44,7 @@
   },
   "permission": {
     "scope.userLocation": {
-      "desc": "用于用户主动发起当前位置打卡、匹配附近地点并记录到访足迹"
+      "desc": "用于地图定位、附近地点匹配和当前位置打卡"
     }
   },
   "requiredPrivateInfos": [

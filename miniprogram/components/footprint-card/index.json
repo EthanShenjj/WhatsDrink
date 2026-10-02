@@ -1,3 +1,6 @@
 {
-  "component": true
+  "component": true,
+  "usingComponents": {
+    "ip-mascot": "/components/ip-mascot/index"
+  }
 }

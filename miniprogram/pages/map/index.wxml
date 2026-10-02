@@ -1,6 +1,7 @@
 <view class="map-page theme-{{settings.theme}}" style="--status-bar: {{statusBarHeight}}px;">
   <!-- Full screen map -->
   <map
+    wx:if="{{mapVisible}}"
     id="sgjMap"
     class="map-canvas"
     longitude="{{center.longitude}}"
@@ -20,6 +21,9 @@
     bindtap="onMapTap"
     bindmarkertap="onMarkerTap"
     bindregionchange="onRegionChange"
+    binderror="onMapError"
+    bindabilityfail="onMapAbilityFail"
+    bindupdated="onMapUpdated"
   >
     <cover-view slot="callout">
       <block wx:for="{{markers}}" wx:key="id">
@@ -32,6 +36,17 @@
       </block>
     </cover-view>
   </map>
+
+  <view wx:if="{{!loading && !mapTilesReady && !mapLoadFailed}}" class="map-runtime-status">
+    <view class="map-loading-dot"></view>
+    <text>地图加载中…</text>
+  </view>
+
+  <view wx:if="{{mapLoadFailed}}" class="map-runtime-error">
+    <text class="map-runtime-error-title">地图暂时没有加载出来</text>
+    <text class="map-runtime-error-copy">请检查网络后重试，足迹数据不会丢失</text>
+    <button class="map-runtime-retry" bindtap="retryMapLoad">重新加载地图</button>
+  </view>
 
   <!-- Top safe area + mode switcher -->
   <view class="map-topbar">
@@ -96,7 +111,7 @@
         <view class="unplaced-thumb">
           <image wx:if="{{item.photo}}" class="unplaced-photo" src="{{item.photo}}" mode="aspectFill" lazy-load />
           <view wx:else class="unplaced-placeholder">
-            <local-icon name="image" size="34rpx" />
+            <ip-mascot state="companion" expression="happy" size="68rpx" motion="none" label="默认 Lumi 足迹封面" />
           </view>
         </view>
         <view class="unplaced-copy">
@@ -137,9 +152,12 @@
     aria-label="当前位置快捷打卡"
   >
     <cover-view class="map-checkin-icon">
-      <cover-image class="map-checkin-icon-image" src="/assets/icons/locate.svg" />
+      <cover-image class="map-checkin-icon-image" src="/assets/icons/locate-white.svg" />
     </cover-view>
-    <cover-view class="map-checkin-title">快捷打卡</cover-view>
+    <cover-view class="map-checkin-copy">
+      <cover-view class="map-checkin-title">快捷打卡</cover-view>
+      <cover-view class="map-checkin-subtitle">记录此刻位置</cover-view>
+    </cover-view>
   </cover-view>
   </view>
 

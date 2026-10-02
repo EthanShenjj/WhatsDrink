@@ -44,7 +44,7 @@
       <view class="tab-sheet-icon"><local-icon name="location" size="34rpx" /></view>
       <view class="tab-sheet-copy">
         <text class="tab-sheet-title">手动记录足迹</text>
-        <text class="tab-sheet-sub">选择地点，也可以只填写地点名称</text>
+        <text class="tab-sheet-sub">选择具体位置，保存后立即点亮地图</text>
       </view>
       <text class="tab-sheet-arrow">›</text>
     </view>

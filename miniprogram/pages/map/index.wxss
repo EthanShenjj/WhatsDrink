@@ -12,6 +12,64 @@
   height: 100%;
 }
 
+.map-runtime-status,
+.map-runtime-error {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  z-index: 18;
+  display: flex;
+  box-sizing: border-box;
+  align-items: center;
+  transform: translate(-50%, -50%);
+  border: 1rpx solid rgba(91, 108, 255, 0.12);
+  background: rgba(255, 255, 255, 0.94);
+  box-shadow: 0 12rpx 32rpx rgba(55, 64, 134, 0.14);
+  color: var(--muted);
+}
+
+.map-runtime-status {
+  gap: 14rpx;
+  padding: 20rpx 28rpx;
+  border-radius: 99rpx;
+  font-size: 24rpx;
+}
+
+.map-runtime-error {
+  width: 520rpx;
+  flex-direction: column;
+  gap: 12rpx;
+  padding: 32rpx;
+  border-radius: 32rpx;
+  text-align: center;
+}
+
+.map-runtime-error-title {
+  color: var(--ink);
+  font-size: 28rpx;
+  font-weight: 700;
+}
+
+.map-runtime-error-copy {
+  font-size: 22rpx;
+  line-height: 34rpx;
+}
+
+.map-runtime-retry {
+  min-width: 240rpx;
+  margin: 8rpx 0 0;
+  padding: 0 28rpx;
+  border: 0;
+  border-radius: 99rpx;
+  background: #5B6CFF;
+  color: #FFFFFF;
+  font-size: 24rpx;
+  font-weight: 700;
+  line-height: 72rpx;
+}
+
+.map-runtime-retry::after { border: 0; }
+
 .photo-marker-callout {
   position: relative;
   width: 150rpx;
@@ -247,17 +305,17 @@
 
 .map-checkin-cta {
   display: flex;
-  width: 226rpx;
-  min-height: 72rpx;
+  box-sizing: border-box;
+  width: 264rpx;
+  min-height: 84rpx;
   align-items: center;
-  justify-content: center;
   align-self: flex-start;
-  gap: 10rpx;
-  padding: 8rpx 18rpx;
-  border: 1rpx solid rgba(91, 108, 255, 0.16);
-  border-radius: 36rpx;
-  background: rgba(255, 255, 255, 0.96);
-  box-shadow: 0 7rpx 20rpx rgba(55, 64, 134, 0.14);
+  gap: 14rpx;
+  padding: 10rpx 18rpx 10rpx 12rpx;
+  border: 1rpx solid rgba(255, 255, 255, 0.52);
+  border-radius: 28rpx;
+  background: linear-gradient(135deg, #596CFF 0%, #7D6CF5 100%);
+  box-shadow: 0 12rpx 30rpx rgba(62, 71, 200, 0.28);
   pointer-events: auto;
   transition: opacity 160ms ease, transform 160ms ease;
 }
@@ -269,25 +327,37 @@
 
 .map-checkin-icon {
   display: flex;
-  width: 40rpx;
-  height: 40rpx;
-  flex: 0 0 40rpx;
+  width: 54rpx;
+  height: 54rpx;
+  flex: 0 0 54rpx;
   align-items: center;
   justify-content: center;
-  border-radius: 20rpx;
-  background: #F0F1FF;
+  border-radius: 19rpx;
+  background: rgba(255, 255, 255, 0.18);
 }
 
 .map-checkin-icon-image {
-  width: 24rpx;
-  height: 24rpx;
+  width: 30rpx;
+  height: 30rpx;
+}
+
+.map-checkin-copy {
+  display: flex;
+  flex-direction: column;
+  gap: 1rpx;
 }
 
 .map-checkin-title {
-  color: #3E47C8;
-  font-size: 24rpx;
-  font-weight: 600;
-  line-height: 34rpx;
+  color: #FFFFFF;
+  font-size: 25rpx;
+  font-weight: 700;
+  line-height: 32rpx;
+}
+
+.map-checkin-subtitle {
+  color: rgba(255, 255, 255, 0.76);
+  font-size: 18rpx;
+  line-height: 25rpx;
 }
 
 
@@ -439,7 +509,7 @@
 }
 
 .unplaced-photo { width: 100%; height: 100%; }
-.unplaced-placeholder { display: flex; align-items: center; justify-content: center; opacity: .48; }
+.unplaced-placeholder { display: flex; align-items: center; justify-content: center; }
 .unplaced-copy { display: flex; min-width: 0; flex: 1; flex-direction: column; gap: 8rpx; }
 .unplaced-name { overflow: hidden; color: var(--ink); font-size: 26rpx; font-weight: 700; text-overflow: ellipsis; white-space: nowrap; }
 .unplaced-meta { display: flex; align-items: center; gap: 10rpx; }

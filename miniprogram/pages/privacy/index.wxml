@@ -16,7 +16,7 @@
   </view>
   <view class="privacy-section">
     <text class="section-title hand-underline">按需权限</text>
-    <text>只有主动点击“当前位置打卡”、选地点、拍照或选择照片时，才会请求对应能力。位置信息用于匹配 1 公里内的已保存地点、显示距离并生成到访记录；拒绝定位后仍可搜索或手动填写地点，拒绝照片权限也能无图创建足迹。</text>
+    <text>进入地图时会请求位置权限，用于自动展示你所在的区域；主动点击“当前位置打卡”时，位置信息还会用于匹配 1 公里内的已保存地点、显示距离并生成到访记录。拒绝定位后仍可浏览地图、搜索或手动填写地点；只有拍照或选择照片时才会请求对应的照片能力。</text>
   </view>
   <view class="privacy-section">
     <text class="section-title hand-underline">订阅提醒</text>

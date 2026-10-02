@@ -15,10 +15,18 @@ import {
   hasCloudAccess,
   getMapSettings,
   saveMapSettings,
+  getFootprintSnapshot,
 } from '../../services/repository'
-import { clusterFootprints, fitBounds, footprintsForMapMode, markerPhotoForZoom } from '../../utils/map'
+import {
+  clusterFootprints,
+  fitBounds,
+  footprintsForMapMode,
+  hasMapCoordinates,
+  markerPhotoForZoom,
+} from '../../utils/map'
 import {
   buildCheckinRoute,
+  CHECKIN_SOURCE_STORAGE_KEY,
   findNearbyCheckinCandidate,
 } from '../../utils/checkin'
 import type { CheckinCandidate } from '../../utils/checkin'
@@ -80,6 +88,11 @@ interface GrowthCircle {
   strokeWidth: number
 }
 
+interface UserLocation {
+  latitude: number
+  longitude: number
+}
+
 /**
  * WXML 只渲染界面控件所需的轻量字段；完整足迹、过滤结果与标记索引
  * 都放在页面实例上，避免每次 setData 把大对象整份传到渲染层。
@@ -116,6 +129,10 @@ interface PageData {
   checkinClosing: boolean
   checkinCandidate: CheckinCandidate | null
   checkinDistance: number
+  isLocating: boolean
+  mapTilesReady: boolean
+  mapLoadFailed: boolean
+  mapVisible: boolean
   statusBarHeight: number
   tabReady: boolean
   growth: GrowthOverview | null
@@ -139,6 +156,7 @@ interface ModeView {
 
 const DEFAULT_CENTER = { latitude: 35.0, longitude: 105.0 }
 const DEFAULT_SCALE = 4
+const USER_AREA_SCALE = 12
 // 与 repository 的共享缓存配合：热切回地图 60 秒内不重新请求足迹
 const FOOTPRINTS_MAX_AGE_MS = 60_000
 const MAP_MODE_STORAGE_KEY = 'sgj:map-mode'
@@ -302,6 +320,7 @@ const buildGrowthCircles = (growthCities: CityGrowth[]): GrowthCircle[] =>
 Page<PageData, WechatMiniprogram.IAnyObject>({
   detailCloseTimer: null,
   checkinCloseTimer: null,
+  mapReadyFallbackTimer: null,
 
   // ─── 实例态：不进入渲染层的大对象与视图缓存（自定义字段受 IAnyObject 约束为
   // any，实例数组上的回调参数需显式标注类型）───
@@ -315,6 +334,12 @@ Page<PageData, WechatMiniprogram.IAnyObject>({
   markerCache: null as MarkerIndex | null,
   isVisible: false,
   mapReady: false,
+  initialLocationStarted: false,
+  initialLocationResolved: false,
+  hasCenteredOnUser: false,
+  checkinLocationRequested: false,
+  locationPromise: null as Promise<UserLocation> | null,
+  initialDataPromise: null as Promise<void> | null,
   loadSequence: 0,
   pendingFootprints: null as Footprint[] | null,
 
@@ -350,6 +375,10 @@ Page<PageData, WechatMiniprogram.IAnyObject>({
     checkinClosing: false,
     checkinCandidate: null,
     checkinDistance: 0,
+    isLocating: false,
+    mapTilesReady: false,
+    mapLoadFailed: false,
+    mapVisible: true,
     statusBarHeight: 20,
     tabReady: false,
     growth: null,
@@ -359,7 +388,7 @@ Page<PageData, WechatMiniprogram.IAnyObject>({
     installUpdatePerformanceLogger(this, 'map')
     const sysInfo = wx.getWindowInfo()
     this.setData({ statusBarHeight: sysInfo.statusBarHeight || 20 })
-    this.initData()
+    this.initialDataPromise = this.initData()
   },
 
   onShow() {
@@ -376,9 +405,14 @@ Page<PageData, WechatMiniprogram.IAnyObject>({
       wx.removeStorageSync(MAP_MODE_STORAGE_KEY)
       if (requestedMode !== this.data.mode) this.applyMode(requestedMode, { fit: true })
     }
-    if (wx.getStorageSync<string>(PENDING_MAP_ACTION_STORAGE_KEY) === 'checkin') {
+    const shouldOpenCheckin = wx.getStorageSync<string>(PENDING_MAP_ACTION_STORAGE_KEY) === 'checkin'
+    if (shouldOpenCheckin) {
       wx.removeStorageSync(PENDING_MAP_ACTION_STORAGE_KEY)
+      // 冷启动由快捷打卡接管本次定位，避免与首屏自动定位并发调用 getLocation。
+      this.initialLocationStarted = true
       this.onCheckin()
+    } else {
+      this.autoLocateOnEntry()
     }
     const settings = getMapSettings()
     if (JSON.stringify(settings) !== JSON.stringify(this.data.settings)) {
@@ -392,7 +426,15 @@ Page<PageData, WechatMiniprogram.IAnyObject>({
     }
     // onLoad is already fetching the first screen. Repeating the cache refresh here
     // causes a second request and several full native-map redraws during tab entry.
-    if (this.pendingFootprints) {
+    // 保存页会同步更新 repository 的内存快照。返回地图时优先使用它，避免
+    // 较早发起的异步列表请求或 60 秒热缓存覆盖刚新增的足迹。
+    const latestSnapshot = getFootprintSnapshot()
+    if (latestSnapshot && latestSnapshot !== this.allFootprints) {
+      this.pendingFootprints = null
+      // 快捷打卡返回时只刷新标记和数据，保留刚刚获取到的当前位置视野。
+      // 未成功定位时才继续沿用“适配全部足迹”的原有行为。
+      this.applyFootprints(latestSnapshot, { fit: !this.hasCenteredOnUser })
+    } else if (this.pendingFootprints) {
       const pending = this.pendingFootprints
       this.pendingFootprints = null
       this.applyFootprints(pending)
@@ -406,6 +448,7 @@ Page<PageData, WechatMiniprogram.IAnyObject>({
   onReady() {
     mapContext = wx.createMapContext('sgjMap', this)
     this.mapReady = true
+    this.scheduleMapReadyFallback()
     this.setData({ growthCircles: buildGrowthCircles(this.data.growthCities) }, () => {
       this.refreshMarkers()
     })
@@ -421,7 +464,10 @@ Page<PageData, WechatMiniprogram.IAnyObject>({
       setTimeout(() => {
         loginForAccess().then((cloudProfile) => {
           app.globalData.profile = cloudProfile
-          if (hasCloudAccess()) this.loadFootprints(false, true)
+          if (hasCloudAccess()) {
+            const shouldFitCloudFootprints = !this.hasCenteredOnUser && this.allFootprints.length === 0
+            this.loadFootprints(false, shouldFitCloudFootprints)
+          }
         }).catch(() => undefined)
       }, 350)
     } catch (err) {
@@ -447,7 +493,7 @@ Page<PageData, WechatMiniprogram.IAnyObject>({
 
   async loadFootprints(showLoading: boolean, fit = false) {
     const sequence = ++this.loadSequence
-    if (showLoading) wx.showLoading({ title: '加载中', mask: true })
+    if (showLoading && !this.data.loading) this.setData({ loading: true })
     try {
       const list = await listFootprints()
       if (sequence !== this.loadSequence) return
@@ -455,12 +501,12 @@ Page<PageData, WechatMiniprogram.IAnyObject>({
         this.pendingFootprints = list
         return
       }
-      this.applyFootprints(list, { fit })
+      this.applyFootprints(list, {
+        fit: fit && !this.hasCenteredOnUser && this.initialLocationResolved,
+      })
     } catch (err) {
       console.warn('[map] load footprints failed', err)
       this.setData({ loading: false, empty: true })
-    } finally {
-      if (showLoading) wx.hideLoading()
     }
   },
 
@@ -500,9 +546,7 @@ Page<PageData, WechatMiniprogram.IAnyObject>({
     const modeList = this.filteredFootprints.filter((fp: Footprint) =>
       mode === 'wishlist' ? fp.status !== 'visited' : fp.status === 'visited',
     )
-    const unplaced = modeList.filter(
-      (fp: Footprint) => typeof fp.lat !== 'number' || typeof fp.lng !== 'number',
-    )
+    const unplaced = modeList.filter((fp: Footprint) => !hasMapCoordinates(fp))
     const copy = modeCopy(mode)
     return {
       modeList,
@@ -556,9 +600,7 @@ Page<PageData, WechatMiniprogram.IAnyObject>({
     if (!force && key === this.markerCacheKey && this.markerCache) return null
 
     const target = footprintsForMapMode(this.filteredFootprints, mode)
-    const validForMap = target.filter(
-      (fp: Footprint) => typeof fp.lat === 'number' && typeof fp.lng === 'number',
-    )
+    const validForMap = target.filter(hasMapCoordinates)
 
     // 同一 POI 可有多次到访，但地图默认只显示一个点。
     const visitCounts: Record<string, number> = {}
@@ -625,9 +667,7 @@ Page<PageData, WechatMiniprogram.IAnyObject>({
   },
 
   fitToFootprints(list: Footprint[]) {
-    const target = list.filter(
-      (fp) => typeof fp.lat === 'number' && typeof fp.lng === 'number',
-    )
+    const target = list.filter(hasMapCoordinates)
     const next = target.length
       ? fitBounds(target)
       : { latitude: DEFAULT_CENTER.latitude, longitude: DEFAULT_CENTER.longitude, scale: DEFAULT_SCALE }
@@ -642,7 +682,12 @@ Page<PageData, WechatMiniprogram.IAnyObject>({
     }
     this.mapScale = next.scale
     this.zoomTier = scaleToZoom(next.scale)
-    this.setData({ center: { latitude: next.latitude, longitude: next.longitude }, scale: next.scale })
+    this.setData({
+      center: { latitude: next.latitude, longitude: next.longitude },
+      scale: next.scale,
+      mapTilesReady: false,
+      mapLoadFailed: false,
+    }, () => this.scheduleMapReadyFallback())
   },
 
   onModeTap(e: WechatMiniprogram.TouchEvent) {
@@ -668,7 +713,9 @@ Page<PageData, WechatMiniprogram.IAnyObject>({
       this.setData({
         center: { latitude: cluster.latitude, longitude: cluster.longitude },
         scale: nextScale,
-      })
+        mapTilesReady: false,
+        mapLoadFailed: false,
+      }, () => this.scheduleMapReadyFallback())
       this.refreshMarkers()
       return
     }
@@ -687,10 +734,68 @@ Page<PageData, WechatMiniprogram.IAnyObject>({
     }
   },
 
+  onMapError(e: WechatMiniprogram.CustomEvent<Record<string, unknown>>) {
+    // 原生地图的鉴权、创建和网络错误不会抛到页面逻辑层，显式上报到
+    // console 便于开发者工具、体验版 vConsole 与平台错误监控捕获。
+    console.error('[map] native map error', e.detail)
+    this.clearMapReadyFallback()
+    this.setData({ mapTilesReady: false, mapLoadFailed: true })
+  },
+
+  onMapAbilityFail(e: WechatMiniprogram.CustomEvent<Record<string, unknown>>) {
+    console.error('[map] native map ability failed', e.detail)
+    this.clearMapReadyFallback()
+    this.setData({ mapTilesReady: false, mapLoadFailed: true })
+  },
+
+  onMapUpdated() {
+    this.clearMapReadyFallback()
+    if (!this.data.mapTilesReady || this.data.mapLoadFailed) {
+      this.setData({ mapTilesReady: true, mapLoadFailed: false })
+    }
+  },
+
+  clearMapReadyFallback() {
+    if (!this.mapReadyFallbackTimer) return
+    clearTimeout(this.mapReadyFallbackTimer)
+    this.mapReadyFallbackTimer = null
+  },
+
+  scheduleMapReadyFallback() {
+    if (!this.mapReady) return
+    this.clearMapReadyFallback()
+    // 部分开发者工具与旧基础库不会派发 map.updated；短时兜底避免提示永久遮挡底图。
+    this.mapReadyFallbackTimer = setTimeout(() => {
+      this.mapReadyFallbackTimer = null
+      if (!this.data.mapLoadFailed && !this.data.mapTilesReady) {
+        this.setData({ mapTilesReady: true })
+      }
+    }, 1800)
+  },
+
+  retryMapLoad() {
+    this.setData({
+      mapVisible: false,
+      mapTilesReady: false,
+      mapLoadFailed: false,
+    }, () => {
+      wx.nextTick(() => {
+        this.setData({ mapVisible: true }, () => {
+          mapContext = wx.createMapContext('sgjMap', this)
+          this.scheduleMapReadyFallback()
+        })
+      })
+    })
+  },
+
   onRegionChange(
     e: WechatMiniprogram.CustomEvent<{ type: 'begin' | 'end'; scale?: number }>,
   ) {
     if (e.detail.type !== 'end') return
+    if (!this.data.mapTilesReady && !this.data.mapLoadFailed) {
+      this.clearMapReadyFallback()
+      this.setData({ mapTilesReady: true })
+    }
     const settle = (scale: number) => {
       if (typeof scale !== 'number' || !Number.isFinite(scale)) return
       // 拖动或程序设定视野的回声：缩放档位未跨越时不写 data、不重建标记，
@@ -706,40 +811,194 @@ Page<PageData, WechatMiniprogram.IAnyObject>({
     else mapContext?.getScale({ success: ({ scale }) => settle(scale) })
   },
 
+  /**
+   * 首次进入地图时自动把视野移动到用户所在区域。
+   * 已明确拒绝定位时保持现有地图视野，不在启动阶段反复弹窗打扰。
+   */
+  autoLocateOnEntry() {
+    if (this.initialLocationStarted) return
+    this.initialLocationStarted = true
+    wx.getSetting({
+      success: ({ authSetting }) => {
+        if (authSetting['scope.userLocation'] === false) {
+          this.resolveInitialLocation(false)
+          return
+        }
+        this.requestInitialLocation()
+      },
+      fail: () => this.requestInitialLocation(),
+    })
+  },
+
+  resolveInitialLocation(success: boolean) {
+    if (this.initialLocationResolved) return
+    this.initialLocationResolved = true
+    if (!success && this.allFootprints.length) {
+      this.fitToFootprints(this.computeModeView(this.data.mode).modeList)
+    }
+  },
+
+  getCurrentLocation(): Promise<UserLocation> {
+    if (this.locationPromise) return this.locationPromise
+    const request = new Promise<UserLocation>((resolve, reject) => {
+      wx.getLocation({
+        type: 'gcj02',
+        success: ({ latitude, longitude }) => resolve({ latitude, longitude }),
+        fail: reject,
+      })
+    })
+    this.locationPromise = request
+    request.finally(() => {
+      if (this.locationPromise === request) this.locationPromise = null
+    }).catch(() => undefined)
+    return request
+  },
+
+  requestInitialLocation() {
+    this.getCurrentLocation()
+      .then(({ latitude, longitude }: UserLocation) => {
+        // 用户已经主动发起快捷打卡时，由打卡流程独占本次定位结果和缩放级别。
+        if (this.checkinLocationRequested) return
+        this.resolveInitialLocation(true)
+        this.hasCenteredOnUser = true
+        this.mapScale = USER_AREA_SCALE
+        this.zoomTier = scaleToZoom(USER_AREA_SCALE)
+        this.setData({
+          center: { latitude, longitude },
+          scale: USER_AREA_SCALE,
+          hasLocationAuth: true,
+          mapTilesReady: false,
+          mapLoadFailed: false,
+        }, () => this.scheduleMapReadyFallback())
+        this.refreshMarkers()
+      })
+      .catch((error: unknown) => {
+        this.resolveInitialLocation(false)
+        // 自动定位失败时保留足迹视野；用户仍可通过“快捷打卡”主动重试。
+        console.warn('[map] initial location unavailable', error)
+      })
+  },
+
   onCheckin() {
     recordInteraction('map.checkin')
+    if (this.data.isLocating) return
+    this.checkinLocationRequested = true
+    this.setData({ isLocating: true })
+    wx.getSetting({
+      success: ({ authSetting }) => {
+        if (authSetting['scope.userLocation'] === false) {
+          this.setData({ isLocating: false })
+          this.showLocationPermissionGuide()
+          return
+        }
+        this.requestCheckinLocation()
+      },
+      fail: () => this.requestCheckinLocation(),
+    })
+  },
+
+  async ensureFootprintsForCheckin() {
+    try {
+      if (this.initialDataPromise) await this.initialDataPromise
+      // 有本地快照即可即时匹配；首次安装或缓存为空时再等待一次云端列表。
+      if (this.allFootprints.length) return
+      const profile = await loginForAccess()
+      app.globalData.profile = profile
+      if (!hasCloudAccess()) return
+      const list = await listFootprints()
+      if (this.isVisible) this.applyFootprints(list)
+      else this.pendingFootprints = list
+    } catch (error) {
+      console.warn('[map] check-in footprints unavailable', error)
+    }
+  },
+
+  async requestCheckinLocation() {
     wx.showLoading({ title: '正在获取位置', mask: true })
-    wx.getLocation({
-      type: 'gcj02',
-      success: (res) => {
-        const candidate = findNearbyCheckinCandidate(
-          res.latitude,
-          res.longitude,
-          this.allFootprints,
-        )
-        const distance = candidate ? Math.round(candidate.distance) : 0
-        this.mapScale = 16
-        this.zoomTier = scaleToZoom(16)
-        this.setData({
-          center: { latitude: res.latitude, longitude: res.longitude },
-          scale: 16,
-          hasLocationAuth: true,
-          checkinVisible: true,
-          checkinCandidate: candidate,
-          checkinDistance: distance,
+    try {
+      const res = await this.getCurrentLocation()
+      this.resolveInitialLocation(true)
+      this.hasCenteredOnUser = true
+      this.mapScale = 16
+      this.zoomTier = scaleToZoom(16)
+      this.setData({
+        center: { latitude: res.latitude, longitude: res.longitude },
+        scale: 16,
+        hasLocationAuth: true,
+        mapTilesReady: false,
+        mapLoadFailed: false,
+      }, () => this.scheduleMapReadyFallback())
+      this.refreshMarkers()
+
+      wx.showLoading({ title: '正在匹配附近地点', mask: true })
+      await this.ensureFootprintsForCheckin()
+      const candidate = findNearbyCheckinCandidate(
+        res.latitude,
+        res.longitude,
+        this.allFootprints,
+      )
+      const distance = candidate ? Math.round(candidate.distance) : 0
+      this.setData({
+        checkinVisible: true,
+        checkinCandidate: candidate,
+        checkinDistance: distance,
+      })
+      this.syncTabBarForSheets()
+    } catch {
+      this.resolveInitialLocation(false)
+      await new Promise<void>((resolve) => {
+        wx.getSetting({
+          success: ({ authSetting }) => {
+            if (authSetting['scope.userLocation'] === false) {
+              this.showLocationPermissionGuide()
+            } else {
+              wx.showToast({ title: '暂时无法定位，请检查系统定位', icon: 'none' })
+            }
+            resolve()
+          },
+          fail: () => {
+            wx.showToast({ title: '暂时无法定位，请稍后重试', icon: 'none' })
+            resolve()
+          },
         })
-        this.refreshMarkers()
-        this.syncTabBarForSheets()
-        mapContext?.moveToLocation({
-          latitude: res.latitude,
-          longitude: res.longitude,
-          fail: () => {},
+      })
+    } finally {
+      this.checkinLocationRequested = false
+      this.setData({ isLocating: false })
+      wx.hideLoading()
+    }
+  },
+
+  showLocationPermissionGuide() {
+    wx.showModal({
+      title: '开启位置权限',
+      content: '快捷打卡需要读取当前位置。请在设置中允许位置信息后重试。',
+      confirmText: '去设置',
+      cancelText: '暂不',
+      success: ({ confirm }) => {
+        if (!confirm) {
+          this.checkinLocationRequested = false
+          this.resolveInitialLocation(false)
+          return
+        }
+        wx.openSetting({
+          success: ({ authSetting }) => {
+            if (authSetting['scope.userLocation']) {
+              this.checkinLocationRequested = true
+              this.setData({ isLocating: true })
+              this.requestCheckinLocation()
+            } else {
+              this.checkinLocationRequested = false
+              this.resolveInitialLocation(false)
+              wx.showToast({ title: '未开启位置权限', icon: 'none' })
+            }
+          },
+          fail: () => {
+            this.checkinLocationRequested = false
+            this.resolveInitialLocation(false)
+          },
         })
       },
-      fail: () => {
-        wx.showToast({ title: '请授权位置信息', icon: 'none' })
-      },
-      complete: () => wx.hideLoading(),
     })
   },
 
@@ -753,7 +1012,12 @@ Page<PageData, WechatMiniprogram.IAnyObject>({
     this.setData({ checkinVisible: false, checkinClosing: false })
     this.syncTabBarForSheets()
     wx.vibrateShort({ type: 'light', fail: () => {} })
-    wx.navigateTo({ url: buildCheckinRoute(candidate) })
+    // 地图快照已包含打卡表单所需字段，先本地交接，避免进入表单后再阻塞等待云端详情。
+    wx.setStorageSync(CHECKIN_SOURCE_STORAGE_KEY, candidate.footprint)
+    wx.navigateTo({
+      url: buildCheckinRoute(candidate),
+      fail: () => wx.removeStorageSync(CHECKIN_SOURCE_STORAGE_KEY),
+    })
   },
 
   onCheckinChoosePlace() {
@@ -833,7 +1097,7 @@ Page<PageData, WechatMiniprogram.IAnyObject>({
 
   onUnplacedTap(e: WechatMiniprogram.TouchEvent) {
     const id = String(e.currentTarget.dataset.id || '')
-    if (id) wx.navigateTo({ url: `/pages/footprint-detail/index?id=${id}` })
+    if (id) wx.navigateTo({ url: `/pages/footprint-form/index?id=${id}` })
   },
 
   onDetailClose() {
@@ -899,4 +1163,10 @@ Page<PageData, WechatMiniprogram.IAnyObject>({
   },
 
   preventMove() {},
+
+  onUnload() {
+    this.clearMapReadyFallback()
+    if (this.detailCloseTimer) clearTimeout(this.detailCloseTimer)
+    if (this.checkinCloseTimer) clearTimeout(this.checkinCloseTimer)
+  },
 })

@@ -7,6 +7,8 @@ export interface CheckinCandidate {
   action: 'revisit' | 'fulfill'
 }
 
+export const CHECKIN_SOURCE_STORAGE_KEY = 'sgj:checkin-source'
+
 export const buildCheckinRoute = (candidate: CheckinCandidate): string => {
   const distance = Math.round(candidate.distance)
   const source = candidate.action === 'fulfill'
