@@ -11,6 +11,16 @@ const { sanitizeFootprint, toFootprintSummary } = require('../cloudfunctions/foo
 }
 
 describe('cloud footprint validation', () => {
+  it('keeps undated city stamps undated and rejects precise or private city content', () => {
+    const city = { recordLevel: 'city', status: 'visited', poiName: '成都', country: '中国', province: '四川', city: '成都', photos: [] }
+    const saved = sanitizeFootprint(city, 'owner')
+    expect(saved).toMatchObject({ recordLevel: 'city', province: '四川', city: '成都' })
+    expect(saved.visitDate).toBeUndefined()
+    expect(saved.lat).toBeUndefined()
+    expect(() => sanitizeFootprint({ ...city, lat: 30, lng: 104 }, 'owner')).toThrow('具体位置')
+    expect(() => sanitizeFootprint({ ...city, note: '私人笔记' }, 'owner')).toThrow('私人内容')
+    expect(() => sanitizeFootprint({ ...city, province: '' }, 'owner')).toThrow('省份和城市')
+  })
   it('accepts a place-only visit without location permission', () => {
     const saved = sanitizeFootprint({ poiName: '街角老店', photos: [], tags: [] }, 'owner', undefined, 1_798_000_000_000)
     expect(saved.status).toBe('visited')

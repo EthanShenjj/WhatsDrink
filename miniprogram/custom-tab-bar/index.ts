@@ -1,4 +1,5 @@
 import { recordInteraction } from '../utils/performance'
+import { MAP_TAB_ENTRY_STORAGE_KEY } from '../utils/location'
 
 interface TabItem {
   pagePath: string
@@ -40,12 +41,23 @@ Component({
         this.setData({ hidden: true, sheetVisible: true, sheetClosing: false })
         return
       }
-      if (index === this.data.selected) return
+      if (index === this.data.selected) {
+        if (index === 0) {
+          const pages = getCurrentPages()
+          const currentPage = pages[pages.length - 1] as unknown as { onLocate?: () => void }
+          currentPage?.onLocate?.()
+        }
+        return
+      }
       const previous = this.data.selected
+      if (index === 0) wx.setStorageSync(MAP_TAB_ENTRY_STORAGE_KEY, true)
       this.setData({ selected: index })
       wx.switchTab({
         url: item.pagePath,
-        fail: () => this.setData({ selected: previous }),
+        fail: () => {
+          if (index === 0) wx.removeStorageSync(MAP_TAB_ENTRY_STORAGE_KEY)
+          this.setData({ selected: previous })
+        },
       })
     },
     closeSheet() {
@@ -78,6 +90,10 @@ Component({
             wx.showToast({ title: '暂时无法打开地图', icon: 'none' })
           },
         })
+        return
+      }
+      if (index === 3) {
+        wx.navigateTo({ url: '/pages/city-stamp/index' })
         return
       }
       wx.navigateTo({

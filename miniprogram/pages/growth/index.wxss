@@ -49,6 +49,27 @@
 .monthly-meta { display: block; margin-top: 8rpx; color: var(--brand-primary-deep); font-size: 20rpx; font-weight: 600; }
 .card-arrow { color: #aaa4bc; font-size: 42rpx; }
 
+.auto-color-option {
+  display: flex;
+  width: 100% !important;
+  min-height: 112rpx;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16rpx;
+  margin-bottom: 18rpx;
+  padding: 16rpx 22rpx;
+  border: 2rpx solid transparent;
+  border-radius: 28rpx;
+  background: #fff;
+  box-shadow: 0 8rpx 28rpx rgba(70, 65, 86, 0.07);
+  text-align: left;
+}
+.auto-color-option.is-selected { border-color: #7770e8; background: #f6f5ff; }
+.auto-color-copy { display: flex; min-width: 0; flex: 1; flex-direction: column; }
+.auto-color-title { color: var(--ink); font-size: 27rpx; font-weight: 700; line-height: 1.4; }
+.auto-color-description { margin-top: 3rpx; color: var(--muted); font-size: 21rpx; line-height: 1.4; }
+.auto-color-status { flex-shrink: 0; color: var(--brand-primary-deep); font-size: 21rpx; font-weight: 700; }
+
 .color-scroll { width: calc(100vw - 32rpx); margin-right: -32rpx; }
 .color-list { display: inline-flex; gap: 18rpx; padding: 4rpx 32rpx 18rpx 0; }
 .color-card { position: relative; display: flex; width: 242rpx; min-height: 330rpx; align-items: center; flex-direction: column; padding: 18rpx 18rpx 22rpx; border: 2rpx solid transparent; border-radius: 34rpx; box-shadow: 0 12rpx 36rpx rgba(70, 65, 86, 0.08); }

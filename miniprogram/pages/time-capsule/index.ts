@@ -14,12 +14,16 @@ import { todayKey } from '../../utils/date'
 import { hasTimeCapsuleCapacity } from '../../utils/payment'
 
 Page({
+  uploadEpoch: 0,
   data: {
     capsules: [] as TimeCapsule[],
     footprints: [] as Footprint[],
     loading: true,
     formVisible: false,
     saving: false,
+    uploading: false,
+    pendingPhotos: [] as string[],
+    failedPhotos: [] as string[],
     id: '',
     title: '',
     text: '',
@@ -79,6 +83,7 @@ Page({
   },
 
   onNew() {
+    if (this.data.formVisible || this.data.saving || this.data.uploading) return
     if (!hasTimeCapsuleCapacity(
       this.data.capsules.length,
       this.data.isPlus ? { plusUntil: Date.now() + 1 } : undefined,
@@ -92,6 +97,8 @@ Page({
       title: '',
       text: '',
       photos: [],
+      pendingPhotos: [],
+      failedPhotos: [],
       footprintId: '',
       footprintIndex: 0,
       unlockDate: todayKey(),
@@ -113,7 +120,16 @@ Page({
   },
 
   onCancel() {
-    this.setData({ formVisible: false })
+    if (this.data.saving) return
+    this.uploadEpoch += 1
+    const photos = this.data.photos
+    this.setData({ formVisible: false, photos: [], pendingPhotos: [], failedPhotos: [], uploading: false })
+    void deletePhotos(photos).catch(() => undefined)
+  },
+
+  onUnload() {
+    this.uploadEpoch += 1
+    if (this.data.formVisible && !this.data.saving) void deletePhotos(this.data.photos).catch(() => undefined)
   },
 
   onTitleInput(e: WechatMiniprogram.Input) {
@@ -138,24 +154,47 @@ Page({
   },
 
   onPhotoAdd() {
+    if (this.data.uploading || this.data.saving || this.data.failedPhotos.length) return
     const remaining = 9 - this.data.photos.length
     if (remaining <= 0) return
     wx.chooseMedia({
       count: remaining,
       mediaType: ['image'],
       sizeType: ['compressed'],
-      success: async (result) => {
-        try {
-          const uploaded = await Promise.all(result.tempFiles.map((file) => uploadPhoto(file.tempFilePath)))
-          this.setData({ photos: [...this.data.photos, ...uploaded] })
-        } catch {
-          wx.showToast({ title: '照片处理失败', icon: 'none' })
-        }
-      },
+      success: (result) => this.uploadPhotos(result.tempFiles.map((file) => file.tempFilePath)),
     })
   },
 
+  async uploadPhotos(paths: string[]) {
+    if (this.data.uploading || !paths.length) return
+    const epoch = ++this.uploadEpoch
+    const failed: string[] = []
+    this.setData({ uploading: true, pendingPhotos: paths, failedPhotos: [] })
+    for (let index = 0; index < paths.length; index += 2) {
+      const batch = paths.slice(index, index + 2)
+      const results = await Promise.allSettled(batch.map((path) => uploadPhoto(path)))
+      const uploaded: string[] = []
+      results.forEach((result, i) => result.status === 'fulfilled' ? uploaded.push(result.value) : failed.push(batch[i]))
+      if (epoch !== this.uploadEpoch) {
+        await deletePhotos(uploaded).catch(() => undefined)
+        return
+      }
+      this.setData({ photos: [...this.data.photos, ...uploaded], pendingPhotos: paths.slice(index + batch.length) })
+    }
+    this.setData({ uploading: false, pendingPhotos: [], failedPhotos: failed })
+    if (failed.length) wx.showToast({ title: '部分照片上传失败，请重试', icon: 'none' })
+  },
+
+  onRetryUpload() {
+    void this.uploadPhotos(this.data.failedPhotos)
+  },
+
+  onDiscardFailedPhotos() {
+    if (!this.data.uploading) this.setData({ failedPhotos: [] })
+  },
+
   onPhotoRemove(e: WechatMiniprogram.CustomEvent<{ index: number }>) {
+    if (this.data.saving || this.data.uploading) return
     const photos = [...this.data.photos]
     const [removed] = photos.splice(e.detail.index, 1)
     if (removed) deletePhotos([removed]).catch(() => undefined)
@@ -175,6 +214,10 @@ Page({
 
   async onSave() {
     if (this.data.saving) return
+    if (this.data.uploading || this.data.pendingPhotos.length || this.data.failedPhotos.length) {
+      wx.showToast({ title: '请等待上传，或处理失败的照片', icon: 'none' })
+      return
+    }
     const title = this.data.title.trim()
     if (!title) {
       wx.showToast({ title: '请填写胶囊标题', icon: 'none' })
@@ -214,16 +257,14 @@ Page({
     const id = String(e.currentTarget.dataset.id || '')
     const capsule = this.data.capsules.find((item) => item.id === id)
     if (!capsule) return
-    if (capsule.status === 'locked') {
-      wx.showToast({ title: `${capsule.unlockDate} 才能打开`, icon: 'none' })
-      return
-    }
-    this.setData({ selectedCapsule: capsule })
+    this.setData({ selectedCapsule: capsule.status === 'locked' ? { ...capsule, text: undefined, photos: [] } : capsule })
   },
 
   onCloseDetail() {
     this.setData({ selectedCapsule: null })
   },
+
+  preventMove() {},
 
   onDelete(e: WechatMiniprogram.TouchEvent) {
     const id = String(e.currentTarget.dataset.id || '')

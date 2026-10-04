@@ -20,6 +20,8 @@ import { todayKey } from '../utils/date'
 import { placeKey } from '../utils/footprint'
 import { hasTimeCapsuleCapacity } from '../utils/payment'
 import { fitImageWithin } from '../utils/image'
+import { locationRegion, shortCity, shortProvince } from '../utils/location'
+import { provinceAt } from '../utils/province-map'
 
 let sessionReady = false
 let cloudReady = false
@@ -40,6 +42,58 @@ const getStored = <T>(key: string, fallback: T): T => {
 
 const setStored = <T>(key: string, value: T): void => {
   wx.setStorageSync(key, value)
+}
+
+interface PendingFootprint {
+  action: 'create' | 'update' | 'delete' | 'fulfillWishlist'
+  footprint: Footprint
+  wishId?: string
+  revision?: string
+  edited?: boolean
+}
+const pendingFootprints = (): PendingFootprint[] => getStored(STORAGE_KEYS.pendingFootprints, [])
+const enqueueFootprint = (entry: PendingFootprint): void => {
+  const queue = pendingFootprints()
+  const previous = queue.find((item) => item.footprint.id === entry.footprint.id)
+  if (previous?.action === 'create' && entry.action === 'update') {
+    entry.action = 'create'
+    entry.edited = true
+    entry.footprint.clientRequestId = previous.footprint.clientRequestId
+  }
+  if (previous?.action === 'fulfillWishlist' && entry.action === 'update') {
+    entry.action = 'fulfillWishlist'
+    entry.wishId = previous.wishId
+  }
+  entry.revision ||= createId('sync')
+  setStored(STORAGE_KEYS.pendingFootprints, [
+    ...queue.filter((item) => item.footprint.id !== entry.footprint.id), entry,
+  ])
+}
+const normalizeLocation = (fp: Footprint): Footprint => {
+  const parsed = locationRegion(fp.address || '')
+  const province = shortProvince(fp.province || parsed.province || '') || (
+    typeof fp.lat === 'number' && typeof fp.lng === 'number' ? provinceAt(fp.lat, fp.lng) || '' : ''
+  )
+  return {
+    ...fp, province: province || undefined,
+    city: shortCity(fp.city || parsed.city || (['北京', '上海', '天津', '重庆'].includes(province) ? province : '')) || undefined,
+    country: fp.country || parsed.country || (province ? '中国' : undefined),
+    district: fp.district || parsed.district || undefined,
+  }
+}
+const mergePendingFootprints = (list: Footprint[]): Footprint[] => {
+  const merged = new Map(list.map((item) => [item.id, normalizeLocation(item)]))
+  for (const entry of pendingFootprints()) {
+    if (entry.action === 'delete') merged.delete(entry.footprint.id)
+    else {
+      merged.set(entry.footprint.id, normalizeLocation({ ...entry.footprint, pendingSync: true }))
+      if (entry.action === 'fulfillWishlist' && entry.wishId) {
+        const wish = merged.get(entry.wishId)
+        if (wish) merged.set(wish.id, { ...wish, status: 'fulfilled', pendingSync: true, fulfilledVisitId: entry.footprint.id })
+      }
+    }
+  }
+  return [...merged.values()]
 }
 
 const setStoredAsync = <T>(key: string, value: T): Promise<void> =>
@@ -77,6 +131,7 @@ const syncFootprintCache = (list: Footprint[]): Promise<void> => {
 }
 
 const persistCloudSnapshot = async (list: Footprint[]): Promise<void> => {
+  list = mergePendingFootprints(list)
   try {
     rememberFootprints(list)
     footprintWriteQueue = footprintWriteQueue
@@ -90,13 +145,17 @@ const persistCloudSnapshot = async (list: Footprint[]): Promise<void> => {
 }
 
 const persistCloudDetail = async (footprint: Footprint): Promise<void> => {
+  footprint = normalizeLocation(footprint)
   footprintDetailCache.set(footprint.id, footprint)
-  const stored = getStored<Footprint[]>(STORAGE_KEYS.footprints, [])
-  const next = stored.some((item) => item.id === footprint.id)
-    ? stored.map((item) => item.id === footprint.id ? footprint : item)
-    : [footprint, ...stored]
   try {
-    await setStoredAsync(STORAGE_KEYS.footprints, next)
+    footprintWriteQueue = footprintWriteQueue.catch(() => undefined).then(() => {
+      const stored = getStored<Footprint[]>(STORAGE_KEYS.footprints, [])
+      const next = stored.some((item) => item.id === footprint.id)
+        ? stored.map((item) => item.id === footprint.id ? footprint : item)
+        : [footprint, ...stored]
+      return setStoredAsync(STORAGE_KEYS.footprints, next)
+    })
+    await footprintWriteQueue
   } catch (error) {
     console.warn('[repository] footprint detail persistence failed', error)
   }
@@ -150,10 +209,11 @@ const ensureLocalProfile = (): UserProfile => {
   return rememberProfile(profile)
 }
 
+class CloudBusinessError extends Error {}
 const callCloud = async <T>(name: string, data: object): Promise<T> => {
   const response = await wx.cloud.callFunction({ name, data })
   const result = response.result as { ok: boolean; data?: T; message?: string }
-  if (!result?.ok) throw new Error(result?.message || '云端操作失败')
+  if (!result?.ok) throw new CloudBusinessError(result?.message || '云端操作失败')
   return result.data as T
 }
 
@@ -192,14 +252,14 @@ export const hasSessionAccess = (): boolean => sessionReady
 export const hasCloudAccess = (): boolean => cloudReady
 export const getLocalProfile = (): UserProfile => ensureLocalProfile()
 
-export const loginForAccess = async (): Promise<UserProfile> => {
+export const loginForAccess = async (options: { force?: boolean } = {}): Promise<UserProfile> => {
   if (!USE_CLOUD && sessionReady) return ensureLocalProfile()
   if (!USE_CLOUD) {
     sessionReady = true
     return ensureLocalProfile()
   }
   if (cloudReady) return ensureLocalProfile()
-  if (Date.now() < cloudRetryAfter) return ensureLocalProfile()
+  if (!options.force && Date.now() < cloudRetryAfter) return ensureLocalProfile()
   if (loginPromise) return loginPromise
   if (!initializeCloud()) {
     sessionReady = true
@@ -250,7 +310,9 @@ export const saveProfile = async (
 }
 
 export const saveGrowthPreferences = async (
-  patch: Partial<Pick<GrowthPreferences, 'lockedColorId' | 'iconColorId' | 'viewedMonthlyReports'>>,
+  patch: Partial<Pick<GrowthPreferences, 'iconColorId' | 'viewedMonthlyReports'>> & {
+    lockedColorId?: GrowthPreferences['lockedColorId'] | null
+  },
 ): Promise<UserProfile> => {
   if (USE_CLOUD && cloudReady) {
     const profile = await callCloud<UserProfile>('accountMutation', {
@@ -261,9 +323,15 @@ export const saveGrowthPreferences = async (
     return rememberProfile(profile)
   }
   const current = await ensureProfile()
+  const { lockedColorId, ...otherPatch } = patch
+  const growth: GrowthPreferences = { ...current.growth, ...otherPatch }
+  if (Object.prototype.hasOwnProperty.call(patch, 'lockedColorId')) {
+    if (lockedColorId) growth.lockedColorId = lockedColorId
+    else delete growth.lockedColorId
+  }
   const next: UserProfile = {
     ...current,
-    growth: { ...current.growth, ...patch },
+    growth,
     updatedAt: Date.now(),
   }
   setStored(STORAGE_KEYS.profile, next)
@@ -402,11 +470,117 @@ let footprintListCachedAt = 0
 const footprintDetailCache = new Map<string, Footprint>()
 // 多页面同时触发刷新时共享同一个进行中的请求，避免重复云调用
 let footprintsInFlight: Promise<Footprint[]> | null = null
+let footprintCloudLoadFailed = false
 
 const readStoredFootprints = (): Footprint[] => {
   const summaries = getStored<Footprint[]>(STORAGE_KEYS.footprintSummaries, [])
   const details = getStored<Footprint[]>(STORAGE_KEYS.footprints, [])
-  return summaries.length ? summaries : details
+  // 兼容旧版离线记录：旧版没有队列，但 local-user 明确表示从未云端确认。
+  const queued = new Set(pendingFootprints().map((entry) => entry.footprint.id))
+  for (const fp of details) {
+    if (USE_CLOUD && fp.userId === 'local-user' && !queued.has(fp.id) && !fp.isSummary && fp.status !== 'fulfilled' && !fp.wishId && !fp.convertedFromWishlist) {
+      enqueueFootprint({ action: 'create', footprint: { ...normalizeLocation(fp), pendingSync: true } })
+    }
+  }
+  for (const wish of details.filter((fp) => fp.userId === 'local-user' && fp.status === 'fulfilled')) {
+    if (!USE_CLOUD || queued.has(wish.id)) continue
+    const visit = details.find((fp) => fp.wishId === wish.id || fp.id === wish.fulfilledVisitId)
+    if (visit) {
+      enqueueFootprint({ action: 'create', footprint: { ...normalizeLocation(wish), status: 'wishlist', fulfilledVisitId: undefined, fulfilledAt: undefined, pendingSync: true } })
+      if (!queued.has(visit.id)) enqueueFootprint({ action: 'fulfillWishlist', footprint: normalizeLocation(visit), wishId: wish.id })
+    }
+  }
+  return mergePendingFootprints(summaries.length ? summaries : details)
+}
+
+let pendingSyncPromise: Promise<void> | null = null
+let pendingSyncRerun = false
+/** 后台同步不阻塞列表首屏；失败的意图和图片仍保留在本机。 */
+export const syncPendingFootprints = (): Promise<void> => {
+  if (!USE_CLOUD || !cloudReady) return Promise.resolve()
+  if (pendingSyncPromise) {
+    pendingSyncRerun = true
+    return pendingSyncPromise
+  }
+  readStoredFootprints()
+  pendingSyncPromise = (async () => {
+    for (const original of pendingFootprints()) {
+      if (original.footprint.userId !== 'local-user' && original.footprint.userId !== profileCache?.id) continue
+      try {
+        const fp = { ...original.footprint }
+        if (original.action !== 'delete') {
+          for (const field of ['photos', 'photoThumbs'] as const) {
+            fp[field] = await Promise.all((fp[field] || []).map((path) =>
+              path.startsWith('wxfile://') || path.startsWith('/') ? uploadPhoto(path) : Promise.resolve(path),
+            ))
+          }
+        }
+        const current = pendingFootprints().find((item) => item.footprint.id === fp.id)
+        if (!current || current.revision !== original.revision) continue
+        // 在云端确认前持久化已上传的文件引用，重试不会丢照片。
+        enqueueFootprint({ ...original, footprint: fp })
+        let saved: Footprint | undefined
+        let wish: Footprint | undefined
+        if (original.action === 'fulfillWishlist') {
+          const result = await callCloud<{ visit: Footprint; wish: Footprint }>('footprintMutation', { action: 'fulfillWishlist', id: original.wishId, visit: fp })
+          saved = result.visit
+          wish = result.wish
+        } else if (original.action === 'delete') {
+          try {
+            await callCloud('footprintMutation', { action: 'delete', id: fp.id })
+          } catch (error) {
+            if (!(error instanceof CloudBusinessError && error.message === '足迹不存在或无权操作')) throw error
+          }
+        } else {
+          saved = await callCloud<Footprint>('footprintMutation', { action: original.action, footprint: fp })
+          if (original.edited) saved = await callCloud<Footprint>('footprintMutation', { action: 'update', footprint: { ...fp, id: saved.id } })
+        }
+        const beforeSync = footprintListCache || readStoredFootprints()
+        const latest = pendingFootprints()
+        // 用户在同步期间编辑或删除了这条记录时，旧响应不能覆盖新意图。
+        if (!latest.some((item) => item.footprint.id === fp.id && item.revision === original.revision)) continue
+        setStored(STORAGE_KEYS.pendingFootprints, latest.filter((item) =>
+          item.footprint.id !== fp.id || item.revision !== original.revision,
+        ))
+        let next = beforeSync.filter((item) => item.id !== fp.id)
+        footprintDetailCache.delete(fp.id)
+        if (!saved || saved.id !== fp.id) {
+          await setStoredAsync(STORAGE_KEYS.footprints, getStored<Footprint[]>(STORAGE_KEYS.footprints, []).filter((item) => item.id !== fp.id))
+        }
+        if (saved) {
+          saved = { ...normalizeLocation(saved), pendingSync: false, syncError: undefined }
+          await persistCloudDetail(saved)
+          next = [toFootprintSummary(saved), ...next]
+        }
+        if (wish) {
+          await persistCloudDetail(wish)
+          next = next.map((item) => item.id === wish!.id ? toFootprintSummary(wish!) : item)
+        }
+        await persistCloudSnapshot(next)
+      } catch (error) {
+        console.warn('[repository] pending sync deferred', error)
+        if (error instanceof CloudBusinessError) {
+          const current = pendingFootprints().find((entry) => entry.footprint.id === original.footprint.id)
+          if (current && current.revision === original.revision) enqueueFootprint({ ...current, footprint: { ...current.footprint, syncError: error.message } })
+          continue
+        }
+        const current = pendingFootprints().find((entry) => entry.footprint.id === original.footprint.id)
+        if (current && current.revision === original.revision) {
+          enqueueFootprint({ ...current, footprint: { ...current.footprint, syncError: '网络连接不稳定，稍后自动重试' } })
+          const cached = footprintListCache || readStoredFootprints()
+          rememberFootprints(mergePendingFootprints(cached))
+        }
+        break
+      }
+    }
+  })().finally(() => {
+    pendingSyncPromise = null
+    if (pendingSyncRerun) {
+      pendingSyncRerun = false
+      void syncPendingFootprints()
+    }
+  })
+  return pendingSyncPromise
 }
 
 export const listFootprints = async (
@@ -421,10 +595,15 @@ export const listFootprints = async (
       if (USE_CLOUD && cloudReady) {
         try {
           const cloud = await listCloudFootprints()
+          footprintCloudLoadFailed = false
+          readStoredFootprints()
           await persistCloudSnapshot(cloud)
-          return cloud
-        } catch {
-          // fall back to local
+          const merged = footprintListCache || mergePendingFootprints(cloud)
+          void syncPendingFootprints()
+          return merged
+        } catch (error) {
+          footprintCloudLoadFailed = true
+          console.warn('[repository] footprint list using local cache', error)
         }
       }
       const local = readStoredFootprints()
@@ -439,6 +618,7 @@ export const listFootprints = async (
 
 /** 同步读取当前内存快照，供页面在点击后立即渲染；没有缓存时返回 null。 */
 export const getFootprintSnapshot = (): Footprint[] | null => footprintListCache
+export const didFootprintCloudLoadFail = (): boolean => footprintCloudLoadFailed
 
 export const getProfileSnapshot = (): UserProfile | null => profileCache
 
@@ -446,6 +626,8 @@ export const getFootprint = async (
   id: string,
   options: { force?: boolean } = {},
 ): Promise<Footprint | undefined> => {
+  const pending = pendingFootprints().find((item) => item.footprint.id === id)
+  if (pending) return pending.action === 'delete' ? undefined : normalizeLocation({ ...pending.footprint, pendingSync: true })
   const detail = footprintDetailCache.get(id)
   if (detail && !options.force) return detail
   if (footprintListCache && !options.force) {
@@ -456,56 +638,64 @@ export const getFootprint = async (
     try {
       const footprint = await getCloudFootprint(id)
       await persistCloudDetail(footprint)
-      return footprint
+      return normalizeLocation(footprint)
     } catch {
       // 网络抖动时继续尝试本地快照。
     }
   }
   const storedDetail = getStored<Footprint[]>(STORAGE_KEYS.footprints, [])
     .find((fp) => fp.id === id && !fp.isSummary)
-  return storedDetail || (await listFootprints()).find((fp) => fp.id === id)
+  return storedDetail ? normalizeLocation(storedDetail) : (await listFootprints()).find((fp) => fp.id === id)
 }
 
 export const saveFootprint = async (draft: FootprintDraft): Promise<Footprint> => {
   const now = Date.now()
   const profile = await ensureProfile()
-  const footprint: Footprint = {
+  const queuedDraft = draft.id ? pendingFootprints().find((entry) => entry.footprint.id === draft.id) : undefined
+  const clientRequestId = queuedDraft?.action === 'create' ? queuedDraft.footprint.clientRequestId : draft.clientRequestId || createId('req')
+  const footprint: Footprint = normalizeLocation({
     ...draft,
-    placeId: draft.placeId || placeKey(draft),
-    id: draft.id || createId('fp'),
+    placeId: draft.recordLevel === 'city' ? undefined : draft.placeId || placeKey(draft),
+    id: draft.id || `fp_${clientRequestId}`,
     userId: profile.id,
-    clientRequestId: createId('req'),
+    clientRequestId,
     createdAt: now,
     updatedAt: now,
-  }
+  })
   if (draft.id) {
     const existing = await getFootprint(draft.id)
     if (existing) footprint.createdAt = existing.createdAt
   }
 
-  if (USE_CLOUD && cloudReady) {
-    const saved = await callCloud<Footprint>('footprintMutation', {
-      action: draft.id ? 'update' : 'create',
-      footprint,
-    })
-    const cached = footprintListCache || readStoredFootprints()
-    const summary = toFootprintSummary(saved)
-    const next = cached.some((fp) => fp.id === saved.id)
-      ? cached.map((fp) => fp.id === saved.id ? summary : fp)
-      : [summary, ...cached]
-    // 两份缓存写入不同 storage key，可并行落盘；云函数成功后不再串行等待两次 IO。
-    await Promise.all([
-      persistCloudDetail(saved),
-      persistCloudSnapshot(next),
-    ])
-    return saved
+  const queued = pendingFootprints().find((item) => item.footprint.id === footprint.id)
+  const action = queued?.action === 'create' ? 'create' : draft.id ? 'update' : 'create'
+  if (USE_CLOUD && cloudReady && queued?.action !== 'fulfillWishlist' && ![...footprint.photos, ...(footprint.photoThumbs || [])].some((path) => path.startsWith('wxfile://') || path.startsWith('/'))) {
+    try {
+      let saved = await callCloud<Footprint>('footprintMutation', { action, footprint })
+      if (draft.id && action === 'create') saved = await callCloud<Footprint>('footprintMutation', { action: 'update', footprint: { ...footprint, id: saved.id } })
+      const cached = footprintListCache || readStoredFootprints()
+      setStored(STORAGE_KEYS.pendingFootprints, pendingFootprints().filter((entry) => entry.footprint.id !== footprint.id))
+      const summary = toFootprintSummary(saved)
+      const next = cached.some((fp) => fp.id === saved.id)
+        ? cached.map((fp) => fp.id === saved.id ? summary : fp)
+        : [summary, ...cached]
+      await Promise.all([persistCloudDetail(saved), persistCloudSnapshot(next)])
+      return saved
+    } catch (error) {
+      if (error instanceof CloudBusinessError) throw error
+      // 超时也可能已经写入云端。保留相同 id / requestId，后台安全重试。
+      console.warn('[repository] save queued', error)
+    }
   }
 
-  const list = await listFootprints()
+  footprint.pendingSync = USE_CLOUD
+  if (USE_CLOUD) enqueueFootprint({ action: draft.id ? 'update' : 'create', footprint })
+  const list = footprintListCache || readStoredFootprints()
   const next = list.some((fp) => fp.id === footprint.id)
     ? list.map((fp) => fp.id === footprint.id ? footprint : fp)
     : [footprint, ...list]
   await syncFootprintCache(next)
+  void syncPendingFootprints()
   return footprint
 }
 
@@ -522,19 +712,13 @@ export const deleteFootprint = async (id: string): Promise<void> => {
       return fp
     })
   }
-  if (USE_CLOUD && cloudReady) {
-    await callCloud('footprintMutation', { action: 'delete', id })
-    footprintDetailCache.delete(id)
-    const storedDetails = getStored<Footprint[]>(STORAGE_KEYS.footprints, [])
-    await setStoredAsync(STORAGE_KEYS.footprints, storedDetails.filter((item) => item.id !== id))
-    const cached = footprintListCache || readStoredFootprints()
-    await persistCloudSnapshot(updateAfterDelete(cached))
-    return
-  }
-  const local = await listFootprints()
+  const local = footprintListCache || readStoredFootprints()
   const deleted = local.find((item) => item.id === id)
+  if (USE_CLOUD && deleted) enqueueFootprint({ action: 'delete', footprint: { ...deleted, updatedAt: Date.now() } })
+  footprintDetailCache.delete(id)
   await syncFootprintCache(updateAfterDelete(local))
-  if (deleted) await deleteLocalFiles([...(deleted.photos || []), ...(deleted.photoThumbs || [])])
+  if (deleted) void deleteLocalFiles([...(deleted.photos || []), ...(deleted.photoThumbs || [])]).catch(() => undefined)
+  if (USE_CLOUD && deleted) void syncPendingFootprints()
 }
 
 export const fulfillWishlistFootprint = async (
@@ -543,6 +727,7 @@ export const fulfillWishlistFootprint = async (
 ): Promise<{ wish: Footprint; visit: Footprint }> => {
   const wish = await getFootprint(wishId)
   if (!wish || wish.status !== 'wishlist') throw new Error('愿望不存在或已实现')
+  await ensureProfile()
   const visitDraft: FootprintDraft = {
     ...draft,
     id: undefined,
@@ -553,29 +738,34 @@ export const fulfillWishlistFootprint = async (
     wishlistCreatedAt: wish.wishlistCreatedAt || wish.createdAt,
     convertedFromWishlist: true,
   }
-  if (USE_CLOUD && cloudReady) {
-    const result = await callCloud<{ wish: Footprint; visit: Footprint }>('footprintMutation', {
-      action: 'fulfillWishlist',
-      id: wishId,
-      visit: visitDraft,
-    })
-    await persistCloudDetail(result.visit)
-    await persistCloudDetail(result.wish)
-    const cached = footprintListCache || readStoredFootprints()
-    await persistCloudSnapshot([
-      toFootprintSummary(result.visit),
-      ...cached.map((item) => item.id === wishId ? toFootprintSummary(result.wish) : item),
-    ])
-    return result
+  if (USE_CLOUD && cloudReady && !pendingFootprints().some((item) => item.footprint.id === wishId)) {
+    try {
+      const result = await callCloud<{ wish: Footprint; visit: Footprint }>('footprintMutation', {
+        action: 'fulfillWishlist', id: wishId, visit: visitDraft,
+      })
+      await persistCloudDetail(result.visit)
+      await persistCloudDetail(result.wish)
+      const cached = footprintListCache || readStoredFootprints()
+      await persistCloudSnapshot([
+        toFootprintSummary(result.visit),
+        ...cached.map((item) => item.id === wishId ? toFootprintSummary(result.wish) : item),
+      ])
+      return result
+    } catch (error) {
+      if (error instanceof CloudBusinessError) throw error
+      console.warn('[repository] wishlist fulfillment queued', error)
+    }
   }
   const now = Date.now()
+  const requestId = draft.clientRequestId || createId('req')
   const visit: Footprint = {
     ...visitDraft,
-    id: createId('fp'),
+    id: `fp_${requestId}`,
     userId: wish.userId,
-    clientRequestId: createId('req'),
+    clientRequestId: requestId,
     createdAt: now,
     updatedAt: now,
+    pendingSync: USE_CLOUD,
   }
   const fulfilledWish: Footprint = {
     ...wish,
@@ -583,9 +773,12 @@ export const fulfillWishlistFootprint = async (
     fulfilledAt: now,
     fulfilledVisitId: visit.id,
     updatedAt: now,
+    pendingSync: USE_CLOUD,
   }
-  const list = await listFootprints()
+  const list = footprintListCache || readStoredFootprints()
+  if (USE_CLOUD) enqueueFootprint({ action: 'fulfillWishlist', footprint: visit, wishId })
   await syncFootprintCache([visit, ...list.map((item) => item.id === wishId ? fulfilledWish : item)])
+  void syncPendingFootprints()
   return { wish: fulfilledWish, visit }
 }
 
@@ -870,6 +1063,7 @@ export const unlockTimeCapsule = async (id: string): Promise<TimeCapsule> => {
 // ─── Account ───
 
 export const clearAllData = async (): Promise<void> => {
+  await pendingSyncPromise?.catch(() => undefined)
   await footprintWriteQueue.catch(() => undefined)
   const allFootprints = getStored<Footprint[]>(STORAGE_KEYS.footprints, [])
   const legacySnapshots = getStored<Array<{ imageUrl?: string }>>(LEGACY_SHARE_SNAPSHOTS_KEY, [])
@@ -895,6 +1089,7 @@ export const clearAllData = async (): Promise<void> => {
 }
 
 export const deleteAccount = async (): Promise<void> => {
+  await pendingSyncPromise?.catch(() => undefined)
   await footprintWriteQueue.catch(() => undefined)
   const profile = getStored<UserProfile | null>(STORAGE_KEYS.profile, null)
   const footprints = getStored<Footprint[]>(STORAGE_KEYS.footprints, [])

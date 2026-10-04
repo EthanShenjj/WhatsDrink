@@ -9,6 +9,7 @@ import {
   categoryEmoji,
 } from '../../data/options'
 import { installUpdatePerformanceLogger, recordInteraction } from '../../utils/performance'
+import { trackProductEvent } from '../../services/product-events'
 
 interface TicketVisit extends Footprint {
   ticketNumber: number
@@ -103,6 +104,7 @@ Page<PageData, WechatMiniprogram.IAnyObject>({
       return
     }
     this.setData({ id: query.id })
+    trackProductEvent('old_record_opened')
   },
 
   onShow() {
@@ -130,8 +132,7 @@ Page<PageData, WechatMiniprogram.IAnyObject>({
       this.lastSnapshot = all
       const fp = fullFootprint || all.find((f) => f.id === id)
       if (!fp) {
-        wx.showToast({ title: '足迹不存在或已删除', icon: 'none' })
-        setTimeout(() => wx.navigateBack(), 600)
+        this.setData({ footprint: undefined, loading: false })
         return
       }
       const related = visitsAtPlace(all.map((item) => item.id === fp.id ? fp : item), fp)
@@ -205,9 +206,36 @@ Page<PageData, WechatMiniprogram.IAnyObject>({
   },
 
   onViewInMap() {
+    const footprint = this.data.footprint
+    if (!footprint) return
+    if (typeof footprint.lat !== 'number' || typeof footprint.lng !== 'number') {
+      wx.showToast({ title: '请先编辑补充地图位置', icon: 'none' })
+      return
+    }
+    wx.setStorageSync('sgj:map-target', footprint)
     wx.switchTab({
       url: '/pages/map/index',
     })
+  },
+
+  onEmptyReturn() {
+    wx.navigateBack({ fail: () => wx.switchTab({ url: '/pages/map/index' }) })
+  },
+
+  onShareAppMessage() {
+    const footprint = this.data.footprint
+    if (!footprint) return { title: '拾光迹 · 私人记忆地图', path: '/pages/map/index' }
+    // 票根只带用户主动选择公开的地点与日期，不包含照片、短记或坐标。
+    const ticket = encodeURIComponent(JSON.stringify({
+      name: footprint.poiName.slice(0, 40),
+      date: footprint.visitDate || '',
+      location: (footprint.city || footprint.province || '').slice(0, 30),
+      code: this.data.ticketVisits.find((item) => item.id === footprint.id)?.ticketCode || ticketCode(footprint, 1),
+    }))
+    return {
+      title: `${footprint.poiName} · 我的回忆票根`,
+      path: `/pages/ticket-share/index?ticket=${ticket}`,
+    }
   },
 
   onEdit() {
@@ -248,9 +276,11 @@ Page<PageData, WechatMiniprogram.IAnyObject>({
   },
 
   async onMarkImportant() {
+    if (this.markingImportant) return
     recordInteraction('detail.important')
     const fp = this.data.footprint
     if (!fp || fp.status !== 'visited') return
+    this.markingImportant = true
     try {
       const saved = await saveFootprint({ ...fp, isImportant: !fp.isImportant })
       const updateTicket = (item: TicketVisit): TicketVisit =>
@@ -266,6 +296,8 @@ Page<PageData, WechatMiniprogram.IAnyObject>({
       wx.showToast({ title: fp.isImportant ? '已取消重要标记' : '已标记重要', icon: 'none' })
     } catch {
       wx.showToast({ title: '标记失败', icon: 'none' })
+    } finally {
+      this.markingImportant = false
     }
   },
 

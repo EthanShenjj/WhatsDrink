@@ -11,6 +11,7 @@
     layer-style="{{mapLayerStyle}}"
     markers="{{markers}}"
     circles="{{growthCircles}}"
+    polygons="{{provincePolygons}}"
     show-location="{{hasLocationAuth}}"
     enable-rotate="{{false}}"
     enable-overlooking="{{true}}"
@@ -37,7 +38,7 @@
     </cover-view>
   </map>
 
-  <view wx:if="{{!loading && !mapTilesReady && !mapLoadFailed}}" class="map-runtime-status">
+  <view wx:if="{{!loading && !mapTilesReady && !mapLoadFailed && !mapLoadDelayed}}" class="map-runtime-status">
     <view class="map-loading-dot"></view>
     <text>地图加载中…</text>
   </view>
@@ -46,6 +47,20 @@
     <text class="map-runtime-error-title">地图暂时没有加载出来</text>
     <text class="map-runtime-error-copy">请检查网络后重试，足迹数据不会丢失</text>
     <button class="map-runtime-retry" bindtap="retryMapLoad">重新加载地图</button>
+  </view>
+  <view wx:if="{{dataLoadFailed && !loading}}" class="map-runtime-error map-data-error">
+    <text class="map-runtime-error-title">足迹暂时没加载出来</text>
+    <text class="map-runtime-error-copy">请检查网络后重试</text>
+    <button class="map-runtime-retry" bindtap="retryFootprints">重新加载足迹</button>
+  </view>
+  <view wx:if="{{locationStatus === 'locating' && !mapLoadFailed && !dataLoadFailed}}" class="map-runtime-status map-locating-status">
+    <view class="map-loading-dot"></view><text>正在获取当前位置…</text>
+  </view>
+  <view wx:if="{{!mapLoadFailed && !dataLoadFailed && (locationStatus === 'denied' || locationStatus === 'failed')}}" class="map-runtime-status is-delayed {{mode === 'lighting' ? 'is-lighting' : ''}}" bindtap="onLocate" role="button" aria-label="获取当前位置">
+    <text>{{locationStatus === 'denied' ? '定位未开启，点击开启当前位置' : '暂未获取到当前位置，点击重试'}}</text>
+  </view>
+  <view wx:if="{{!mapLoadFailed && mapLoadDelayed && locationStatus !== 'denied' && locationStatus !== 'failed'}}" class="map-runtime-status is-delayed {{mode === 'lighting' ? 'is-lighting' : ''}}" bindtap="retryMapLoad" role="button" aria-label="重新加载地图">
+    <text>地图未显示？点击重新加载</text>
   </view>
 
   <!-- Top safe area + mode switcher -->
@@ -126,27 +141,31 @@
     </scroll-view>
   </view>
 
-  <view wx:if="{{modeEmpty && !loading && mode !== 'lighting'}}" class="map-empty">
+  <view wx:if="{{modeEmpty && !loading && !dataLoadFailed && mode !== 'lighting'}}" class="map-empty">
     <ip-mascot state="{{growth.activeColorId || 'journey'}}" expression="think" size="104rpx" motion="none" label="正在等你出发的 Lumi" />
     <view class="map-empty-copy">
       <text class="map-empty-title">{{modeEmptyTitle}}</text>
       <text class="map-empty-description">{{modeEmptyDescription}}</text>
     </view>
     <view
-      class="map-empty-action"
+      class="map-empty-action {{activeFilterCount ? 'is-clear-filter' : mode === 'visited' ? 'is-city-entry' : ''}}"
       hover-class="press-scale"
       bindtap="onEmptyAction"
       role="button"
-      aria-label="{{mode === 'wishlist' ? '收藏想去地点' : '添加第一个足迹'}}"
+      aria-label="{{activeFilterCount ? '清除筛选' : mode === 'wishlist' ? '收藏想去地点' : '点亮去过的城市'}}"
     >
-      <local-icon name="add-white" size="34rpx" />
+      <text wx:if="{{activeFilterCount}}">清除筛选</text>
+      <text wx:elif="{{mode === 'visited'}}">点亮去过的城市</text>
+      <local-icon wx:else name="add-white" size="34rpx" />
     </view>
   </view>
 
   <cover-view
-    wx:if="{{mode === 'visited' && tabReady}}"
-    class="map-checkin-cta"
-    hover-class="map-checkin-cta--pressed"
+    wx:if="{{mode === 'visited' && tabReady && !modeEmpty}}"
+    class="map-checkin-cta {{checkinPressed ? 'map-checkin-cta--pressed' : ''}}"
+    bindtouchstart="onCheckinPressStart"
+    bindtouchend="onCheckinPressEnd"
+    bindtouchcancel="onCheckinPressEnd"
     bindtap="onCheckin"
     role="button"
     aria-label="当前位置快捷打卡"
@@ -163,7 +182,7 @@
 
   <scroll-view
     wx:if="{{activeFilterCount > 0}}"
-    class="active-filter-bar"
+    class="active-filter-bar {{mode === 'lighting' ? 'is-lighting' : ''}}"
     scroll-x
     enhanced
     show-scrollbar="{{false}}"
@@ -185,52 +204,81 @@
     </view>
   </scroll-view>
 
-  <!-- Lighting stats panel -->
+  <!-- 点亮地图：让已到访地区的真实轮廓成为视觉主角。 -->
   <view wx:if="{{mode === 'lighting' && lighting}}" class="lighting-panel">
     <view class="lighting-header">
-      <text class="eyebrow">LIGHTING MAP</text>
-      <text class="lighting-title">已点亮地图</text>
+      <text class="lighting-title">我的点亮版图</text>
+      <text class="lighting-hint">点按地图上的省份，看看留在那里的回忆</text>
+      <view class="lighting-add-city" bindtap="onAddCity" role="button" aria-label="继续点亮去过的城市">＋ 再点亮一城</view>
     </view>
     <view class="lighting-stats">
-      <view class="lighting-stat">
-        <text class="lighting-stat-value">{{lighting.places}}</text>
-        <text class="lighting-stat-label">地点</text>
-      </view>
-      <view class="lighting-stat">
-        <text class="lighting-stat-value">{{lighting.provinces}}</text>
-        <text class="lighting-stat-label">省份</text>
-      </view>
       <view class="lighting-stat">
         <text class="lighting-stat-value">{{lighting.cities}}</text>
         <text class="lighting-stat-label">城市</text>
       </view>
       <view class="lighting-stat">
-        <text class="lighting-stat-value">{{lighting.photoCount}}</text>
-        <text class="lighting-stat-label">照片</text>
+        <text class="lighting-stat-value">{{provinceOverviews.length}}</text>
+        <text class="lighting-stat-label">省区</text>
+      </view>
+      <view class="lighting-stat">
+        <text class="lighting-stat-value">{{lighting.places}}</text>
+        <text class="lighting-stat-label">地点</text>
       </view>
     </view>
-    <view wx:if="{{lighting.litProvinces.length}}" class="lighting-list">
-      <text class="lighting-list-title">已点亮省份</text>
-      <view class="lighting-chips">
-        <text wx:for="{{lighting.litProvinces}}" wx:key="*this" class="chip is-active">{{item}}</text>
+    <scroll-view wx:if="{{provinceOverviews.length}}" scroll-x class="lighting-province-scroll" show-scrollbar="{{false}}">
+      <view class="lighting-province-chips">
+        <view wx:for="{{provinceOverviews}}" wx:key="name" class="lighting-province-chip {{selectedProvince === item.name ? 'is-selected' : ''}}" data-name="{{item.name}}" bindtap="onProvinceChipTap" role="button" aria-label="查看 {{item.name}} 的足迹">
+          {{item.name}}
+        </view>
       </view>
+    </scroll-view>
+  </view>
+
+  <view wx:if="{{mode === 'lighting' && selectedProvince}}" class="lighting-region-card">
+    <view class="lighting-region-heading">
+      <view>
+        <text class="lighting-region-eyebrow">{{selectedProvinceOverview ? '已点亮的地方' : '尚未点亮'}}</text>
+        <text class="lighting-region-title">{{selectedProvince}}</text>
+      </view>
+      <view class="lighting-region-close" bindtap="onProvinceCardClose" role="button" aria-label="收起地区卡片">×</view>
     </view>
-    <view wx:if="{{growthCities.length}}" class="lighting-list">
-      <text class="lighting-list-title">城市生长 · 1 / 3 / 10 个地点</text>
-      <view class="lighting-chips">
-        <text wx:for="{{growthCities}}" wx:key="key" class="chip is-active">{{item.city}} Lv.{{item.level}} · {{item.places}} 处</text>
+    <view wx:if="{{selectedProvinceOverview}}" class="lighting-region-numbers">
+      <text>{{selectedProvinceOverview.places}} 个地点</text>
+      <text>{{selectedProvinceOverview.visits}} 次到访</text>
+      <text wx:if="{{selectedProvinceOverview.cities}}">已点亮 {{selectedProvinceOverview.cities}} 城</text>
+    </view>
+    <scroll-view wx:if="{{selectedProvinceOverview && selectedProvinceOverview.cityNames.length}}" scroll-x class="lighting-city-scroll" show-scrollbar="{{false}}">
+      <view class="lighting-city-list">
+        <view wx:for="{{selectedProvinceOverview.cityNames}}" wx:key="*this" class="lighting-city" data-city="{{item}}" bindtap="onCityTap" role="button" aria-label="为 {{item}} 补具体地点">{{item}} <text>＋地点</text></view>
       </view>
+    </scroll-view>
+    <scroll-view wx:if="{{selectedProvinceOverview && selectedProvinceOverview.memories.length}}" scroll-x class="lighting-memory-scroll" show-scrollbar="{{false}}">
+      <view class="lighting-memory-list">
+        <view wx:for="{{selectedProvinceOverview.memories}}" wx:key="id" class="lighting-memory" data-id="{{item.id}}" bindtap="onProvinceMemoryTap" role="button" aria-label="查看 {{item.poiName}} 的足迹">
+          <image wx:if="{{item.photo}}" class="lighting-memory-photo" src="{{item.photo}}" mode="aspectFill" lazy-load />
+          <view wx:else class="lighting-memory-placeholder"><local-icon name="location" size="32rpx" /></view>
+          <view class="lighting-memory-copy"><text class="lighting-memory-name">{{item.poiName}}</text><text class="lighting-memory-date">{{item.date}}</text></view>
+        </view>
+      </view>
+    </scroll-view>
+    <text wx:if="{{!selectedProvinceOverview}}" class="lighting-region-empty">点亮去过的城市，让这片地方成为你的版图。</text>
+    <view wx:if="{{selectedProvinceOverview}}" class="lighting-region-actions">
+      <view bindtap="onProvinceAddPlace">补一处具体地点</view>
+      <view bindtap="onOpenCityAlbum">预览私人记忆图</view>
     </view>
   </view>
 
   <!-- Map controls (right side floating) -->
   <map-controls
-    wx:if="{{tabReady}}"
+    wx:if="{{tabReady && !(mode === 'lighting' && selectedProvince)}}"
     mode="{{mode}}"
     clusterEnabled="{{clusterEnabled}}"
     filterActive="{{activeFilterCount > 0}}"
+    locating="{{locationStatus === 'locating'}}"
     raised="{{modeEmpty && mode !== 'lighting'}}"
     bind:filter="onFilter"
+    bind:locate="onLocate"
+    bind:reload="retryMapLoad"
     bind:clusterToggle="onMapControlClusterToggle"
   ></map-controls>
 
@@ -288,7 +336,7 @@
         <text class="checkin-place-address">选择后会带入地点与坐标，完成本次到访记录。</text>
       </view>
 
-      <button wx:if="{{checkinCandidate}}" class="primary-button checkin-primary" bindtap="onCheckinConfirm">确认在此打卡</button>
+      <button wx:if="{{checkinCandidate}}" class="primary-button checkin-primary" bindtap="onCheckinConfirm">继续记录这次到访</button>
       <button class="secondary-button checkin-secondary" bindtap="onCheckinChoosePlace">{{checkinCandidate ? '选择其他地点' : '选择地点打卡'}}</button>
       <button class="checkin-cancel" bindtap="onCheckinClose">取消</button>
       <view class="safe-bottom"></view>
@@ -297,6 +345,7 @@
 
   <!-- Filter sheet -->
   <filter-sheet
+    regionCities="{{regionCities}}"
     visible="{{filterVisible}}"
     currentFilter="{{currentFilter}}"
     moods="{{moods}}"

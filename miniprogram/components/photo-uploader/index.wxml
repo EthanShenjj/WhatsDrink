@@ -1,7 +1,7 @@
 <view class="photo-grid">
   <view
     wx:for="{{photoList}}"
-    wx:key="index"
+    wx:key="key"
     class="photo-cell"
   >
     <image
@@ -14,22 +14,23 @@
       role="button"
       aria-label="预览照片"
     />
-    <view wx:if="{{item.pending}}" class="photo-uploading">上传中</view>
+    <view wx:if="{{item.pending}}" class="photo-uploading">{{item.failed ? '上传失败' : '上传中'}}</view>
     <view
-      wx:if="{{!item.pending}}"
+      wx:if="{{!disabled && (!item.pending || item.failed)}}"
       class="photo-remove"
       data-index="{{item.index}}"
+      data-pending-index="{{item.pendingIndex}}"
       catchtap="onRemove"
       hover-class="press-scale"
       role="button"
-      aria-label="删除照片"
+      aria-label="{{item.pending ? '移除待上传照片' : '删除照片'}}"
     >
       <image class="photo-remove-icon" src="/assets/icons/delete.svg" mode="aspectFit" />
     </view>
   </view>
 
   <view
-    wx:if="{{showAdd}}"
+    wx:if="{{showAdd && !disabled}}"
     class="photo-add"
     bindtap="onAdd"
     hover-class="press-dim"

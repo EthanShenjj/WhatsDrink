@@ -23,6 +23,10 @@ import {
 import { installUpdatePerformanceLogger, recordInteraction } from '../../utils/performance'
 import { hasMapCoordinates } from '../../utils/map'
 import { CHECKIN_SOURCE_STORAGE_KEY } from '../../utils/checkin'
+import { createId } from '../../utils/id'
+import { locationRegion, shortProvince, shortCity, MAP_TARGET_STORAGE_KEY } from '../../utils/location'
+import { provinceAt } from '../../utils/province-map'
+import { trackProductEvent } from '../../services/product-events'
 
 const MAP_MODE_STORAGE_KEY = 'sgj:map-mode'
 
@@ -85,6 +89,8 @@ interface PageData {
 }
 
 Page<PageData, WechatMiniprogram.IAnyObject>({
+  requestId: '',
+  uploadInProgress: false,
   data: {
     id: undefined,
     placeId: undefined,
@@ -144,6 +150,7 @@ Page<PageData, WechatMiniprogram.IAnyObject>({
   },
 
   onLoad(query: Record<string, string>) {
+    this.requestId = createId('req')
     installUpdatePerformanceLogger(this, 'footprint-form')
     const status: FootprintStatus = query.status === 'wishlist' ? 'wishlist' : 'visited'
     const convertingWishlist = query.convert === '1'
@@ -180,8 +187,8 @@ Page<PageData, WechatMiniprogram.IAnyObject>({
         .then((fp) => {
           if (!fp) {
             wx.showToast({ title: '足迹不存在', icon: 'none' })
-            this.setData({ loading: false })
             wx.hideLoading()
+            wx.navigateBack({ fail: () => wx.switchTab({ url: '/pages/map/index' }) })
             return
           }
           this.applySourceFootprint(fp, revisiting, convertingWishlist, isCheckin)
@@ -217,6 +224,8 @@ Page<PageData, WechatMiniprogram.IAnyObject>({
           baseData.lng = selected.lng
           baseData.city = selected.city || ''
           baseData.province = selected.province || ''
+          baseData.country = selected.country || ''
+          baseData.district = selected.district || ''
         }
       }
       this.setData(baseData as WechatMiniprogram.IAnyObject)
@@ -297,6 +306,7 @@ Page<PageData, WechatMiniprogram.IAnyObject>({
   onRestoreDraft() {
     const saved = this.data.pendingDraft
     if (!saved) return
+    this.requestId = saved.clientRequestId || this.requestId || createId('req')
     this.setData({
       status: saved.status || this.data.status,
       placeId: saved.placeId,
@@ -339,6 +349,7 @@ Page<PageData, WechatMiniprogram.IAnyObject>({
       (this.data.poiName || this.data.note || this.data.photos.length)
     ) {
       const draft: FootprintDraft = {
+        clientRequestId: this.requestId,
         placeId: this.data.placeId,
         status: this.data.status,
         poiName: this.data.poiName,
@@ -382,7 +393,17 @@ Page<PageData, WechatMiniprogram.IAnyObject>({
     recordInteraction('form.location')
     wx.chooseLocation({
       success: (res) => {
+        const region = locationRegion(res.address || '')
+        const province = region.province || provinceAt(res.latitude, res.longitude) || ''
+        const samePlace = res.name === this.data.poiName && typeof this.data.lat === 'number'
+          && Math.abs(res.latitude - this.data.lat) < 0.0001 && typeof this.data.lng === 'number'
+          && Math.abs(res.longitude - this.data.lng) < 0.0001
         this.setData({
+          placeId: samePlace ? this.data.placeId : undefined,
+          country: region.country || (province ? '中国' : ''),
+          province,
+          city: region.city || (['北京', '上海', '天津', '重庆'].includes(province) ? province : ''),
+          district: region.district || '',
           poiName: res.name || this.data.poiName || '',
           address: res.address || '',
           lat: res.latitude,
@@ -390,12 +411,19 @@ Page<PageData, WechatMiniprogram.IAnyObject>({
         })
         this.updateFormState()
       },
-      fail: () => {},
+      fail: (error) => {
+        if (!error.errMsg.includes('cancel')) wx.showToast({ title: '位置选择失败，可先记录再补充', icon: 'none' })
+      },
     })
   },
 
   onClearLocation() {
-    this.setData({ address: '', lat: undefined, lng: undefined })
+    this.setData({ placeId: undefined, address: '', lat: undefined, lng: undefined, country: '', province: '', city: '', district: '' })
+  },
+
+  onRegionChange(e: WechatMiniprogram.PickerChange) {
+    const values = e.detail.value as string[]
+    this.setData({ country: '中国', province: shortProvince(values[0]), city: shortCity(values[1]), district: values[2] || '' })
   },
 
   onDateChange(e: WechatMiniprogram.PickerChange) {
@@ -468,10 +496,12 @@ Page<PageData, WechatMiniprogram.IAnyObject>({
     this.setData({ markerEmoji: value === this.data.markerEmoji ? '' : value })
   },
 
-  async uploadPhotos(tempPaths: string[]) {
-    if (!tempPaths.length) return
+  async uploadPhotos(tempPaths: string[], retry = false) {
+    if (!tempPaths.length || this.uploadInProgress || this.data.saving) return
+    this.uploadInProgress = true
+    const previousFailures = retry ? [] : this.data.pendingUploads.slice(0, this.data.uploadFailedCount)
     wx.showLoading({ title: '上传中…', mask: true })
-    this.setData({ pendingUploads: tempPaths, uploadFailedCount: 0 })
+    this.setData({ pendingUploads: [...previousFailures, ...tempPaths], uploadFailedCount: previousFailures.length })
     const uploaded: Array<{ photo: string; thumbnail: string }> = []
     const failed: string[] = []
     try {
@@ -486,19 +516,22 @@ Page<PageData, WechatMiniprogram.IAnyObject>({
         this.setData({
           photos: [...this.data.photos, ...completed.map((item) => item.photo)],
           photoThumbs: [...this.data.photoThumbs, ...completed.map((item) => item.thumbnail)],
-          pendingUploads: [...failed, ...tempPaths.slice(index + batch.length)],
+          pendingUploads: [...previousFailures, ...failed, ...tempPaths.slice(index + batch.length)],
         })
       }
-      this.setData({ pendingUploads: failed, uploadFailedCount: failed.length })
+      const remaining = [...previousFailures, ...failed]
+      this.setData({ pendingUploads: remaining, uploadFailedCount: remaining.length })
       this.updateFormState()
-      if (failed.length) wx.showToast({ title: '部分照片上传失败，可点击重试', icon: 'none' })
+      if (remaining.length) wx.showToast({ title: '部分照片上传失败，可点击重试', icon: 'none' })
     } finally {
+      this.uploadInProgress = false
       wx.hideLoading()
     }
   },
 
   onPhotoAdd() {
     recordInteraction('form.photo')
+    if (this.data.saving || this.uploadInProgress) return
     const remaining = 9 - this.data.photos.length - this.data.pendingUploads.length
     if (remaining <= 0) {
       wx.showToast({ title: '最多 9 张照片', icon: 'none' })
@@ -516,15 +549,26 @@ Page<PageData, WechatMiniprogram.IAnyObject>({
   },
 
   onRetryUpload() {
-    if (this.data.uploadRetrying) return
+    if (this.data.uploadRetrying || this.uploadInProgress || this.data.saving) return
     const tempPaths = this.data.pendingUploads
     if (!tempPaths.length) return
     this.setData({ uploadRetrying: true })
-    this.uploadPhotos(tempPaths)
+    this.uploadPhotos(tempPaths, true)
       .finally(() => this.setData({ uploadRetrying: false }))
   },
 
-  onPhotoRemove(e: WechatMiniprogram.CustomEvent<{ index: number }>) {
+  onPhotoRemove(e: WechatMiniprogram.CustomEvent<{ index: number; pendingIndex?: number }>) {
+    if (this.data.saving || this.uploadInProgress) return
+    const pendingIndex = e.detail?.pendingIndex ?? -1
+    if (pendingIndex >= 0 && pendingIndex < this.data.pendingUploads.length) {
+      const pendingUploads = [...this.data.pendingUploads]
+      pendingUploads.splice(pendingIndex, 1)
+      this.setData({
+        pendingUploads,
+        uploadFailedCount: Math.max(0, this.data.uploadFailedCount - (pendingIndex < this.data.uploadFailedCount ? 1 : 0)),
+      })
+      return
+    }
     const index = (e.detail && e.detail.index) ?? 0
     const photos = [...this.data.photos]
     const photoThumbs = [...this.data.photoThumbs]
@@ -548,7 +592,7 @@ Page<PageData, WechatMiniprogram.IAnyObject>({
       wx.showToast({ title: '请选择日期', icon: 'none' })
       return
     }
-    if (!hasMapCoordinates(this.data)) {
+    if (this.data.isCheckin && !hasMapCoordinates(this.data)) {
       wx.showModal({
         title: '选择地图位置',
         content: '需要选择具体位置，保存后才能立即在地图上显示标记。',
@@ -556,6 +600,7 @@ Page<PageData, WechatMiniprogram.IAnyObject>({
         cancelText: '稍后再说',
         success: ({ confirm }) => {
           if (confirm) this.onChooseLocation()
+          else wx.showToast({ title: '选择位置后才能完成打卡', icon: 'none' })
         },
       })
       return
@@ -566,6 +611,7 @@ Page<PageData, WechatMiniprogram.IAnyObject>({
     }
     this.setData({ saving: true })
     const draft: FootprintDraft = {
+      clientRequestId: this.requestId || (this.requestId = createId('req')),
       id: this.data.id,
       placeId: this.data.placeId,
       status: this.data.status,
@@ -598,6 +644,7 @@ Page<PageData, WechatMiniprogram.IAnyObject>({
         ? await fulfillWishlistFootprint(this.data.id, draft)
         : null
       const saved = result ? result.visit : await saveFootprint(draft)
+      if (saved.status === 'visited' && !this.data.isEditing) trackProductEvent('place_added')
       const removedLocalPhotos = this.data.originalPhotos.filter(
         (path) => path.startsWith('wxfile://') && !this.data.photos.includes(path),
       )
@@ -613,6 +660,7 @@ Page<PageData, WechatMiniprogram.IAnyObject>({
       const previousPage = pages[pages.length - 2]
       if (previousPage?.route === 'pages/map/index') {
         wx.setStorageSync(MAP_MODE_STORAGE_KEY, saved.status === 'visited' ? 'visited' : 'wishlist')
+        if (hasMapCoordinates(saved)) wx.setStorageSync(MAP_TARGET_STORAGE_KEY, saved)
       }
       wx.vibrateShort({ type: 'light', fail: () => {} })
       if (this.data.isCheckin) {
@@ -623,7 +671,7 @@ Page<PageData, WechatMiniprogram.IAnyObject>({
           saving: false,
           successVisible: true,
           successTitle: '打卡成功',
-          successDescription: `${distanceCopy}已在 ${saved.poiName} 完成本次到访打卡，并加入你的个人足迹。`,
+          successDescription: `${distanceCopy}已在 ${saved.poiName} 完成本次到访打卡，并加入你的个人足迹。${saved.pendingSync ? '已保存本机，联网后同步。' : ''}`,
           successState: result ? 'highlight' : 'companion',
         })
       } else if (result) {
@@ -641,13 +689,13 @@ Page<PageData, WechatMiniprogram.IAnyObject>({
         this.setData({
           saving: false,
           successVisible: true,
-          successTitle: count > 1 ? `第 ${count} 次来到这里` : '这个地方亮起来了',
-          successDescription: count > 1 ? '熟悉的地方，又多了一段新的故事。' : 'Lumi 已经把这段生活收进你的地图。',
+          successTitle: saved.status === 'wishlist' ? '已收藏想去地点' : !hasMapCoordinates(saved) ? '已留下这段记录' : this.data.isEditing ? '记录已更新' : count > 1 ? `第 ${count} 次来到这里` : '这个地方亮起来了',
+          successDescription: saved.pendingSync ? '已保存到本机，联网后自动同步。' : !hasMapCoordinates(saved) ? '可稍后编辑补充位置，让它出现在地图上。' : count > 1 ? '熟悉的地方，又多了一段新的故事。' : 'Lumi 已经把这段生活收进你的地图。',
           successState: count > 1 ? 'companion' : 'journey',
         })
       }
     } catch (err) {
-      wx.showToast({ title: '保存失败，请重试', icon: 'none' })
+      wx.showToast({ title: err instanceof Error ? err.message : '保存失败，请重试', icon: 'none' })
       this.setData({ saving: false })
     }
   },
@@ -659,7 +707,7 @@ Page<PageData, WechatMiniprogram.IAnyObject>({
   onSuccessClose() {
     if (this.data.successClosing) return
     this.setData({ successVisible: false, successClosing: true })
-    setTimeout(() => wx.navigateBack(), 240)
+    setTimeout(() => wx.navigateBack({ fail: () => wx.switchTab({ url: '/pages/map/index' }) }), 240)
   },
 
   onDelete() {
@@ -676,7 +724,12 @@ Page<PageData, WechatMiniprogram.IAnyObject>({
           await deleteFootprint(this.data.id!)
           wx.hideLoading()
           wx.showToast({ title: '已删除', icon: 'success' })
-          setTimeout(() => wx.navigateBack(), 500)
+          const pages = getCurrentPages()
+          const previous = pages[pages.length - 2]
+          setTimeout(() => wx.navigateBack({
+            delta: previous?.route === 'pages/footprint-detail/index' ? 2 : 1,
+            fail: () => wx.switchTab({ url: '/pages/map/index' }),
+          }), 500)
         } catch (err) {
           wx.hideLoading()
           wx.showToast({ title: '删除失败', icon: 'none' })

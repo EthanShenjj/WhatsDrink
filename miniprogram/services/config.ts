@@ -1,6 +1,6 @@
 export const CLOUD_ENV_ID = 'ethan-workspace-d7f7k5ma0befbf77'
 export const USE_CLOUD = CLOUD_ENV_ID.length > 0
-export const APP_VERSION = '1.2.2'
+export const APP_VERSION = '1.2.3'
 // Optional Tencent Location Service personalized map. Keep subkey empty for the native default map.
 // Style numbers must be published under the same subkey in the WeChat/Tencent map console.
 export const MAP_STYLE_SUBKEY = ''
@@ -14,6 +14,7 @@ export const STORAGE_KEYS = {
   profile: 'shiguangji:profile',
   footprints: 'shiguangji:footprints',
   footprintSummaries: 'shiguangji:footprint-summaries',
+  pendingFootprints: 'shiguangji:pending-footprints',
   mapSettings: 'shiguangji:map-settings',
   travelPlans: 'shiguangji:travel-plans',
   timeCapsules: 'shiguangji:time-capsules',

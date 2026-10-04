@@ -39,7 +39,11 @@
   </view>
 
   <block wx:if="{{viewMode === 'calendar'}}">
-    <view class="album-hero">
+    <view wx:if="{{monthPreviewPhotos.length}}" class="month-album-toggle" bindtap="onToggleAlbum" role="button" aria-label="{{albumExpanded ? '收起本月相册' : '展开本月相册'}}">
+      <image wx:for="{{monthPreviewPhotos}}" wx:key="*this" class="month-album-thumb" src="{{item}}" mode="aspectFill" lazy-load />
+      <text>本月相册 · {{albumExpanded ? '收起' : '展开'}}</text>
+    </view>
+    <view wx:if="{{monthPreviewPhotos.length && albumExpanded}}" class="album-hero">
       <view class="album-stage {{albumMotionEnabled ? 'is-animated' : ''}}" aria-hidden="true">
         <view class="album-cover album-cover--left">
           <view class="album-cover-image">
@@ -62,7 +66,7 @@
           </view>
           <view class="album-cover-caption">
             <text class="album-cover-title">沿途 02</text>
-            <text class="album-cover-date">LIFEMAP</text>
+            <text class="album-cover-date">拾光迹</text>
           </view>
         </view>
         <view class="album-cover album-cover--front">
@@ -95,7 +99,7 @@
             <image class="album-film-photo" src="{{item}}" mode="aspectFill" lazy-load />
           </view>
           <view wx:if="{{!monthPreviewPhotos.length}}" class="album-film-empty">
-            <text class="album-film-empty-title">LIFEMAP</text>
+            <text class="album-film-empty-title">拾光迹</text>
             <text class="album-film-empty-date">{{monthLabel}} · 待显影</text>
           </view>
         </view>
@@ -145,7 +149,8 @@
         <text class="muted" wx:if="{{selectedFootprints.length}}">· {{selectedFootprints.length}} 个足迹</text>
       </view>
 
-      <view wx:if="{{selectedFootprints.length}}" class="timeline-list">
+      <ip-feedback wx:if="{{loadFailed}}" type="empty" state="journey" expression="think" title="记录暂时没加载出来" description="请检查网络后重试" actionText="重新加载" bind:action="onRetryLoad" />
+      <view wx:elif="{{selectedFootprints.length}}" class="timeline-list">
         <footprint-card
           wx:for="{{selectedFootprints}}"
           wx:key="id"
@@ -184,8 +189,9 @@
   </block>
 
   <view wx:else class="all-timeline">
+    <ip-feedback wx:if="{{loadFailed}}" type="empty" state="journey" expression="think" title="时间线暂时没加载出来" description="请检查网络后重试" actionText="重新加载" bind:action="onRetryLoad" />
     <ip-feedback
-      wx:if="{{empty && !loading}}"
+      wx:elif="{{empty && !loading}}"
       type="empty"
       state="journey"
       expression="depart"

@@ -197,6 +197,11 @@
 }
 
 .tab-sheet-cancel {
+  display: flex;
+  box-sizing: border-box;
+  width: 100%;
+  align-items: center;
+  justify-content: center;
   margin-top: 16rpx;
   min-height: var(--control-height);
   border-radius: var(--radius-sm);

@@ -146,7 +146,7 @@ export const computeGrowthOverview = (
     if (cached && cached.day === day && cached.profile === profile) return cached.result
   }
 
-  const visits = footprints.filter((item) => item.status === 'visited')
+  const visits = footprints.filter((item) => item.status === 'visited' && item.recordLevel !== 'city')
   const fulfilled = footprints.filter((item) => item.status === 'fulfilled')
   const recentStart = effectiveNow - 7 * DAY
   const recent = visits.filter((item) => {
@@ -182,9 +182,9 @@ export const computeGrowthOverview = (
   const isPlus = isGrowthPlusActive(profile?.growth, effectiveNow)
   const isPro = isGrowthProActive(profile?.growth, effectiveNow)
   const lockedColor = profile?.growth?.lockedColorId
-  const activeColorId = isPlus && lockedColor && unlockedColorIds.has(lockedColor)
-    ? lockedColor
-    : weeklyColorId
+  const fixedColorId = lockedColor && unlockedColorIds.has(lockedColor) ? lockedColor : undefined
+  const colorMode = fixedColorId ? 'fixed' : 'auto'
+  const activeColorId = fixedColorId || weeklyColorId
   const plusDaysLeft = isPlus
     ? Math.max(1, Math.ceil(((profile?.growth?.plusUntil || effectiveNow) - effectiveNow) / DAY))
     : 0
@@ -199,9 +199,12 @@ export const computeGrowthOverview = (
         ? { text: `再坚持 ${3 - activeWeeks} 周，点亮陪伴粉`, progress: activeWeeks, target: 3 }
         : { text: '去实现一个想去，让 Lumi 迎来高光', progress: fulfilledCount > 0 ? 1 : 0, target: 1 }
   const weeklyColor = COLORS.find((item) => item.id === weeklyColorId) || COLORS[0]
+  const activeColor = COLORS.find((item) => item.id === activeColorId) || COLORS[0]
   const result: GrowthOverview = {
     weeklyColorId,
     activeColorId,
+    colorMode,
+    displayTitle: `${colorMode === 'fixed' ? '固定展示' : '自动调整'} · ${activeColor.name}`,
     weeklyTitle: `本周状态 · ${weeklyColor.name}`,
     weeklyMessage: weeklyColorId === 'journey'
       ? 'Lumi 正在等你一起出发。'
@@ -239,7 +242,7 @@ export const computeGrowthSnapshot = (
     if (cached && cached.day === day && cached.profile === profile) return cached.result
   }
   const visits = footprints
-    .filter((item) => item.status === 'visited')
+    .filter((item) => item.status === 'visited' && item.recordLevel !== 'city')
     .sort((a, b) => visitTime(a) - visitTime(b))
   const wishes = footprints.filter((item) => item.status === 'wishlist')
   const fulfilled = footprints.filter((item) => item.status === 'fulfilled')
@@ -293,6 +296,9 @@ export const computeGrowthSnapshot = (
   if (fulfilledCount > 0 || visits.length >= 10) unlockedColorIds.add('highlight')
   if (activeWeeks >= 3) unlockedColorIds.add('companion')
   if (dawnUnlocked) unlockedColorIds.add('dawn')
+  const fixedColorId = lockedColor && unlockedColorIds.has(lockedColor) ? lockedColor : undefined
+  const colorMode = fixedColorId ? 'fixed' : 'auto'
+  const activeColorId = fixedColorId || weeklyColorId
 
   const colors = COLORS.map((color) => ({ ...color, unlocked: unlockedColorIds.has(color.id) }))
   const expressions: GrowthExpressionView[] = [
@@ -352,7 +358,7 @@ export const computeGrowthSnapshot = (
         : { text: '去实现一个想去，让 Lumi 迎来高光', progress: fulfilledCount > 0 ? 1 : 0, target: 1 }
 
   const weeklyColor = COLORS.find((item) => item.id === weeklyColorId) || COLORS[0]
-  const monthlyColor = COLORS.find((item) => item.id === monthlyColorId) || COLORS[0]
+  const activeColor = COLORS.find((item) => item.id === activeColorId) || COLORS[0]
   const monthNumber = Number(currentMonth.slice(5, 7))
   const monthCityCounts = new Map<string, number>()
   monthVisits.forEach((item) => {
@@ -365,7 +371,9 @@ export const computeGrowthSnapshot = (
 
   const snapshot: GrowthSnapshot = {
     weeklyColorId,
-    activeColorId: isPlus && lockedColor && unlockedColorIds.has(lockedColor) ? lockedColor : weeklyColorId,
+    activeColorId,
+    colorMode,
+    displayTitle: `${colorMode === 'fixed' ? '固定展示' : '自动调整'} · ${activeColor.name}`,
     weeklyTitle: `本周状态 · ${weeklyColor.name}`,
     weeklyMessage: weeklyColorId === 'journey'
       ? 'Lumi 正在等你一起出发。'
@@ -377,7 +385,7 @@ export const computeGrowthSnapshot = (
             ? '这一周，你一直在往新的地方走。'
             : '稳定的记录，让生活慢慢有了形状。',
     monthlyColorId,
-    monthlyTitle: `${monthNumber} 月 · ${monthlyColor.name}`,
+    monthlyTitle: `${monthNumber} 月回顾`,
     monthKey: currentMonth,
     monthLabel: `${monthNumber} 月`,
     monthlySummary,

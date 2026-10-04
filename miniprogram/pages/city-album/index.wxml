@@ -1,0 +1,16 @@
+<view class="album-page">
+  <view class="intro">
+    <text class="title">我的城市版图</text>
+    <text class="description">先预览，再由你决定是否保存到相册。图片默认只有省市和点亮数量。</text>
+  </view>
+  <canvas id="albumCanvas" type="2d" class="album-canvas"></canvas>
+  <view wx:if="{{loadFailed}}" class="album-load-error"><text>城市记录暂时没加载出来</text><button bindtap="onRetryLoad">重新加载</button></view>
+  <view wx:elif="{{loading}}" class="album-load-error"><text>正在加载城市记录…</text></view>
+  <view class="privacy-options">
+    <view class="option"><text>加入具体地点名称</text><switch checked="{{includePlaces}}" color="#5B6CFF" disabled="{{!hasPlaces}}" bindchange="togglePlaces" /></view>
+    <view class="option"><text>加入一张记录照片</text><switch checked="{{includePhoto}}" color="#5B6CFF" disabled="{{!hasPhoto}}" bindchange="togglePhoto" /></view>
+    <view class="option"><text>加入记录文字</text><switch checked="{{includeNotes}}" color="#5B6CFF" disabled="{{!hasNotes}}" bindchange="toggleNotes" /></view>
+    <text class="option-hint">地点、照片和文字默认隐藏。仅保存到你的相册，产品内没有分享入口。</text>
+  </view>
+  <button class="save-button" disabled="{{!cityCount || saving || rendering || loading || loadFailed}}" loading="{{saving || rendering}}" bindtap="onSave">保存到相册</button>
+</view>

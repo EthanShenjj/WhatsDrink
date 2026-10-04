@@ -1,5 +1,6 @@
 import type { Footprint, TravelDayPlan, TravelPlan, TravelPlanDraft } from '../../domain/types'
 import { deleteTravelPlan, listFootprints, listTravelPlans, saveTravelPlan } from '../../services/repository'
+import { shortCity } from '../../utils/location'
 
 interface DayView {
   day: number
@@ -66,8 +67,9 @@ Page({
   },
 
   onDaysInput(e: WechatMiniprogram.Input) {
-    const days = Math.max(1, Math.min(30, Number(e.detail.value) || 1))
+    const days = Math.max(1, Math.min(30, Math.floor(Number(e.detail.value) || 1)))
     this.setData({ days })
+    if (this.data.dayPlans.length) this.onGenerate()
   },
 
   onPreferencesInput(e: WechatMiniprogram.Input) {
@@ -91,7 +93,7 @@ Page({
   },
 
   refreshViews() {
-    const city = this.data.city.trim()
+    const city = shortCity(this.data.city)
     const source = city
       ? this.data.wishlist.filter((fp) => fp.city === city || fp.poiName.includes(city))
       : this.data.wishlist
@@ -108,7 +110,7 @@ Page({
   },
 
   onGenerate() {
-    const days = Math.max(1, Math.min(30, Number(this.data.days) || 1))
+    const days = Math.max(1, Math.min(30, Math.floor(Number(this.data.days) || 1)))
     const ids = this.data.selectedIds
     if (!ids.length) {
       wx.showToast({ title: '请先选择想去地点', icon: 'none' })
@@ -125,7 +127,7 @@ Page({
   async onSave() {
     if (this.data.saving) return
     const title = this.data.title.trim()
-    const city = this.data.city.trim()
+    const city = shortCity(this.data.city)
     if (!title || !city) {
       wx.showToast({ title: '请填写标题和城市', icon: 'none' })
       return
@@ -135,17 +137,19 @@ Page({
       return
     }
     const selected = new Set(this.data.selectedIds)
-    const dayPlans = this.data.dayPlans.length
+    const days = Math.max(1, Math.min(30, Math.floor(this.data.days)))
+    const validDays = this.data.dayPlans.length === days && this.data.dayPlans.every((day, index) => day.day === index + 1)
+    const dayPlans = validDays
       ? this.data.dayPlans.map((day) => ({ ...day, poiIds: day.poiIds.filter((id) => selected.has(id)) }))
-      : Array.from({ length: this.data.days }, (_, index) => ({
+      : Array.from({ length: days }, (_, index) => ({
           day: index + 1,
-          poiIds: this.data.selectedIds.filter((_, poiIndex) => poiIndex % this.data.days === index),
+          poiIds: this.data.selectedIds.filter((_, poiIndex) => poiIndex % days === index),
         }))
     const draft: TravelPlanDraft = {
       id: this.data.id || undefined,
       title,
       city,
-      days: this.data.days,
+      days,
       preferences: splitPreferences(this.data.preferencesInput),
       poiIds: this.data.selectedIds,
       dayPlans,

@@ -12,6 +12,7 @@ const closeTimers = new WeakMap<object, number>()
 
 Component({
   properties: {
+    regionCities: { type: Object, value: {} },
     visible: {
       type: Boolean,
       value: false,
@@ -42,6 +43,9 @@ Component({
     today: todayStr(),
   },
   observers: {
+    regionCities(value: Record<string, string[]>) {
+      this.setData({ provinces: [...new Set([...ALL_PROVINCES, ...Object.keys(value || {})])] })
+    },
     visible(visible: boolean) {
       const currentTimer = closeTimers.get(this)
       if (currentTimer) {
@@ -50,13 +54,13 @@ Component({
       }
       if (visible) {
         const f = { ...((this.data.currentFilter as FilterState) || {}) }
-        const cities = f.province ? citiesOfProvince(f.province) : []
+        const cities = f.province ? citiesOfProvince(f.province, this.data.regionCities as Record<string, string[]>) : []
         this.setData({
           rendered: true,
           closing: false,
           localFilter: f,
           cities,
-          provinceIndex: f.province ? Math.max(0, ALL_PROVINCES.indexOf(f.province)) : 0,
+          provinceIndex: f.province ? Math.max(0, this.data.provinces.indexOf(f.province)) : 0,
           cityIndex: f.city ? Math.max(0, cities.indexOf(f.city)) : 0,
         })
         return
@@ -94,9 +98,9 @@ Component({
   methods: {
     syncFromCurrent() {
       const f = { ...((this.data.currentFilter as FilterState) || {}) }
-      const cities = f.province ? citiesOfProvince(f.province) : []
+      const cities = f.province ? citiesOfProvince(f.province, this.data.regionCities as Record<string, string[]>) : []
       const provinceIndex = f.province
-        ? Math.max(0, ALL_PROVINCES.indexOf(f.province))
+        ? Math.max(0, this.data.provinces.indexOf(f.province))
         : 0
       const cityIndex = f.city ? Math.max(0, cities.indexOf(f.city)) : 0
       this.setData({
@@ -124,7 +128,7 @@ Component({
     },
     onProvinceChange(e: WechatMiniprogram.CustomEvent<{ value: number }>) {
       const province = this.data.provinces[e.detail.value] || ''
-      const cities = province ? citiesOfProvince(province) : []
+      const cities = province ? citiesOfProvince(province, this.data.regionCities as Record<string, string[]>) : []
       this.setData({
         'localFilter.province': province,
         'localFilter.city': '',

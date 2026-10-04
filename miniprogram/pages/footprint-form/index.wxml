@@ -57,7 +57,10 @@
             <text>选择位置</text>
           </button>
         </view>
-        <text class="form-field-hint">请选择地图位置，保存后会立即显示对应标记。</text>
+        <text class="form-field-hint">{{isCheckin ? '确认地点后，保存即可完成打卡。' : '可先记录，再补充地图位置；未定位的记录会保留在待定位列表。'}}</text>
+        <picker mode="region" bindchange="onRegionChange">
+          <view class="form-field-hint" role="button">{{province || city ? (city ? province + ' · ' + city : province) : '补充省市（选填，用于统计和旅行计划）'}} ›</view>
+        </picker>
         <view
           wx:if="{{address}}"
           class="form-address-bar"
@@ -77,7 +80,7 @@
         <view class="form-field-label">
           <text>日期</text>
         </view>
-        <picker mode="date" value="{{visitDate}}" bindchange="onDateChange">
+        <picker mode="date" value="{{visitDate}}" end="{{dateShortcuts[0].value}}" bindchange="onDateChange">
           <view class="form-date-picker" hover-class="press-dim">
             <text>{{visitDate || '选择日期'}}</text>
             <local-icon name="calendar" size="28rpx" />
@@ -107,6 +110,8 @@
           photos="{{photos}}"
           thumbnails="{{photoThumbs}}"
           pending="{{pendingUploads}}"
+          failedCount="{{uploadFailedCount}}"
+          disabled="{{saving}}"
           max="{{9}}"
           bind:add="onPhotoAdd"
           bind:remove="onPhotoRemove"
@@ -115,6 +120,17 @@
           <text>{{uploadFailedCount}} 张照片上传失败</text>
           <button class="form-upload-retry-button" bindtap="onRetryUpload">重试</button>
         </view>
+      </view>
+    </view>
+
+    <view class="form-section">
+      <view class="form-field">
+        <view class="form-field-label"><text>心情（选填）</text></view>
+        <mood-picker value="{{mood}}" bind:change="onMoodChange" />
+      </view>
+      <view class="form-field">
+        <view class="form-field-label"><text>短记（选填）</text></view>
+        <textarea class="form-note" value="{{note}}" placeholder="记下此刻的感受…" maxlength="500" auto-height bindinput="onNoteInput" aria-label="短记" />
       </view>
     </view>
 
@@ -129,14 +145,6 @@
       </view>
 
       <block wx:if="{{optionalOpen}}">
-        <!-- 心情 -->
-        <view class="form-field">
-          <view class="form-field-label">
-            <text>心情</text>
-          </view>
-          <mood-picker value="{{mood}}" bind:change="onMoodChange" />
-        </view>
-
         <!-- 类别 -->
         <view class="form-field">
           <view class="form-field-label">
@@ -192,22 +200,6 @@
               <text class="form-tag-remove" data-index="{{index}}" bindtap="removeTag">×</text>
             </view>
           </view>
-        </view>
-
-        <!-- 短记 -->
-        <view class="form-field">
-          <view class="form-field-label">
-            <text>短记</text>
-          </view>
-          <textarea
-            class="form-note"
-            value="{{note}}"
-            placeholder="记下此刻的感受…"
-            maxlength="500"
-            auto-height
-            bindinput="onNoteInput"
-            aria-label="短记"
-          />
         </view>
 
         <!-- 标记样式 -->
@@ -269,7 +261,7 @@
       <button
         class="primary-button"
         loading="{{saving}}"
-        disabled="{{saving || !canSave}}"
+        disabled="{{saving || !canSave || pendingUploads.length || uploadRetrying}}"
         bindtap="onSave"
       >
         {{saving ? '保存中…' : (isCheckin ? '确认打卡' : (convertedFromWishlist ? '保存为去过' : '保存'))}}

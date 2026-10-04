@@ -30,7 +30,6 @@
   </view>
 
   <view class="benefit-card card">
-    <view class="benefit-row"><local-icon name="sparkles" size="34rpx" /><view><text>自由锁定 Lumi 颜色</text><text>把喜欢的已解锁颜色留在 Lumi 身上</text></view></view>
     <view class="benefit-row"><local-icon name="heart" size="34rpx" /><view><text>Lumi 专属主题</text><text>让应用里的陪伴状态更像你</text></view></view>
     <view class="benefit-row"><local-icon name="secured" size="34rpx" /><view><text>不限数量的时光胶囊</text><text>继续为未来的自己封存重要回忆</text></view></view>
   </view>
@@ -96,6 +95,8 @@
         <view class="order-meta"><text>¥{{item.priceLabel}}</text><text class="status-{{item.status}}">{{item.statusLabel}}</text></view>
       </view>
     </view>
+    <text wx:elif="{{loading}}" class="order-empty">正在加载购买记录…</text>
+    <text wx:elif="{{loadFailed}}" class="order-empty">购买记录暂时无法加载，请点击“恢复购买与权益”重试</text>
     <text wx:else class="order-empty">还没有购买记录</text>
   </view>
 

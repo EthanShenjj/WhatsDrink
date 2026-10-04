@@ -4,7 +4,7 @@
 
   <view class="privacy-section">
     <text class="section-title hand-underline">我们保存什么</text>
-    <text>微信身份对应的内部用户标识、你主动填写的头像昵称，以及你创建的地点、日期、照片、心情、短记、想去清单、旅行计划和时光胶囊。</text>
+    <text>微信身份对应的内部用户标识、你主动填写的头像昵称，以及你创建的城市点亮、地点、日期、照片、心情、短记、想去清单、旅行计划和时光胶囊。为改进首次使用体验，还记录少量功能动作与时间；动作统计不包含照片、文字或精确位置。</text>
   </view>
   <view class="privacy-section">
     <text class="section-title hand-underline">为什么需要</text>
@@ -16,7 +16,7 @@
   </view>
   <view class="privacy-section">
     <text class="section-title hand-underline">按需权限</text>
-    <text>进入地图时会请求位置权限，用于自动展示你所在的区域；主动点击“当前位置打卡”时，位置信息还会用于匹配 1 公里内的已保存地点、显示距离并生成到访记录。拒绝定位后仍可浏览地图、搜索或手动填写地点；只有拍照或选择照片时才会请求对应的照片能力。</text>
+    <text>首次打开空地图、点亮城市均无需定位。已有足迹时地图可请求位置权限，用于展示你所在的区域；主动点击“当前位置打卡”时，位置信息还会用于匹配附近已保存地点、显示距离并生成到访记录。拒绝定位后仍可浏览地图、搜索或手动填写地点。只有选择照片或将私人记忆图保存到相册时，才会请求对应的照片能力。</text>
   </view>
   <view class="privacy-section">
     <text class="section-title hand-underline">订阅提醒</text>

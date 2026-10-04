@@ -1,5 +1,12 @@
 const STATUSES = new Set(['visited', 'wishlist', 'fulfilled'])
 const SOURCES = new Set(['manual', 'ai', 'import'])
+const RECORD_LEVELS = new Set(['city', 'place'])
+const CHINA_PROVINCES = new Set([
+  '北京', '天津', '上海', '重庆', '河北', '山西', '辽宁', '吉林', '黑龙江',
+  '江苏', '浙江', '安徽', '福建', '江西', '山东', '河南', '湖北', '湖南',
+  '广东', '海南', '四川', '贵州', '云南', '陕西', '甘肃', '青海', '台湾',
+  '内蒙古', '广西', '西藏', '宁夏', '新疆', '香港', '澳门',
+])
 
 const text = (value, max = 80) => String(value || '').trim().slice(0, max)
 
@@ -125,14 +132,23 @@ const sanitizeFootprint = (input, openid, existing, now = Date.now()) => {
   if (!poiName) throw new Error('地点名称不能为空')
 
   const status = enumValue(input.status, STATUSES, existing ? existing.status : 'visited', '足迹状态')
+  const recordLevel = enumValue(input.recordLevel, RECORD_LEVELS, existing?.recordLevel || 'place', '记录层级')
   const lat = optionalNumber(input.lat, -90, 90)
   const lng = optionalNumber(input.lng, -180, 180)
   if ((lat === undefined) !== (lng === undefined)) throw new Error('纬度和经度必须同时提供')
+  if (recordLevel === 'city') {
+    if (status !== 'visited') throw new Error('城市点亮只能用于已去过的城市')
+    if (!text(input.province, 40) || !text(input.city, 40)) throw new Error('请选择省份和城市')
+    if (input.country !== '中国' || !CHINA_PROVINCES.has(text(input.province, 40))) throw new Error('目前仅支持中国省市点亮')
+    if (lat !== undefined || lng !== undefined || input.address || input.district || input.photos?.length || input.note) {
+      throw new Error('城市点亮不能包含具体位置或私人内容')
+    }
+  }
   // A manually entered place can be saved without location permission.
   // It remains in the calendar and lists, and can be pinned after choosing a POI.
 
   const visitDate = optionalDate(input.visitDate, '访问日期') ||
-    (status === 'visited' ? todayKey(new Date(now)) : undefined)
+    (status === 'visited' && recordLevel !== 'city' ? todayKey(new Date(now)) : undefined)
   const createdAt = existing && Number.isFinite(existing.createdAt) ? existing.createdAt : now
   let wishlistCreatedAt
   let convertedFromWishlist
@@ -166,6 +182,7 @@ const sanitizeFootprint = (input, openid, existing, now = Date.now()) => {
   return {
     _openid: openid,
     status,
+    recordLevel,
     poiName,
     address: optionalText(input.address, 200),
     lat,

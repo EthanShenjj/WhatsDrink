@@ -1,0 +1,14 @@
+page { background: #F7F8FF; }
+.album-page { padding: 32rpx 32rpx 80rpx; }
+.intro { margin-bottom: 30rpx; }
+.title { display: block; color: #222842; font-size: 40rpx; font-weight: 700; }
+.description { display: block; margin-top: 14rpx; color: #788099; font-size: 24rpx; line-height: 1.55; }
+.album-canvas { display: block; width: 686rpx; height: 920rpx; border-radius: 28rpx; box-shadow: 0 16rpx 40rpx rgba(49, 63, 131, .12); }
+.album-load-error { display: flex; align-items: center; justify-content: space-between; margin-top: 20rpx; padding: 18rpx 22rpx; border-radius: 18rpx; background: #fff; color: #59627e; font-size: 24rpx; }
+.album-load-error button { margin: 0; padding: 0 18rpx; background: #eef0ff; color: #4756d6; font-size: 23rpx; }
+.privacy-options { margin-top: 28rpx; padding: 12rpx 28rpx 24rpx; border-radius: 22rpx; background: #fff; }
+.option { display: flex; justify-content: space-between; align-items: center; min-height: 96rpx; color: #30364E; font-size: 25rpx; }
+.option + .option { border-top: 1rpx solid #EFF0F5; }
+.option-hint { display: block; padding-top: 14rpx; color: #9299AE; font-size: 21rpx; line-height: 1.5; }
+.save-button { margin-top: 36rpx; border-radius: 20rpx; background: #5B6CFF; color: #fff; font-size: 28rpx; line-height: 96rpx; }
+.save-button[disabled] { background: #BFC5E5; color: #fff; }

@@ -1,8 +1,9 @@
+<page-meta page-style="{{selectedCapsule ? 'overflow: hidden;' : ''}}" />
 <view class="page-shell capsule-page">
   <text class="eyebrow">A LETTER TO LATER</text>
   <text class="display-title">时光胶囊</text>
   <text class="capsule-intro">写给未来的自己，等时间到了再开启。</text>
-  <button class="primary-button capsule-new" bindtap="onNew">封存一段回忆</button>
+  <button wx:if="{{!formVisible}}" class="primary-button capsule-new" bindtap="onNew">封存一段回忆</button>
 
   <view wx:if="{{formVisible}}" class="capsule-form card">
     <text class="section-title">新的胶囊</text>
@@ -16,12 +17,18 @@
     </picker>
     <text wx:else class="muted">还没有去过的足迹，也可以只写留言。</text>
     <text class="field-label">照片（选填）</text>
-    <photo-uploader photos="{{photos}}" max="{{9}}" bind:add="onPhotoAdd" bind:remove="onPhotoRemove" />
+    <photo-uploader photos="{{photos}}" pending="{{pendingPhotos}}" max="{{9}}" bind:add="onPhotoAdd" bind:remove="onPhotoRemove" />
+    <text wx:if="{{uploading}}" class="reminder-hint">照片上传中，请稍候…</text>
+    <view wx:if="{{failedPhotos.length}}">
+      <text class="reminder-hint">{{failedPhotos.length}} 张照片上传失败，已成功的照片会保留。</text>
+      <button class="secondary-button" bindtap="onRetryUpload">重试失败照片</button>
+      <button class="secondary-button" bindtap="onDiscardFailedPhotos">不保留失败照片</button>
+    </view>
     <text class="field-label">解锁日期</text>
     <picker mode="date" value="{{unlockDate}}" start="{{today}}" bindchange="onDateChange"><view class="field-input field-picker">{{unlockDate}} ›</view></picker>
     <view wx:if="{{reminderAvailable}}" class="reminder-row"><view><text>微信提醒</text><text class="reminder-hint">需要单独授权；拒绝后仍可在这里打开</text></view><switch checked="{{wantsReminder}}" color="#5B6CFF" bindchange="onReminderChange" /></view>
     <text wx:else class="reminder-hint">到期后可在“时光”中打开。微信提醒尚未配置。</text>
-    <view class="form-actions"><button class="secondary-button" bindtap="onCancel">取消</button><button class="primary-button" loading="{{saving}}" disabled="{{saving}}" bindtap="onSave">保存胶囊</button></view>
+    <view class="form-actions"><button class="secondary-button" disabled="{{saving}}" bindtap="onCancel">取消</button><button class="primary-button" loading="{{saving}}" disabled="{{saving || uploading || failedPhotos.length}}" bindtap="onSave">保存胶囊</button></view>
   </view>
 
   <view class="capsule-list">
@@ -37,11 +44,12 @@
   </view>
 
   <view wx:if="{{selectedCapsule}}" class="detail-layer">
-    <view class="detail-mask" bindtap="onCloseDetail"></view>
+    <view class="detail-mask" bindtap="onCloseDetail" catchtouchmove="preventMove"></view>
     <view class="detail-card card">
       <text class="eyebrow">A MOMENT RETURNED</text>
       <text class="section-title">{{selectedCapsule.title}}</text>
-      <text class="detail-date">{{selectedCapsule.unlockDate}} · 已解锁</text>
+      <text class="detail-date">{{selectedCapsule.unlockDate}} · {{selectedCapsule.status === 'locked' ? '未解锁' : '已解锁'}}</text>
+      <text wx:if="{{selectedCapsule.status === 'locked'}}" class="detail-text">内容已封存，到期后才能查看。你仍可删除这个胶囊，释放容量。</text>
       <text wx:if="{{selectedCapsule.text}}" class="detail-text">{{selectedCapsule.text}}</text>
       <image wx:for="{{selectedCapsule.photos}}" wx:key="*this" class="detail-photo" src="{{item}}" mode="aspectFill" lazy-load />
       <button class="secondary-button" bindtap="onCloseDetail">收起</button>

@@ -15,7 +15,7 @@
     title="足迹不见了"
     description="它可能已被删除或链接已失效"
     actionText="返回"
-    bind:action="onViewInMap"
+    bind:action="onEmptyReturn"
   />
 
   <block wx:else>
@@ -113,6 +113,7 @@
         </view>
       </view>
 
+      <view wx:if="{{footprint.pendingSync}}" class="detail-row"><text class="detail-row-text muted">{{footprint.syncError ? '同步未完成：' + footprint.syncError + '。请编辑后重试。' : '已保存到本机，联网后自动同步'}}</text></view>
       <view wx:if="{{footprint.address}}" class="detail-row">
         <local-icon name="location" size="28rpx" />
         <text class="detail-row-text muted">{{footprint.address}}</text>
@@ -265,6 +266,7 @@
         <text class="detail-action-label">删除</text>
       </view>
     </view>
+    <button class="detail-share-button" open-type="share">转发票根（仅地点与日期）</button>
     <view class="safe-bottom"></view>
   </block>
 </view>

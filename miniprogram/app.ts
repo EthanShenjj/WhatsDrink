@@ -1,14 +1,17 @@
-import { hasCloudAccess, initializeCloud, loginForAccess } from './services/repository'
+import { hasCloudAccess, initializeCloud, loginForAccess, syncPendingFootprints } from './services/repository'
+import { flushProductEvents, trackFirstOpen } from './services/product-events'
 
-const refreshCloudSession = (app: WechatMiniprogram.App.Instance<IAppOption>): void => {
+const refreshCloudSession = (app: WechatMiniprogram.App.Instance<IAppOption>, force = false): void => {
   if (!initializeCloud()) {
     app.globalData.cloudEnabled = false
     return
   }
-  loginForAccess()
+  loginForAccess({ force })
     .then((profile) => {
       app.globalData.profile = profile
       app.globalData.cloudEnabled = hasCloudAccess()
+      void syncPendingFootprints().catch((error) => console.warn('[app] footprint sync failed', error))
+      void flushProductEvents().catch((error) => console.warn('[app] event sync failed', error))
     })
     .catch(() => {
       app.globalData.cloudEnabled = false
@@ -31,9 +34,17 @@ App<IAppOption>({
     cloudEnabled: false,
   },
   onLaunch() {
+    trackFirstOpen()
     scheduleCloudSession(this)
+    wx.onNetworkStatusChange(({ isConnected }) => {
+      if (isConnected) refreshCloudSession(this, true)
+    })
   },
   onShow() {
     if (!hasCloudAccess()) scheduleCloudSession(this)
+    else {
+      void syncPendingFootprints().catch((error) => console.warn('[app] footprint sync failed', error))
+      void flushProductEvents().catch((error) => console.warn('[app] event sync failed', error))
+    }
   },
 })

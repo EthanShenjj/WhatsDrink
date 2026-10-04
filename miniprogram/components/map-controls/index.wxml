@@ -8,6 +8,7 @@
     bindtap="onTap"
     role="button"
     aria-label="{{item.label}}"
+    aria-busy="{{item.key === 'locate' && locating}}"
   >
     <image class="mc-icon" src="/assets/icons/{{item.icon}}.svg" mode="aspectFit" />
     <view wx:if="{{item.key === 'filter' && filterActive}}" class="mc-badge"></view>

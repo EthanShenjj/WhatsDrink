@@ -142,6 +142,9 @@ for (const jsonFile of sourceFiles.filter((file) => path.extname(file) === '.jso
 const staticAssetPattern = /['"(](\/assets\/[^'"\s){}?]+)(?:\?[^'"\s)]*)?['")]/g
 for (const sourceFile of sourceFiles.filter((file) => ['.ts', '.wxml', '.wxss'].includes(path.extname(file)))) {
   const source = fs.readFileSync(sourceFile, 'utf8')
+  if (path.extname(sourceFile) === '.ts' && /(?:from\s*|require\s*\(\s*|import\s*\(\s*)['"][^'"]+\.json['"]/.test(source)) {
+    errors.push(`${path.relative(root, sourceFile)}: 小程序脚本不能直接导入 JSON；请生成 TypeScript 数据模块`)
+  }
   let match
   while ((match = staticAssetPattern.exec(source))) {
     const asset = path.join(miniprogram, match[1].slice(1))
@@ -175,6 +178,7 @@ if (totalMediaBytes > maxMediaBytes) {
 const requiredCloudFunctions = [
   'login',
   'footprintMutation',
+  'productEvents',
   'accountMutation',
   'travelPlanMutation',
   'timeCapsuleMutation',

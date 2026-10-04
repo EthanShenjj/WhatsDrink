@@ -12,6 +12,8 @@ export interface Footprint {
   id: string
   userId: string
   status: FootprintStatus
+  /** 旧记录未设置此字段时按具体地点处理。 */
+  recordLevel?: 'city' | 'place'
   poiName: string
   address?: string
   lat?: number
@@ -28,6 +30,9 @@ export interface Footprint {
   photoCount?: number
   /** 仅客户端列表摘要使用，不写入业务数据。 */
   isSummary?: boolean
+  /** 已安全保存到本机，等待云端确认。 */
+  pendingSync?: boolean
+  syncError?: string
   mood?: string
   category?: string
   tags: string[]
@@ -51,6 +56,7 @@ export type FootprintDraft = Omit<
   'id' | 'userId' | 'clientRequestId' | 'createdAt' | 'updatedAt'
 > & {
   id?: string
+  clientRequestId?: string
 }
 
 export interface UserProfile {
@@ -177,6 +183,8 @@ export interface GrowthHiddenStateView {
 export interface GrowthSnapshot {
   weeklyColorId: GrowthColorId
   activeColorId: GrowthColorId
+  colorMode: 'auto' | 'fixed'
+  displayTitle: string
   weeklyTitle: string
   weeklyMessage: string
   monthlyColorId: GrowthColorId
@@ -205,6 +213,8 @@ export interface GrowthSnapshot {
 export interface GrowthOverview {
   weeklyColorId: GrowthColorId
   activeColorId: GrowthColorId
+  colorMode: 'auto' | 'fixed'
+  displayTitle: string
   weeklyTitle: string
   weeklyMessage: string
   nextGoalText: string

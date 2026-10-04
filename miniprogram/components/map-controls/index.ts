@@ -7,6 +7,7 @@ interface ControlButton {
 
 Component({
   properties: {
+    locating: { type: Boolean, value: false },
     mode: {
       type: String,
       value: 'visited',
@@ -26,6 +27,8 @@ Component({
   },
   data: {
     buttons: [
+      { key: 'locate', icon: 'locate', label: '回到我的位置', event: 'locate' },
+      { key: 'reload', icon: 'refresh', label: '重新加载地图', event: 'reload' },
       { key: 'filter', icon: 'filter', label: '筛选', event: 'filter' },
     ] as ControlButton[],
   },

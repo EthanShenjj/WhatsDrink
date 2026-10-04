@@ -1,0 +1,27 @@
+<view class="city-page">
+  <view class="hero">
+    <text class="eyebrow">我的城市版图</text>
+    <text class="title">先点亮一座去过的城</text>
+    <text class="subtitle">不用照片、定位，也不用记得具体地点。想起了再慢慢补充。</text>
+  </view>
+
+  <view class="form-card">
+    <text class="field-label">去过的城市</text>
+    <picker wx:if="{{!id}}" mode="region" level="city" bindchange="onRegionChange">
+      <view class="region-choice {{city ? 'has-value' : ''}}">{{city ? province + ' · ' + city : '选择省份和城市'}}<text>›</text></view>
+    </picker>
+    <view wx:else class="region-choice has-value">{{province}} · {{city}}</view>
+    <text class="field-hint">只保存省市，不保存精确位置</text>
+
+    <text class="field-label date-label">到访日期 <text class="optional">选填</text></text>
+    <picker wx:if="{{!id}}" mode="date" value="{{visitDate}}" end="{{today}}" bindchange="onDateChange">
+      <view class="region-choice {{visitDate ? 'has-value' : ''}}">{{visitDate || '记不清也没关系，留空即可'}}<text>›</text></view>
+    </picker>
+    <view wx:else class="region-choice {{visitDate ? 'has-value' : ''}}">{{visitDate || '未填写日期'}}</view>
+    <view wx:if="{{visitDate && !id}}" class="clear-date" bindtap="onClearDate">清除日期</view>
+  </view>
+
+  <button class="primary" loading="{{saving}}" disabled="{{saving || !city}}" bindtap="onSave">{{id ? '查看点亮地图' : '点亮这座城'}}</button>
+  <view wx:if="{{id}}" class="secondary" bindtap="onAddPlace">为 {{city}} 补一处具体地点</view>
+  <text class="footer-tip">{{id ? '这座城市已经点亮，不会重复计数。' : '保存后可在省份卡里查看，也可以继续点亮下一座城。'}}</text>
+</view>

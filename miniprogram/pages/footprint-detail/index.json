@@ -1,5 +1,6 @@
 {
   "navigationBarTitleText": "足迹详情",
+  "enablePullDownRefresh": true,
   "usingComponents": {
     "local-icon": "/components/local-icon/index",
     "empty-state": "/components/empty-state/index",

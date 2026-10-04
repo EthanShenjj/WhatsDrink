@@ -24,7 +24,7 @@
 
     <view class="state-card state-{{snapshot.activeColorId}}">
       <view class="state-copy">
-        <text class="state-kicker">{{snapshot.weeklyTitle}}</text>
+        <text class="state-kicker">{{snapshot.displayTitle}}</text>
         <text class="state-message">{{snapshot.weeklyMessage}}</text>
         <view class="state-metrics">
           <text>近 7 天 {{snapshot.recentVisitCount}} 条足迹</text>
@@ -44,11 +44,11 @@
     </view>
 
     <view class="section-head">
-      <view><text class="section-title">本月 Lumi 颜色</text><text class="section-sub">每月 1 日重新结算</text></view>
+      <view><text class="section-title">本月记录回顾</text><text class="section-sub">随本月足迹更新，下月开启新回顾</text></view>
       <button class="section-action" bindtap="onMonthlyReport">查看报告</button>
     </view>
     <view class="monthly-card card" role="button" bindtap="onMonthlyReport">
-      <ip-mascot state="{{snapshot.monthlyColorId}}" expression="companion" size="150rpx" label="本月的 Lumi" />
+      <ip-mascot state="{{snapshot.activeColorId}}" expression="companion" size="150rpx" label="本月的 Lumi" />
       <view class="monthly-copy">
         <text class="monthly-title">{{snapshot.monthlyTitle}}</text>
         <text class="monthly-summary">{{snapshot.monthlySummary}}</text>
@@ -58,20 +58,27 @@
     </view>
 
     <view class="section-head">
-      <view><text class="section-title">Lumi 颜色</text><text class="section-sub">会员可锁定已解锁颜色</text></view>
+      <view><text class="section-title">Lumi 显示颜色</text><text class="section-sub">默认自动调整，也可固定已解锁颜色</text></view>
     </view>
+    <button class="auto-color-option {{snapshot.colorMode === 'auto' ? 'is-selected' : ''}}" disabled="{{saving}}" bindtap="onAutoColorTap" aria-pressed="{{snapshot.colorMode === 'auto'}}">
+      <view class="auto-color-copy">
+        <text class="auto-color-title">自动调整</text>
+        <text class="auto-color-description">根据近 7 天足迹变化，展示本周状态颜色</text>
+      </view>
+      <text class="auto-color-status">{{snapshot.colorMode === 'auto' ? '当前选择' : '选择'}}</text>
+    </button>
     <scroll-view class="color-scroll" scroll-x enhanced show-scrollbar="{{false}}">
       <view class="color-list">
         <view
           wx:for="{{snapshot.colors}}"
           wx:key="id"
-          class="color-card color-{{item.id}} {{!item.unlocked ? 'is-locked' : ''}} {{profile.growth.lockedColorId === item.id ? 'is-selected' : ''}}"
+          class="color-card color-{{item.id}} {{!item.unlocked ? 'is-locked' : ''}} {{snapshot.colorMode === 'fixed' && snapshot.activeColorId === item.id ? 'is-selected' : ''}}"
           role="button"
           hover-class="press-dim"
           data-id="{{item.id}}"
           bindtap="onColorTap"
         >
-          <text wx:if="{{profile.growth.lockedColorId === item.id}}" class="selected-pill">已锁定</text>
+          <text wx:if="{{snapshot.colorMode === 'fixed' && snapshot.activeColorId === item.id}}" class="selected-pill">展示中</text>
           <text wx:elif="{{!item.unlocked}}" class="locked-pill">{{item.hidden ? '???' : '待解锁'}}</text>
           <ip-mascot state="{{item.id}}" expression="default" size="150rpx" label="{{item.name}} Lumi" />
           <text class="color-name">{{item.unlocked ? item.name : (item.hidden ? '隐藏款' : item.shortName)}}</text>
@@ -83,12 +90,12 @@
     <view class="plus-card plus-card-inline">
       <view class="plus-badge">{{snapshot.isPro ? 'PRO' : '会员'}}</view>
       <text class="plus-title">{{snapshot.isPro ? '与 Lumi 一起走向更多可能' : '让 Lumi 更像你'}}</text>
-      <text class="plus-copy">{{snapshot.isPro ? '已获得全部会员权益，以及未来新功能的优先体验机会。' : '自由切换、锁定和组合已解锁的颜色，让每段成长有自己的表达。'}}</text>
-      <button class="plus-button" bindtap="onStartTrial" loading="{{saving}}">
+      <text class="plus-copy">{{snapshot.isPro ? '已获得全部会员权益，以及未来新功能的优先体验机会。' : '解锁 Lumi 专属主题与更多时光胶囊，让每段成长有自己的表达。'}}</text>
+      <button class="plus-button" bindtap="onStartTrial" loading="{{saving}}" disabled="{{saving}}">
         {{snapshot.isPro ? ('Pro 会员 · 剩余 ' + snapshot.proDaysLeft + ' 天') : (snapshot.isPlus ? ('Plus 会员 · 剩余 ' + snapshot.plusDaysLeft + ' 天') : (profile.growth.trialStartedAt ? '查看会员' : '免费体验 7 天'))}}
       </button>
       <button class="plus-plan-link" bindtap="onMembershipTap">{{snapshot.isPlus ? '查看权益与购买记录' : '查看会员方案'}}</button>
-      <text class="plus-footnote">基础颜色、表情和隐藏成就均可免费获得。</text>
+      <text class="plus-footnote">已解锁颜色可免费固定展示，会员主题另享权益。</text>
     </view>
 
     <view wx:if="{{!heavySectionsReady}}" id="growth-heavy-anchor" class="growth-heavy-anchor" aria-hidden="true"></view>
@@ -156,7 +163,7 @@
         <view class="report-handle"></view>
         <text class="report-kicker">MONTHLY MOMENTS</text>
         <text class="report-title">{{snapshot.monthlyTitle}}</text>
-        <ip-mascot state="{{snapshot.monthlyColorId}}" expression="happy" size="190rpx" motion="pop" label="月度 Lumi 颜色" />
+        <ip-mascot state="{{snapshot.activeColorId}}" expression="happy" size="190rpx" motion="pop" label="月度 Lumi 回顾" />
         <text class="report-summary">{{snapshot.monthlySummary}}</text>
         <view class="report-stats">
           <view><text class="report-number">{{snapshot.monthVisitCount}}</text><text>新增地点</text></view>

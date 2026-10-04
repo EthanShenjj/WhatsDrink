@@ -18,6 +18,14 @@
       "memorySize": 256
     },
     {
+      "name": "productEvents",
+      "runtime": "Nodejs20.19",
+      "handler": "index.main",
+      "timeout": 10,
+      "memorySize": 256,
+      "installDependency": true
+    },
+    {
       "name": "accountMutation",
       "runtime": "Nodejs20.19",
       "handler": "index.main",

@@ -1,5 +1,5 @@
 {
-  "navigationBarTitleText": "攻略",
+  "navigationBarTitleText": "想去与计划",
   "usingComponents": {
     "local-icon": "/components/local-icon/index",
     "footprint-card": "/components/footprint-card/index",

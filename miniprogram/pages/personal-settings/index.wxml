@@ -25,8 +25,8 @@
       <view class="settings-row" bindtap="onExport" role="button" aria-label="数据导出">
         <view class="row-icon"><local-icon name="download" size="34rpx" /></view>
         <view class="row-copy">
-          <text class="row-title">数据导出</text>
-          <text class="row-hint">导出你的足迹与回忆</text>
+          <text class="row-title">{{exporting ? '正在整理记录…' : '数据导出'}}</text>
+          <text class="row-hint">导出 JSON 记录（照片为文件引用）</text>
         </view>
         <text class="row-arrow">›</text>
       </view>

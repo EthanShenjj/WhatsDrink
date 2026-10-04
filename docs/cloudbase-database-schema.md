@@ -1,17 +1,20 @@
 # 云开发文档型数据库结构
 
-目标环境：`ethan-workspace-d7f7k5ma0befbf77`。项目使用文档型数据库；集合中的字段由云函数写入，不需要预先创建固定列。需要先创建下列六个集合，再设置索引和[访问规则](cloudbase-security-rules.md)。所有用户数据文档都以 `_openid` 标识归属，`_id` 是云数据库文档 ID；客户端看到的 `userId`、`id` 分别由云函数从这些字段转换得到。
+目标环境：`ethan-workspace-d7f7k5ma0befbf77`。项目使用文档型数据库；集合中的字段由云函数写入，不需要预先创建固定列。按下表创建集合，再设置索引和[访问规则](cloudbase-security-rules.md)。所有用户数据文档都以 `_openid` 标识归属，`_id` 是云数据库文档 ID；客户端看到的 `userId`、`id` 分别由云函数从这些字段转换得到。
 
 | 集合 | 云端主要字段 | 使用位置 |
 | --- | --- | --- |
 | `user_profiles` | `_openid`, `nickname`, `avatarUrl`, `createdAt`, `updatedAt` | `login`、`accountMutation` |
-| `footprints` | `_openid`, `status`, `poiName`, `address?`, `lat?`, `lng?`, `country?`, `province?`, `city?`, `district?`, `visitDate?`, `photos`, `mood?`, `category?`, `tags`, `note?`, `markerStyle?`, `source`, `placeId?`, `wishId?`, `isImportant`, `wishlistCreatedAt?`, `fulfilledAt?`, `fulfilledVisitId?`, `convertedFromWishlist?`, `clientRequestId`, `createdAt`, `updatedAt` | `footprintMutation`；旅行计划和时间胶囊也会校验足迹引用 |
+| `footprints` | `_openid`, `status`, `recordLevel?`, `poiName`, `address?`, `lat?`, `lng?`, `country?`, `province?`, `city?`, `district?`, `visitDate?`, `photos`, `mood?`, `category?`, `tags`, `note?`, `markerStyle?`, `source`, `placeId?`, `wishId?`, `isImportant`, `wishlistCreatedAt?`, `fulfilledAt?`, `fulfilledVisitId?`, `convertedFromWishlist?`, `clientRequestId`, `createdAt`, `updatedAt` | `footprintMutation`；旧记录缺少 `recordLevel` 时视为 `place` |
+| `product_events` | `_openid`, `action`, `at` | `productEvents`；仅统计动作与时间，不记录内容或位置 |
 | `travel_plans` | `_openid`, `title`, `city`, `days`, `preferences`, `poiIds`, `dayPlans`, `status`, `createdAt`, `updatedAt` | `travelPlanMutation` |
 | `time_capsules` | `_openid`, `title`, `footprintId?`, `text?`, `photos`, `unlockDate`, `status`, `subscriptionId?`, `createdAt`, `updatedAt`, `unlockedAt?`, `reminderAttemptedAt?`, `reminderAttempts?`, `reminderSentAt?`, `reminderFailedAt?`, `reminderTerminalAt?` | `timeCapsuleMutation`、`sendCapsuleReminder` |
 | `payment_orders` | `_openid`, `outTradeNo`, `wxOrderId?`, `catalogProductId`, `platformProductId`, `productName`, `amountFen`, `durationDays`, `status`, `entitlementStartsAt?`, `entitlementEndsAt?`, `createdAt`, `updatedAt`, `paidAt?`, `fulfilledAt?`, `refundedAt?` | `paymentMutation`、`paymentNotify` |
 | `user_entitlements` | `_openid`, `entitlementKey`, `sourceOrderId`, `startsAt`, `expiresAt`, `status`, `createdAt`, `updatedAt`, `revokedAt?` | `paymentNotify`、支付查单兜底 |
 
 `?` 表示可选字段。`status` 在 `footprints` 中为 `visited`、`wishlist` 或 `fulfilled`；在 `travel_plans` 中为 `planning`、`ongoing` 或 `completed`；在 `time_capsules` 中为 `locked` 或 `unlocked`。`visitDate`、`unlockDate` 使用 `YYYY-MM-DD` 字符串；时间戳字段使用毫秒数。
+
+`recordLevel: city` 只保存中国省市和可选到访日期，不保存经纬度或具体地点内容；旧记录缺省时按 `place` 处理。新增的 `product_events` 集合与云函数需要单独部署，不能从下面的历史环境核对记录推断为已创建。
 
 ## 索引
 
@@ -22,6 +25,7 @@
 | `user_profiles` | `_openid` 升序 | 否（沿用现有索引） | 登录和账号资料查询 |
 | `footprints` | `_openid` 升序，`updatedAt` 降序 | 否 | 按用户列出足迹 |
 | `footprints` | `_openid` 升序，`clientRequestId` 升序 | 建议唯一 | 创建足迹的幂等检查 |
+| `product_events` | `_openid` 升序，`at` 升序 | 否 | 新用户漏斗与回访分析 |
 | `travel_plans` | `_openid` 升序，`updatedAt` 降序 | 否 | 按用户列出旅行计划 |
 | `time_capsules` | `_openid` 升序，`unlockDate` 升序 | 否 | 按用户列出时间胶囊 |
 | `time_capsules` | `status` 升序，`unlockDate` 升序 | 否 | 定时查找待解锁胶囊 |

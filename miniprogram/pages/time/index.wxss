@@ -781,3 +781,16 @@
     animation: none;
   }
 }
+.month-album-toggle {
+  display: flex;
+  align-items: center;
+  gap: 12rpx;
+  padding: 12rpx 0;
+  color: #74748b;
+  font-size: 24rpx;
+}
+.month-album-thumb {
+  width: 56rpx;
+  height: 56rpx;
+  border-radius: 12rpx;
+}

@@ -305,7 +305,7 @@ export const ALL_CITIES: string[] = CHINA_REGIONS[0].children!.flatMap(
 export const findProvince = (name?: string): RegionNode | undefined =>
   CHINA_REGIONS[0].children?.find((p) => p.name === name)
 
-export const citiesOfProvince = (provinceName?: string): string[] => {
+export const citiesOfProvince = (provinceName?: string, observed: Record<string, string[]> = {}): string[] => {
   if (!provinceName) return ALL_CITIES
-  return findProvince(provinceName)?.children?.map((c) => c.name) || []
+  return [...new Set([...(findProvince(provinceName)?.children?.map((c) => c.name) || []), ...(observed[provinceName] || [])])]
 }

@@ -57,6 +57,13 @@ describe('matchesFilter', () => {
 })
 
 describe('computeLighting', () => {
+  it('lights cities without inventing places or visits, while preserving legacy place counts', () => {
+    const city = makeFP({ id: 'city', recordLevel: 'city', province: '四川', city: '成都', poiName: '成都', visitDate: undefined, lat: undefined, lng: undefined })
+    const place = makeFP({ id: 'place', province: '四川', city: '成都', poiName: '人民公园' })
+    const stats = computeLighting([city, place])
+    expect(stats).toMatchObject({ cities: 1, provinces: 1, places: 1, visitedCount: 1 })
+    expect(computeLighting([city])).toMatchObject({ cities: 1, provinces: 1, places: 0, visitedCount: 0 })
+  })
   it('returns zeros for empty list', () => {
     const stats = computeLighting([])
     expect(stats.visitedCount).toBe(0)

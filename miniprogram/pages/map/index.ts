@@ -16,6 +16,7 @@ import {
   getMapSettings,
   saveMapSettings,
   getFootprintSnapshot,
+  didFootprintCloudLoadFail,
 } from '../../services/repository'
 import {
   clusterFootprints,
@@ -34,8 +35,17 @@ import { matchesFilter, computeLighting, computeCityGrowth, placeKey, usedMoods,
 import { formatVisitDate, todayKey } from '../../utils/date'
 import { moodEmoji } from '../../data/options'
 import { MAP_STYLE_IDS, MAP_STYLE_SUBKEY } from '../../services/config'
+import { MAP_TARGET_STORAGE_KEY, MAP_TAB_ENTRY_STORAGE_KEY, CITY_STAMP_TARGET_STORAGE_KEY } from '../../utils/location'
 import { computeGrowthOverview } from '../../utils/growth'
 import { installUpdatePerformanceLogger, recordInteraction } from '../../utils/performance'
+import {
+  buildProvincePolygons,
+  provinceAt,
+  provinceOverviews,
+  provinceViewport,
+} from '../../utils/province-map'
+import type { ProvinceOverview, ProvincePolygon } from '../../utils/province-map'
+import { trackProductEvent } from '../../services/product-events'
 
 interface MapMarker {
   id: number
@@ -110,13 +120,14 @@ interface PageData {
   mapLayerStyle: number
   clusterEnabled: boolean
   loading: boolean
-  empty: boolean
+  dataLoadFailed: boolean
   modeEmpty: boolean
   modeEmptyTitle: string
   modeEmptyDescription: string
   activeFilterCount: number
   activeFilterChips: FilterChip[]
   hasLocationAuth: boolean
+  locationStatus: 'idle' | 'locating' | 'located' | 'denied' | 'failed'
   selectedFootprint: Footprint | null
   detailVisible: boolean
   detailClosing: boolean
@@ -125,12 +136,19 @@ interface PageData {
   lighting: LightingStats | null
   growthCities: CityGrowth[]
   growthCircles: GrowthCircle[]
+  provincePolygons: ProvincePolygon[]
+  provinceOverviews: ProvinceOverview[]
+  selectedProvince: string
+  selectedProvinceOverview: ProvinceOverview | null
   checkinVisible: boolean
   checkinClosing: boolean
   checkinCandidate: CheckinCandidate | null
   checkinDistance: number
   isLocating: boolean
+  checkinPressed: boolean
   mapTilesReady: boolean
+  regionCities: Record<string, string[]>
+  mapLoadDelayed: boolean
   mapLoadFailed: boolean
   mapVisible: boolean
   statusBarHeight: number
@@ -156,6 +174,7 @@ interface ModeView {
 
 const DEFAULT_CENTER = { latitude: 35.0, longitude: 105.0 }
 const DEFAULT_SCALE = 4
+const LIGHTING_OVERVIEW_SCALE = 3
 const USER_AREA_SCALE = 12
 // 与 repository 的共享缓存配合：热切回地图 60 秒内不重新请求足迹
 const FOOTPRINTS_MAX_AGE_MS = 60_000
@@ -164,7 +183,7 @@ const PENDING_MAP_ACTION_STORAGE_KEY = 'sgj:pending-map-action'
 
 const app = getApp<IAppOption>()
 let mapContext: WechatMiniprogram.MapContext | undefined
-const BRAND_MARKER_ICON = '/assets/icons/map-marker.svg'
+const BRAND_MARKER_ICON = '/assets/icons/map-marker-brand.png'
 const MARKER_ICON_BY_COLOR: Record<string, string> = {
   '#5b6cff': BRAND_MARKER_ICON,
   '#ff8f84': '/assets/icons/map-marker-caramel.png',
@@ -293,7 +312,7 @@ const modeCopy = (
   if (mode === 'lighting') {
     return { title: '地图还没有被点亮', description: '每一条去过的足迹，都会点亮一座城市' }
   }
-  return { title: '还没有足迹', description: '从街角到世界，留下你的第一枚拾光' }
+  return { title: '先点亮去过的城市', description: '不用照片和定位，选一座去过的城市，马上看到自己的地图。' }
 }
 
 const scaleToZoom = (scale: number): number => {
@@ -335,13 +354,20 @@ Page<PageData, WechatMiniprogram.IAnyObject>({
   isVisible: false,
   mapReady: false,
   initialLocationStarted: false,
+  locationIntent: 0,
   initialLocationResolved: false,
   hasCenteredOnUser: false,
+  hasExplicitMapTarget: false,
   checkinLocationRequested: false,
   locationPromise: null as Promise<UserLocation> | null,
   initialDataPromise: null as Promise<void> | null,
   loadSequence: 0,
   pendingFootprints: null as Footprint[] | null,
+  pendingCityProvince: '',
+  cityAutoLightingDone: false,
+  mapRetrying: false,
+  checkinNavigating: false,
+  emptyNavigating: false,
 
   data: {
     mode: 'visited',
@@ -356,13 +382,14 @@ Page<PageData, WechatMiniprogram.IAnyObject>({
     mapLayerStyle: MAP_STYLE_IDS[getMapSettings().theme],
     clusterEnabled: getMapSettings().clusterEnabled,
     loading: true,
-    empty: false,
+    dataLoadFailed: false,
     modeEmpty: false,
     modeEmptyTitle: '还没有足迹',
     modeEmptyDescription: '去一个地方，留下你的第一枚拾光',
     activeFilterCount: 0,
     activeFilterChips: [],
     hasLocationAuth: false,
+    locationStatus: 'idle',
     selectedFootprint: null,
     detailVisible: false,
     detailClosing: false,
@@ -371,12 +398,19 @@ Page<PageData, WechatMiniprogram.IAnyObject>({
     lighting: null,
     growthCities: [],
     growthCircles: [],
+    provincePolygons: [],
+    provinceOverviews: [],
+    selectedProvince: '',
+    selectedProvinceOverview: null,
     checkinVisible: false,
     checkinClosing: false,
     checkinCandidate: null,
     checkinDistance: 0,
     isLocating: false,
+    checkinPressed: false,
     mapTilesReady: false,
+    regionCities: {},
+    mapLoadDelayed: false,
     mapLoadFailed: false,
     mapVisible: true,
     statusBarHeight: 20,
@@ -393,6 +427,33 @@ Page<PageData, WechatMiniprogram.IAnyObject>({
 
   onShow() {
     this.isVisible = true
+    this.checkinNavigating = false
+    this.emptyNavigating = false
+    const cityProvince = wx.getStorageSync<string>(CITY_STAMP_TARGET_STORAGE_KEY)
+    if (cityProvince) {
+      this.pendingCityProvince = cityProvince
+      wx.removeStorageSync(CITY_STAMP_TARGET_STORAGE_KEY)
+    }
+    const enteredFromTab = Boolean(wx.getStorageSync(MAP_TAB_ENTRY_STORAGE_KEY))
+    wx.removeStorageSync(MAP_TAB_ENTRY_STORAGE_KEY)
+    const target = wx.getStorageSync<Footprint | undefined>(MAP_TARGET_STORAGE_KEY)
+    if (target) {
+      this.locationIntent += 1
+      wx.removeStorageSync(MAP_TARGET_STORAGE_KEY)
+      this.initialLocationStarted = true
+      this.initialLocationResolved = true
+      this.hasCenteredOnUser = true
+      this.hasExplicitMapTarget = true
+      this.setData({ locationStatus: this.data.hasLocationAuth ? 'located' : 'idle' })
+      this.applyFilter({})
+      this.applyMode(target.status === 'visited' ? 'visited' : 'wishlist')
+      if (hasMapCoordinates(target)) {
+        this.mapScale = 15
+        this.zoomTier = scaleToZoom(15)
+        this.setData({ center: { latitude: target.lat!, longitude: target.lng! }, scale: 15 })
+      }
+      this.setData({ selectedFootprint: target, detailVisible: true, detailClosing: false })
+    }
     const tabBar = this.getTabBar?.()
     if (tabBar) {
       if ((tabBar.data as { selected?: number }).selected !== 0) tabBar.setData({ selected: 0 })
@@ -411,8 +472,8 @@ Page<PageData, WechatMiniprogram.IAnyObject>({
       // 冷启动由快捷打卡接管本次定位，避免与首屏自动定位并发调用 getLocation。
       this.initialLocationStarted = true
       this.onCheckin()
-    } else {
-      this.autoLocateOnEntry()
+    } else if (!target) {
+      this.autoLocateOnEntry(enteredFromTab)
     }
     const settings = getMapSettings()
     if (JSON.stringify(settings) !== JSON.stringify(this.data.settings)) {
@@ -443,13 +504,16 @@ Page<PageData, WechatMiniprogram.IAnyObject>({
 
   onHide() {
     this.isVisible = false
+    // 已隐藏页面的权限/定位回调不得抢回地图中心；下一次显示可重新发起。
+    this.locationIntent += 1
+    if (this.data.locationStatus === 'locating') this.setData({ locationStatus: 'idle' })
   },
 
   onReady() {
     mapContext = wx.createMapContext('sgjMap', this)
     this.mapReady = true
     this.scheduleMapReadyFallback()
-    this.setData({ growthCircles: buildGrowthCircles(this.data.growthCities) }, () => {
+    this.setData({ growthCircles: this.data.mode === 'lighting' ? [] : buildGrowthCircles(this.data.growthCities) }, () => {
       this.refreshMarkers()
     })
   },
@@ -467,12 +531,14 @@ Page<PageData, WechatMiniprogram.IAnyObject>({
           if (hasCloudAccess()) {
             const shouldFitCloudFootprints = !this.hasCenteredOnUser && this.allFootprints.length === 0
             this.loadFootprints(false, shouldFitCloudFootprints)
+          } else if (!this.allFootprints.length) {
+            this.setData({ dataLoadFailed: true })
           }
-        }).catch(() => undefined)
+        }).catch(() => { if (!this.allFootprints.length) this.setData({ dataLoadFailed: true }) })
       }, 350)
     } catch (err) {
       console.warn('[map] init failed', err)
-      this.setData({ loading: false, empty: true })
+      this.setData({ loading: false, dataLoadFailed: true })
     }
   },
 
@@ -488,6 +554,7 @@ Page<PageData, WechatMiniprogram.IAnyObject>({
       this.applyFootprints(list)
     } catch (err) {
       console.warn('[map] refresh failed', err)
+      if (!this.allFootprints.length) this.setData({ dataLoadFailed: true })
     }
   },
 
@@ -506,14 +573,14 @@ Page<PageData, WechatMiniprogram.IAnyObject>({
       })
     } catch (err) {
       console.warn('[map] load footprints failed', err)
-      this.setData({ loading: false, empty: true })
+      if (sequence === this.loadSequence) this.setData({ loading: false, dataLoadFailed: true })
     }
   },
 
   applyFootprints(list: Footprint[], options: { fit?: boolean } = {}) {
     const fit = options.fit === true
     // 引用相同说明数据未变（典型为热切回地图），整段重算与 setData 都可跳过
-    if (list === this.allFootprints && !fit) return
+    if (list === this.allFootprints && !fit && !this.pendingCityProvince) return
     this.allFootprints = list
     const byId: Record<string, Footprint> = {}
     for (const fp of list) byId[fp.id] = fp
@@ -524,37 +591,64 @@ Page<PageData, WechatMiniprogram.IAnyObject>({
     this.filteredFootprints = filtered
     const chips = filterChips(currentFilter)
     const growthCities = computeCityGrowth(list)
-    const view = this.computeModeView(this.data.mode)
+    const overviews = provinceOverviews(filtered)
+    const selectedOverview = overviews.find((item) => item.name === this.data.selectedProvince) || null
+    const autoLighting = !this.cityAutoLightingDone && this.data.mode === 'visited'
+      && list.some((fp) => fp.status === 'visited' && fp.recordLevel === 'city')
+      && !list.some((fp) => fp.status === 'visited' && fp.recordLevel !== 'city')
+    if (autoLighting) this.cityAutoLightingDone = true
+    const effectiveMode: MapMode = autoLighting ? 'lighting' : this.data.mode
+    const view = this.computeModeView(effectiveMode)
+    const regionCities: Record<string, string[]> = {}
+    for (const fp of list) {
+      if (!fp.province) continue
+      const cities = regionCities[fp.province] ||= []
+      if (fp.city && !cities.includes(fp.city)) cities.push(fp.city)
+    }
     this.setData({
+      mode: effectiveMode,
+      regionCities,
       moods: usedMoods(list),
       categories: usedCategories(list),
       lighting: computeLighting(filtered),
       growthCities,
-      growthCircles: this.mapReady ? buildGrowthCircles(growthCities) : [],
+      growthCircles: this.mapReady && effectiveMode !== 'lighting' ? buildGrowthCircles(growthCities) : [],
+      provinceOverviews: overviews,
+      provincePolygons: effectiveMode === 'lighting'
+        ? buildProvincePolygons(overviews.map((item) => item.name), this.data.selectedProvince)
+        : [],
+      selectedProvinceOverview: selectedOverview,
       loading: false,
-      empty: list.length === 0,
+      dataLoadFailed: list.length === 0 && didFootprintCloudLoadFail(),
       activeFilterCount: chips.length,
       activeFilterChips: chips,
       growth: computeGrowthOverview(list, app.globalData.profile),
       ...view.fields,
     })
+    if (this.pendingCityProvince) {
+      const province = this.pendingCityProvince
+      this.pendingCityProvince = ''
+      if (this.data.mode !== 'lighting') this.applyMode('lighting')
+      this.selectProvince(province, true)
+    }
     if (fit) this.fitToFootprints(view.modeList)
     this.refreshMarkers()
   },
 
-  computeModeView(mode: MapMode): ModeView {
+  computeModeView(mode: MapMode, filter?: FilterState): ModeView {
     const modeList = this.filteredFootprints.filter((fp: Footprint) =>
-      mode === 'wishlist' ? fp.status !== 'visited' : fp.status === 'visited',
+      mode === 'wishlist' ? fp.status !== 'visited' : fp.status === 'visited' && fp.recordLevel !== 'city',
     )
     const unplaced = modeList.filter((fp: Footprint) => !hasMapCoordinates(fp))
     const copy = modeCopy(mode)
+    const filtered = Object.values(filter || this.data.currentFilter).some(Boolean)
     return {
       modeList,
       fields: {
         modeEmpty: modeList.length === 0,
         unplacedFootprints: unplaced.map(buildUnplacedFootprintItem),
-        modeEmptyTitle: copy.title,
-        modeEmptyDescription: copy.description,
+        modeEmptyTitle: filtered ? '没有符合筛选的记录' : copy.title,
+        modeEmptyDescription: filtered ? '试试调整条件，或清除筛选查看全部记录。' : copy.description,
       },
     }
   },
@@ -562,7 +656,16 @@ Page<PageData, WechatMiniprogram.IAnyObject>({
   /** 模式切换：合并提交模式与空态字段，仅在确需重定位时调整视野 */
   applyMode(mode: MapMode, options: { fit?: boolean } = {}) {
     const view = this.computeModeView(mode)
-    this.setData({ mode, ...view.fields })
+    this.setData({
+      mode,
+      selectedProvince: '',
+      selectedProvinceOverview: null,
+      provincePolygons: mode === 'lighting'
+        ? buildProvincePolygons(this.data.provinceOverviews.map((item) => item.name))
+        : [],
+      growthCircles: mode === 'lighting' ? [] : buildGrowthCircles(this.data.growthCities),
+      ...view.fields,
+    })
     if (options.fit) this.fitToFootprints(view.modeList)
     this.refreshMarkers()
   },
@@ -572,13 +675,20 @@ Page<PageData, WechatMiniprogram.IAnyObject>({
     this.dataVersion += 1
     this.filteredFootprints = this.allFootprints.filter((fp: Footprint) => matchesFilter(fp, filter))
     const chips = filterChips(filter)
-    const view = this.computeModeView(this.data.mode)
+    const overviews = provinceOverviews(this.filteredFootprints)
+    const selectedOverview = overviews.find((item) => item.name === this.data.selectedProvince) || null
+    const view = this.computeModeView(this.data.mode, filter)
     this.setData({
       currentFilter: filter,
       activeFilterCount: chips.length,
       activeFilterChips: chips,
       filterVisible: options.closeSheet ? false : this.data.filterVisible,
       lighting: computeLighting(this.filteredFootprints),
+      provinceOverviews: overviews,
+      provincePolygons: this.data.mode === 'lighting'
+        ? buildProvincePolygons(overviews.map((item) => item.name), this.data.selectedProvince)
+        : [],
+      selectedProvinceOverview: selectedOverview,
       ...view.fields,
     })
     if (options.fit) this.fitToFootprints(view.modeList)
@@ -668,9 +778,13 @@ Page<PageData, WechatMiniprogram.IAnyObject>({
 
   fitToFootprints(list: Footprint[]) {
     const target = list.filter(hasMapCoordinates)
-    const next = target.length
-      ? fitBounds(target)
-      : { latitude: DEFAULT_CENTER.latitude, longitude: DEFAULT_CENTER.longitude, scale: DEFAULT_SCALE }
+    // 点亮展示的是全国省区版图；按足迹拟合会把只有一两个省份的用户
+    // 放大到街道级别，失去全局统览的意义。
+    const next = this.data.mode === 'lighting'
+      ? { latitude: DEFAULT_CENTER.latitude, longitude: DEFAULT_CENTER.longitude, scale: LIGHTING_OVERVIEW_SCALE }
+      : target.length
+        ? fitBounds(target)
+        : { latitude: DEFAULT_CENTER.latitude, longitude: DEFAULT_CENTER.longitude, scale: DEFAULT_SCALE }
     const prev = this.data.center
     if (
       prev &&
@@ -728,10 +842,80 @@ Page<PageData, WechatMiniprogram.IAnyObject>({
     this.syncTabBarForSheets()
   },
 
-  onMapTap() {
+  onMapTap(e: WechatMiniprogram.CustomEvent<{ latitude?: number; longitude?: number }>) {
     if (this.data.detailVisible) {
       this.closeDetailSheet()
     }
+    if (this.data.mode !== 'lighting') return
+    const { latitude, longitude } = e.detail || {}
+    if (typeof latitude !== 'number' || typeof longitude !== 'number') return
+    const name = provinceAt(latitude, longitude)
+    if (name) this.selectProvince(name)
+    else if (this.data.selectedProvince) this.clearProvinceSelection()
+  },
+
+  selectProvince(name: string, focus = false) {
+    trackProductEvent('province_card_opened')
+    const overview = this.data.provinceOverviews.find((item) => item.name === name) || null
+    const update: Partial<PageData> = {
+      selectedProvince: name,
+      selectedProvinceOverview: overview,
+      provincePolygons: buildProvincePolygons(this.data.provinceOverviews.map((item) => item.name), name),
+    }
+    if (focus) {
+      const viewport = provinceViewport(name)
+      if (viewport) {
+        this.mapScale = viewport.scale
+        this.zoomTier = scaleToZoom(viewport.scale)
+        update.center = { latitude: viewport.latitude, longitude: viewport.longitude }
+        update.scale = viewport.scale
+      }
+    }
+    this.setData(update)
+  },
+
+  openPlaceForm(city = '') {
+    wx.setStorageSync('sgj:quick-place', { country: '中国', province: this.data.selectedProvince, city })
+    wx.navigateTo({ url: '/pages/footprint-form/index?from=place' })
+  },
+
+  onCityTap(e: WechatMiniprogram.TouchEvent) {
+    this.openPlaceForm(String(e.currentTarget.dataset.city || ''))
+  },
+
+  onProvinceAddPlace() {
+    this.openPlaceForm(this.data.selectedProvinceOverview?.cityNames[0] || '')
+  },
+
+  onOpenCityAlbum() {
+    wx.navigateTo({ url: '/pages/city-album/index' })
+  },
+
+  onAddCity() {
+    wx.navigateTo({ url: '/pages/city-stamp/index' })
+  },
+
+  clearProvinceSelection() {
+    this.setData({
+      selectedProvince: '',
+      selectedProvinceOverview: null,
+      provincePolygons: buildProvincePolygons(this.data.provinceOverviews.map((item) => item.name)),
+    })
+    this.fitToFootprints(this.computeModeView('lighting').modeList)
+  },
+
+  onProvinceChipTap(e: WechatMiniprogram.TouchEvent) {
+    const name = String(e.currentTarget.dataset.name || '')
+    if (name) this.selectProvince(name, true)
+  },
+
+  onProvinceCardClose() {
+    this.clearProvinceSelection()
+  },
+
+  onProvinceMemoryTap(e: WechatMiniprogram.TouchEvent) {
+    const id = String(e.currentTarget.dataset.id || '')
+    if (id) wx.navigateTo({ url: `/pages/footprint-detail/index?id=${id}` })
   },
 
   onMapError(e: WechatMiniprogram.CustomEvent<Record<string, unknown>>) {
@@ -751,7 +935,7 @@ Page<PageData, WechatMiniprogram.IAnyObject>({
   onMapUpdated() {
     this.clearMapReadyFallback()
     if (!this.data.mapTilesReady || this.data.mapLoadFailed) {
-      this.setData({ mapTilesReady: true, mapLoadFailed: false })
+      this.setData({ mapTilesReady: true, mapLoadFailed: false, mapLoadDelayed: false })
     }
   },
 
@@ -764,38 +948,50 @@ Page<PageData, WechatMiniprogram.IAnyObject>({
   scheduleMapReadyFallback() {
     if (!this.mapReady) return
     this.clearMapReadyFallback()
-    // 部分开发者工具与旧基础库不会派发 map.updated；短时兜底避免提示永久遮挡底图。
+    this.setData({ mapLoadDelayed: false })
+    // 未收到 updated 不能推断瓦片已经加载；提供不遮挡地图的重新加载入口。
     this.mapReadyFallbackTimer = setTimeout(() => {
       this.mapReadyFallbackTimer = null
       if (!this.data.mapLoadFailed && !this.data.mapTilesReady) {
-        this.setData({ mapTilesReady: true })
+        this.setData({ mapLoadDelayed: true })
       }
-    }, 1800)
+    }, 5000)
   },
 
   retryMapLoad() {
+    if (this.mapRetrying) return
+    this.mapRetrying = true
     this.setData({
       mapVisible: false,
       mapTilesReady: false,
       mapLoadFailed: false,
+      mapLoadDelayed: false,
     }, () => {
       wx.nextTick(() => {
         this.setData({ mapVisible: true }, () => {
           mapContext = wx.createMapContext('sgjMap', this)
           this.scheduleMapReadyFallback()
+          setTimeout(() => { this.mapRetrying = false }, 1000)
         })
       })
     })
+  },
+
+  async retryFootprints() {
+    if (this.data.loading) return
+    this.setData({ loading: true })
+    await loginForAccess({ force: true })
+    if (!hasCloudAccess() && !this.allFootprints.length) {
+      this.setData({ loading: false, dataLoadFailed: true })
+      return
+    }
+    await this.loadFootprints(true, true)
   },
 
   onRegionChange(
     e: WechatMiniprogram.CustomEvent<{ type: 'begin' | 'end'; scale?: number }>,
   ) {
     if (e.detail.type !== 'end') return
-    if (!this.data.mapTilesReady && !this.data.mapLoadFailed) {
-      this.clearMapReadyFallback()
-      this.setData({ mapTilesReady: true })
-    }
     const settle = (scale: number) => {
       if (typeof scale !== 'number' || !Number.isFinite(scale)) return
       // 拖动或程序设定视野的回声：缩放档位未跨越时不写 data、不重建标记，
@@ -812,21 +1008,66 @@ Page<PageData, WechatMiniprogram.IAnyObject>({
   },
 
   /**
-   * 首次进入地图时自动把视野移动到用户所在区域。
+   * 冷启动、失败后返回、主动切入地图 Tab 时自动定位。
    * 已明确拒绝定位时保持现有地图视野，不在启动阶段反复弹窗打扰。
    */
-  autoLocateOnEntry() {
-    if (this.initialLocationStarted) return
+  autoLocateOnEntry(refresh = false, manual = false) {
+    if (this.checkinLocationRequested || this.data.isLocating || this.data.locationStatus === 'locating') return
+    if (this.hasExplicitMapTarget && !refresh) return
+    // 从详情返回保留查看中的地点。失败/拒绝不能当作“定位已完成”永久锁住。
+    if (this.initialLocationStarted && this.data.hasLocationAuth && this.data.locationStatus === 'located' && !refresh) return
+    this.hasExplicitMapTarget = false
     this.initialLocationStarted = true
+    this.initialLocationResolved = false
+    const intent = ++this.locationIntent
+    this.setData({ locationStatus: 'locating' })
     wx.getSetting({
       success: ({ authSetting }) => {
+        if (intent !== this.locationIntent) return
         if (authSetting['scope.userLocation'] === false) {
+          this.setData({ hasLocationAuth: false, locationStatus: 'denied' })
+          this.resolveInitialLocation(false)
+          if (manual) this.showMapLocationPermissionGuide()
+          return
+        }
+        if (authSetting['scope.userLocation'] === true) this.setData({ hasLocationAuth: true })
+        if (!manual && !this.allFootprints.some((fp: Footprint) => fp.status === 'visited' && fp.recordLevel !== 'city') && authSetting['scope.userLocation'] !== true) {
+          this.setData({ locationStatus: 'idle' })
           this.resolveInitialLocation(false)
           return
         }
-        this.requestInitialLocation()
+        this.requestInitialLocation(manual)
       },
-      fail: () => this.requestInitialLocation(),
+      fail: () => {
+        if (intent !== this.locationIntent) return
+        if (!manual && !this.allFootprints.some((fp: Footprint) => fp.status === 'visited' && fp.recordLevel !== 'city')) {
+          this.setData({ locationStatus: 'idle' })
+          this.resolveInitialLocation(false)
+        } else this.requestInitialLocation(manual)
+      },
+    })
+  },
+
+  onLocate() {
+    recordInteraction('map.locate')
+    if (this.data.detailVisible) this.closeDetailSheet()
+    this.autoLocateOnEntry(true, true)
+  },
+
+  showMapLocationPermissionGuide() {
+    wx.showModal({
+      title: '开启位置权限',
+      content: '显示当前位置需要位置权限。开启后会自动定位，不会创建打卡记录。',
+      confirmText: '去设置', cancelText: '暂不',
+      success: ({ confirm }) => {
+        if (!confirm) return
+        wx.openSetting({
+          success: ({ authSetting }) => {
+            if (authSetting['scope.userLocation']) this.autoLocateOnEntry(true, true)
+            else this.setData({ hasLocationAuth: false, locationStatus: 'denied' })
+          },
+        })
+      },
     })
   },
 
@@ -854,12 +1095,18 @@ Page<PageData, WechatMiniprogram.IAnyObject>({
     return request
   },
 
-  requestInitialLocation() {
+  requestInitialLocation(focusLighting = false) {
+    if (this.initialLocationResolved) return
+    const intent = this.locationIntent
+    this.setData({ locationStatus: 'locating' })
     this.getCurrentLocation()
       .then(({ latitude, longitude }: UserLocation) => {
         // 用户已经主动发起快捷打卡时，由打卡流程独占本次定位结果和缩放级别。
-        if (this.checkinLocationRequested) return
+        if (this.checkinLocationRequested || intent !== this.locationIntent) return
         this.resolveInitialLocation(true)
+        this.setData({ locationStatus: 'located', hasLocationAuth: true })
+        // 用户可能在异步定位完成前切到了点亮；保留全国视角。
+        if (this.data.mode === 'lighting' && !focusLighting) return
         this.hasCenteredOnUser = true
         this.mapScale = USER_AREA_SCALE
         this.zoomTier = scaleToZoom(USER_AREA_SCALE)
@@ -873,15 +1120,18 @@ Page<PageData, WechatMiniprogram.IAnyObject>({
         this.refreshMarkers()
       })
       .catch((error: unknown) => {
+        if (intent !== this.locationIntent) return
+        this.setData({ locationStatus: 'failed' })
         this.resolveInitialLocation(false)
-        // 自动定位失败时保留足迹视野；用户仍可通过“快捷打卡”主动重试。
+        // 自动定位失败时保留足迹视野；当前位置按钮提供独立重试入口。
         console.warn('[map] initial location unavailable', error)
       })
   },
 
   onCheckin() {
     recordInteraction('map.checkin')
-    if (this.data.isLocating) return
+    if (this.data.checkinPressed) this.setData({ checkinPressed: false })
+    if (this.data.isLocating || this.data.checkinVisible || this.checkinNavigating) return
     this.checkinLocationRequested = true
     this.setData({ isLocating: true })
     wx.getSetting({
@@ -896,6 +1146,9 @@ Page<PageData, WechatMiniprogram.IAnyObject>({
       fail: () => this.requestCheckinLocation(),
     })
   },
+
+  onCheckinPressStart() { this.setData({ checkinPressed: true }) },
+  onCheckinPressEnd() { this.setData({ checkinPressed: false }) },
 
   async ensureFootprintsForCheckin() {
     try {
@@ -925,6 +1178,7 @@ Page<PageData, WechatMiniprogram.IAnyObject>({
         center: { latitude: res.latitude, longitude: res.longitude },
         scale: 16,
         hasLocationAuth: true,
+        locationStatus: 'located',
         mapTilesReady: false,
         mapLoadFailed: false,
       }, () => this.scheduleMapReadyFallback())
@@ -1008,7 +1262,8 @@ Page<PageData, WechatMiniprogram.IAnyObject>({
 
   onCheckinConfirm() {
     const candidate = this.data.checkinCandidate
-    if (!candidate) return
+    if (!candidate || this.checkinNavigating) return
+    this.checkinNavigating = true
     this.setData({ checkinVisible: false, checkinClosing: false })
     this.syncTabBarForSheets()
     wx.vibrateShort({ type: 'light', fail: () => {} })
@@ -1016,7 +1271,12 @@ Page<PageData, WechatMiniprogram.IAnyObject>({
     wx.setStorageSync(CHECKIN_SOURCE_STORAGE_KEY, candidate.footprint)
     wx.navigateTo({
       url: buildCheckinRoute(candidate),
-      fail: () => wx.removeStorageSync(CHECKIN_SOURCE_STORAGE_KEY),
+      fail: () => {
+        this.checkinNavigating = false
+        wx.removeStorageSync(CHECKIN_SOURCE_STORAGE_KEY)
+        this.setData({ checkinVisible: true })
+        this.syncTabBarForSheets()
+      },
     })
   },
 
@@ -1039,7 +1299,11 @@ Page<PageData, WechatMiniprogram.IAnyObject>({
         wx.setStorageSync('sgj:quick-place', draft)
         wx.navigateTo({ url: '/pages/footprint-form/index?from=place&status=visited&checkin=1' })
       },
-      fail: () => {},
+      fail: (error) => {
+        this.setData({ checkinVisible: true })
+        this.syncTabBarForSheets()
+        if (!error.errMsg.includes('cancel')) wx.showToast({ title: '位置选择失败，请重试', icon: 'none' })
+      },
     })
   },
 
@@ -1158,8 +1422,16 @@ Page<PageData, WechatMiniprogram.IAnyObject>({
   },
 
   onEmptyAction() {
-    const status = this.data.mode === 'wishlist' ? 'wishlist' : 'visited'
-    wx.navigateTo({ url: `/pages/footprint-form/index?status=${status}` })
+    if (this.emptyNavigating) return
+    if (this.data.activeFilterCount) {
+      this.applyFilter({}, { fit: true })
+      return
+    }
+    this.emptyNavigating = true
+    wx.navigateTo({
+      url: this.data.mode === 'wishlist' ? '/pages/footprint-form/index?status=wishlist' : '/pages/city-stamp/index',
+      complete: () => { setTimeout(() => { this.emptyNavigating = false }, 800) },
+    })
   },
 
   preventMove() {},

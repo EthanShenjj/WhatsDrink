@@ -35,8 +35,10 @@ interface PageData {
   memoryDrops: MemoryDrop[]
   memoryImgLoaded: Record<string, boolean>
   albumMotionEnabled: boolean
+  albumExpanded: boolean
   loading: boolean
   empty: boolean
+  loadFailed: boolean
 }
 
 const FOOTPRINTS_MAX_AGE_MS = 60_000
@@ -81,8 +83,10 @@ Page<PageData, WechatMiniprogram.IAnyObject>({
     memoryDrops: [],
     memoryImgLoaded: {},
     albumMotionEnabled: true,
+    albumExpanded: false,
     loading: true,
     empty: false,
+    loadFailed: false,
   },
 
   onLoad() {
@@ -129,7 +133,8 @@ Page<PageData, WechatMiniprogram.IAnyObject>({
       list = await listFootprints({ maxAgeMs: FOOTPRINTS_MAX_AGE_MS })
     } catch (err) {
       console.warn('[time] load failed', err)
-      this.setData({ loading: false, empty: true })
+      this.setData({ loading: false, loadFailed: !this.lastFootprintsSource })
+      if (this.lastFootprintsSource) wx.showToast({ title: '更新失败，当前显示已缓存记录', icon: 'none' })
       return
     }
     if (sequence !== this.loadSequence) return
@@ -175,6 +180,7 @@ Page<PageData, WechatMiniprogram.IAnyObject>({
       memoryDrops: buildMemoryDrops(visited, this.data.todayKey),
       loading: false,
       empty: visited.length === 0,
+      loadFailed: false,
     })
   },
 
@@ -220,6 +226,7 @@ Page<PageData, WechatMiniprogram.IAnyObject>({
   refreshMonthView() {
     const { year, month, selectedKey } = this.data
     this.setData({
+      albumExpanded: false,
       cells: buildMonthGridFromIndex(year, month, this.groupedByDate, new Date()),
       selectedFootprints: sortByVisitDate(this.groupedByDate.get(selectedKey) || [])
         .slice(0, this.selectedFootprintLimit),
@@ -368,7 +375,8 @@ Page<PageData, WechatMiniprogram.IAnyObject>({
   onFootprintTap(e: WechatMiniprogram.CustomEvent<{ id: string }>) {
     const id = e.detail.id
     if (!id) return
-    wx.navigateTo({ url: `/pages/footprint-detail/index?id=${id}` })
+    const record = (this.visitedFootprints as Footprint[]).find((item) => item.id === id)
+    wx.navigateTo({ url: `/${record?.recordLevel === 'city' ? 'pages/city-stamp' : 'pages/footprint-detail'}/index?id=${id}` })
   },
 
   onAddFootprint() {
@@ -376,8 +384,18 @@ Page<PageData, WechatMiniprogram.IAnyObject>({
     wx.navigateTo({ url: `/pages/footprint-form/index?date=${this.data.selectedKey}` })
   },
 
+  onRetryLoad() {
+    if (this.data.loading) return
+    this.setData({ loading: true, loadFailed: false })
+    void this.loadFootprints()
+  },
+
   onCapsuleTap() {
     wx.navigateTo({ url: '/pages/time-capsule/index' })
+  },
+
+  onToggleAlbum() {
+    this.setData({ albumExpanded: !this.data.albumExpanded })
   },
 
   onMemoryDropTap(e: WechatMiniprogram.TouchEvent) {

@@ -32,6 +32,14 @@
   <view class="tab-sheet-mask" bindtap="closeSheet"></view>
   <view class="tab-sheet" role="dialog" aria-label="添加记录">
     <view class="tab-sheet-handle"></view>
+    <view class="tab-sheet-option" data-index="3" bindtap="chooseAction" role="button" aria-label="点亮去过的城市">
+      <view class="tab-sheet-icon"><local-icon name="sparkles" size="34rpx" /></view>
+      <view class="tab-sheet-copy">
+        <text class="tab-sheet-title">点亮去过的城市</text>
+        <text class="tab-sheet-sub">无需照片和定位，先把地图变成自己的</text>
+      </view>
+      <text class="tab-sheet-arrow">›</text>
+    </view>
     <view class="tab-sheet-option" data-index="0" bindtap="chooseAction" role="button" aria-label="当前位置打卡">
       <view class="tab-sheet-icon is-checkin"><local-icon name="locate-white" size="34rpx" /></view>
       <view class="tab-sheet-copy">
@@ -44,7 +52,7 @@
       <view class="tab-sheet-icon"><local-icon name="location" size="34rpx" /></view>
       <view class="tab-sheet-copy">
         <text class="tab-sheet-title">手动记录足迹</text>
-        <text class="tab-sheet-sub">选择具体位置，保存后立即点亮地图</text>
+        <text class="tab-sheet-sub">先留下回忆，也可以稍后补充地图位置</text>
       </view>
       <text class="tab-sheet-arrow">›</text>
     </view>

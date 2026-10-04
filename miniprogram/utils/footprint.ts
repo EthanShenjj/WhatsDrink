@@ -14,20 +14,21 @@ export const matchesFilter = (fp: Footprint, filter: FilterState): boolean => {
 
 export const computeLighting = (footprints: Footprint[]): LightingStats => {
   const visited = footprints.filter((fp) => fp.status === 'visited')
+  const placeVisits = visited.filter((fp) => fp.recordLevel !== 'city')
   const wishlist = footprints.filter((fp) => fp.status === 'wishlist')
   const fulfilled = footprints.filter((fp) => fp.status === 'fulfilled')
   const countries = new Set(visited.map((fp) => fp.country).filter(Boolean))
   const provinces = new Set(visited.map((fp) => fp.province).filter(Boolean))
   const cities = new Set(visited.filter((fp) => fp.city).map((fp) => `${fp.province || ''}/${fp.city}`))
-  const places = new Set(visited.map(placeKey))
-  const legacyFulfilled = new Set(visited.filter((fp) => fp.convertedFromWishlist && !fp.wishId).map((fp) => fp.id))
-  const photoCount = visited.reduce((sum, fp) => sum + (fp.photoCount ?? fp.photos.length), 0)
+  const places = new Set(placeVisits.map(placeKey))
+  const legacyFulfilled = new Set(placeVisits.filter((fp) => fp.convertedFromWishlist && !fp.wishId).map((fp) => fp.id))
+  const photoCount = placeVisits.reduce((sum, fp) => sum + (fp.photoCount ?? fp.photos.length), 0)
   return {
     countries: countries.size,
     provinces: provinces.size,
     cities: cities.size,
     places: places.size,
-    visitedCount: visited.length,
+    visitedCount: placeVisits.length,
     wishlistCount: wishlist.length,
     fulfilledWishCount: fulfilled.length + legacyFulfilled.size,
     photoCount,
@@ -47,12 +48,12 @@ export const placeKey = (fp: Pick<Footprint, 'placeId' | 'poiName' | 'city' | 'p
 }
 
 export const visitsAtPlace = (footprints: Footprint[], place: Footprint): Footprint[] =>
-  sortByVisitDate(footprints.filter((fp) => fp.status === 'visited' && placeKey(fp) === placeKey(place)))
+  sortByVisitDate(footprints.filter((fp) => fp.status === 'visited' && fp.recordLevel !== 'city' && placeKey(fp) === placeKey(place)))
 
 export const computeCityGrowth = (footprints: Footprint[]): CityGrowth[] => {
   const cities = new Map<string, { city: string; province?: string; places: Set<string>; coords: Map<string, [number, number]> }>()
   for (const fp of footprints) {
-    if (fp.status !== 'visited' || !fp.city) continue
+    if (fp.status !== 'visited' || fp.recordLevel === 'city' || !fp.city) continue
     const key = `${fp.province || fp.country || ''}/${fp.city}`
     const item = cities.get(key) || { city: fp.city, province: fp.province, places: new Set<string>(), coords: new Map<string, [number, number]>() }
     const place = placeKey(fp)
@@ -83,7 +84,7 @@ export const buildMemoryDrops = (footprints: Footprint[], today: string, limit =
     for (const char of `${today}:${id}`) hash = Math.imul(hash ^ char.charCodeAt(0), 16777619)
     return hash >>> 0
   }
-  const historical = footprints.filter((fp) => fp.status === 'visited' && fp.visitDate && fp.visitDate < today)
+  const historical = footprints.filter((fp) => fp.status === 'visited' && fp.recordLevel !== 'city' && fp.visitDate && fp.visitDate < today)
   const anniversaries = historical
     .filter((fp) => fp.visitDate!.slice(5) === today.slice(5))
     .sort((a, b) => b.visitDate!.localeCompare(a.visitDate!))

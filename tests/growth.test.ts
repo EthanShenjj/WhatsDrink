@@ -85,22 +85,30 @@ describe('Lumi 成长', () => {
     expect(new Set(states.map((item) => item.mascotState)).size).toBe(states.length)
   })
 
-  it('only applies a locked color while the Plus trial is active', () => {
+  it('defaults to automatic color and keeps an earned fixed color without Plus', () => {
     const now = at('2026-09-24')
     const visits = [
       makeFootprint('1', '2026-09-10'),
       makeFootprint('2', '2026-09-11'),
       makeFootprint('3', '2026-09-12'),
     ]
-    const active = computeGrowthSnapshot(visits, makeProfile({
-      growth: { lockedColorId: 'explore', plusUntil: now + 86_400_000 },
-    }), now)
-    const expired = computeGrowthSnapshot(visits, makeProfile({
-      growth: { lockedColorId: 'explore', plusUntil: now - 1 },
+    const automatic = computeGrowthSnapshot(visits, makeProfile(), now)
+    const fixedProfile = makeProfile({ growth: { lockedColorId: 'explore' } })
+    const fixed = computeGrowthSnapshot(visits, fixedProfile, now)
+    const overview = computeGrowthOverview(visits, fixedProfile, now)
+    const unavailable = computeGrowthSnapshot(visits, makeProfile({
+      growth: { lockedColorId: 'dawn' },
     }), now)
 
-    expect(active.activeColorId).toBe('explore')
-    expect(expired.activeColorId).toBe(expired.weeklyColorId)
+    expect(automatic.colorMode).toBe('auto')
+    expect(automatic.activeColorId).toBe(automatic.weeklyColorId)
+    expect(fixed.colorMode).toBe('fixed')
+    expect(fixed.activeColorId).toBe('explore')
+    expect(fixed.displayTitle).toBe('固定展示 · 探索橙粉')
+    expect(overview.activeColorId).toBe('explore')
+    expect(overview.displayTitle).toBe(fixed.displayTitle)
+    expect(unavailable.colorMode).toBe('auto')
+    expect(unavailable.activeColorId).toBe(unavailable.weeklyColorId)
   })
 
   it('reports an active Pro year separately while keeping Plus benefits active', () => {

@@ -1,0 +1,19 @@
+page { background: #F7F8FF; color: #242941; }
+.city-page { padding: 52rpx 36rpx 80rpx; }
+.hero { display: flex; flex-direction: column; gap: 18rpx; margin-bottom: 54rpx; }
+.eyebrow { color: #5B6CFF; font-size: 23rpx; font-weight: 700; letter-spacing: 3rpx; }
+.title { color: #202540; font-size: 48rpx; font-weight: 700; line-height: 1.25; }
+.subtitle { color: #737B95; font-size: 27rpx; line-height: 1.6; }
+.form-card { padding: 36rpx; border-radius: 28rpx; background: #fff; box-shadow: 0 12rpx 36rpx rgba(44, 57, 125, .07); }
+.field-label { display: block; margin-bottom: 20rpx; font-size: 27rpx; font-weight: 700; }
+.field-hint { display: block; margin-top: 16rpx; color: #8B91A7; font-size: 22rpx; }
+.date-label { margin-top: 48rpx; }
+.optional { color: #9BA1B5; font-size: 22rpx; font-weight: 400; }
+.region-choice { display: flex; justify-content: space-between; align-items: center; min-height: 94rpx; padding: 0 24rpx; border: 2rpx solid #E9EBF5; border-radius: 18rpx; color: #9BA1B5; font-size: 27rpx; }
+.region-choice.has-value { color: #303650; border-color: #B9C1FF; }
+.region-choice text { color: #9BA1B5; font-size: 36rpx; }
+.clear-date { width: max-content; margin-top: 18rpx; color: #5B6CFF; font-size: 23rpx; }
+.primary { margin-top: 64rpx; border-radius: 22rpx; background: #5B6CFF; color: #fff; font-size: 30rpx; font-weight: 700; line-height: 100rpx; }
+.primary[disabled] { background: #BEC4ED; color: #fff; }
+.secondary { margin-top: 34rpx; color: #5B6CFF; text-align: center; font-size: 27rpx; font-weight: 600; }
+.footer-tip { display: block; margin-top: 30rpx; color: #949AAF; text-align: center; font-size: 22rpx; line-height: 1.5; }

@@ -31,6 +31,7 @@
   <view class="fp-body">
     <view class="fp-head">
       <text class="fp-title">{{footprint.poiName}}</text>
+      <text wx:if="{{footprint.pendingSync}}" class="fp-date">{{footprint.syncError ? '同步待重试' : '待同步'}}</text>
       <text wx:if="{{derived.dateLabel}}" class="fp-date">{{derived.dateLabel}}</text>
     </view>
 

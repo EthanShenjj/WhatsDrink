@@ -16,8 +16,6 @@ interface PageData {
   progressPercent: number
   iconColorId: GrowthColorId
   reportVisible: boolean
-  unlockedColorCount: number
-  distanceCalculating: boolean
   heavySectionsReady: boolean
 }
 
@@ -35,8 +33,6 @@ Page<PageData, WechatMiniprogram.IAnyObject>({
     progressPercent: 0,
     iconColorId: 'journey',
     reportVisible: false,
-    unlockedColorCount: 0,
-    distanceCalculating: false,
     heavySectionsReady: false,
   },
 
@@ -81,8 +77,6 @@ Page<PageData, WechatMiniprogram.IAnyObject>({
         loading: false,
         progressPercent: Math.min(100, Math.round(snapshot.nextGoalProgress / snapshot.nextGoalTarget * 100)),
         iconColorId: profile.growth?.iconColorId || snapshot.activeColorId,
-        unlockedColorCount: snapshot.colors.filter((item) => item.unlocked).length,
-        distanceCalculating: true,
       }, () => this.observeHeavySections())
       const hasDistantPair = await hasDistantPairDeferred(footprints)
       if (sequence !== this.loadSequence || !this.isVisible) return
@@ -91,7 +85,6 @@ Page<PageData, WechatMiniprogram.IAnyObject>({
         this.setData({
           'snapshot.hiddenStates': current.hiddenStates.map((item) =>
             item.id === 'distance' ? { ...item, unlocked: hasDistantPair } : item),
-          distanceCalculating: false,
         })
       }
     } catch (error) {
@@ -109,13 +102,18 @@ Page<PageData, WechatMiniprogram.IAnyObject>({
       wx.showToast({ title: color?.hidden ? '继续记录，等待一次特别相遇' : color?.description || '尚未解锁', icon: 'none' })
       return
     }
-    if (!this.data.snapshot?.isPlus) {
-      await this.offerTrial('会员可以自由切换并锁定所有已解锁颜色。')
-      return
+    if (this.data.snapshot?.colorMode === 'fixed' && this.data.snapshot.activeColorId === id) return
+    if (await this.persistPreferences({ lockedColorId: id })) {
+      wx.showToast({ title: '已固定展示这个颜色', icon: 'none' })
     }
-    const next = this.data.profile?.growth?.lockedColorId === id ? undefined : id
-    await this.persistPreferences({ lockedColorId: next })
-    wx.showToast({ title: next ? '已锁定这个颜色' : '已跟随每周状态', icon: 'none' })
+  },
+
+  async onAutoColorTap() {
+    recordInteraction('growth.color.auto')
+    if (this.data.snapshot?.colorMode === 'auto') return
+    if (await this.persistPreferences({ lockedColorId: null })) {
+      wx.showToast({ title: '已开启自动调整', icon: 'none' })
+    }
   },
 
   async onIconTap(event: WechatMiniprogram.TouchEvent) {
@@ -129,9 +127,10 @@ Page<PageData, WechatMiniprogram.IAnyObject>({
       await this.offerTrial('会员可以让 Lumi 使用你的专属颜色。')
       return
     }
-    await this.persistPreferences({ iconColorId: id })
-    this.setData({ iconColorId: id })
-    wx.showToast({ title: '图标主题已同步', icon: 'success' })
+    if (await this.persistPreferences({ iconColorId: id })) {
+      this.setData({ iconColorId: id })
+      wx.showToast({ title: '图标主题已同步', icon: 'success' })
+    }
   },
 
   async onMonthlyReport() {
@@ -202,6 +201,7 @@ Page<PageData, WechatMiniprogram.IAnyObject>({
   },
 
   async activateTrial() {
+    if (this.data.saving) return
     if (this.data.profile?.growth?.trialStartedAt && !this.data.snapshot?.isPlus) {
       wx.navigateTo({ url: '/pages/membership/index' })
       return
@@ -213,18 +213,19 @@ Page<PageData, WechatMiniprogram.IAnyObject>({
     this.setData({ saving: true })
     try {
       const profile = await startGrowthTrial()
-      this.setData({ profile, saving: false })
+      this.setData({ profile })
       await this.loadGrowth()
       wx.showToast({ title: '已开启 7 天体验', icon: 'success' })
     } catch (error) {
       console.warn('[growth] trial failed', error)
-      this.setData({ saving: false })
       wx.showToast({ title: '开启失败，请重试', icon: 'none' })
+    } finally {
+      this.setData({ saving: false })
     }
   },
 
-  async persistPreferences(patch: Parameters<typeof saveGrowthPreferences>[0]) {
-    if (this.data.saving) return
+  async persistPreferences(patch: Parameters<typeof saveGrowthPreferences>[0]): Promise<boolean> {
+    if (this.data.saving) return false
     this.setData({ saving: true })
     try {
       const profile = await saveGrowthPreferences(patch)
@@ -239,12 +240,14 @@ Page<PageData, WechatMiniprogram.IAnyObject>({
         profile,
         snapshot,
         saving: false,
-        unlockedColorCount: snapshot.colors.filter((item) => item.unlocked).length,
+        iconColorId: profile.growth?.iconColorId || snapshot.activeColorId,
       })
+      return true
     } catch (error) {
       console.warn('[growth] save preference failed', error)
       this.setData({ saving: false })
       wx.showToast({ title: '保存失败，请重试', icon: 'none' })
+      return false
     }
   },
 })

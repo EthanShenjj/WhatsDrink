@@ -82,6 +82,7 @@ exports.main = async (event = {}) => {
       if (input.wishId || input.convertedFromWishlist) throw new Error('请通过愿望实现流程关联到访记录')
       const requestId = text(input.clientRequestId, 100)
       if (!requestId) throw new Error('缺少幂等请求标识')
+      const data = sanitizeFootprint(input, OPENID)
 
       const duplicate = await footprints
         .where({ _openid: OPENID, clientRequestId: requestId })
@@ -91,17 +92,23 @@ exports.main = async (event = {}) => {
         return { ok: true, data: publicFootprint(duplicate.data[0]) }
       }
 
-      const id = validId(input.id) || idFromRequest(OPENID, requestId)
+      // 城市点亮以用户和省市为唯一键；跨设备并发保存也不会多计一城。
+      const cityId = data.recordLevel === 'city'
+        ? idFromRequest(OPENID, `city:${data.province}/${data.city}`)
+        : ''
+      const id = cityId || validId(input.id) || idFromRequest(OPENID, requestId)
       const conflict = await footprints.where({ _id: id }).limit(1).get()
       if (conflict.data.length) {
         const existing = conflict.data[0]
+        if (cityId && existing._openid === OPENID && existing.recordLevel === 'city') {
+          return { ok: true, data: publicFootprint(existing) }
+        }
         if (existing._openid === OPENID && existing.clientRequestId === requestId) {
           return { ok: true, data: publicFootprint(existing) }
         }
         throw new Error('足迹已存在，不能覆盖')
       }
 
-      const data = sanitizeFootprint(input, OPENID)
       await footprints.doc(id).set({ data })
       return { ok: true, data: publicFootprint(data, id) }
     }

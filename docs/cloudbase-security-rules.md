@@ -4,7 +4,7 @@
 
 ## 数据库
 
-`user_profiles`、`footprints`、`travel_plans`、`time_capsules`、`payment_orders`、`user_entitlements`：
+`user_profiles`、`footprints`、`product_events`、`travel_plans`、`time_capsules`、`payment_orders`、`user_entitlements`：
 
 ```json
 {
@@ -28,7 +28,7 @@
 
 ## 云函数
 
-`login`、`footprintMutation`、`accountMutation`、`aiAssistant`、`travelPlanMutation`、`timeCapsuleMutation`、`paymentMutation` 设置为：
+`login`、`footprintMutation`、`productEvents`、`accountMutation`、`aiAssistant`、`travelPlanMutation`、`timeCapsuleMutation`、`paymentMutation` 设置为：
 
 ```text
 auth != null

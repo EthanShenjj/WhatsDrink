@@ -37,6 +37,7 @@ interface PageData {
   selectedProductId: PaymentProductId
   orders: OrderView[]
   loading: boolean
+  loadFailed: boolean
   purchasing: boolean
   refreshing: boolean
   isPlus: boolean
@@ -121,9 +122,8 @@ const supportsPayment = (): boolean => {
     })
     return false
   }
-  const system = wx.getSystemInfoSync()
-  if (system.platform !== 'ios') return true
-  const current = String(system.version || '').split('.').map(Number)
+  if (wx.getDeviceInfo().platform !== 'ios') return true
+  const current = String(wx.getAppBaseInfo().version || '').split('.').map(Number)
   const minimum = [8, 0, 68]
   for (let index = 0; index < minimum.length; index += 1) {
     if ((current[index] || 0) > minimum[index]) return true
@@ -146,6 +146,7 @@ Page<PageData, WechatMiniprogram.IAnyObject>({
     selectedProductId: 'plus_372d_v1',
     orders: [],
     loading: true,
+    loadFailed: false,
     purchasing: false,
     refreshing: false,
     isPlus: false,
@@ -206,12 +207,13 @@ Page<PageData, WechatMiniprogram.IAnyObject>({
         reminderAvailable: Boolean(account.reminderTemplateId),
         reminderEnabled: (account.reminderAuthorizations || 0) > 0,
         loading: false,
+        loadFailed: false,
         refreshing: false,
       })
       if (showResult) wx.showToast({ title: '权益已刷新', icon: 'success' })
     } catch (error) {
       console.warn('[membership] load failed', error)
-      this.setData({ loading: false, refreshing: false })
+      this.setData({ loading: false, loadFailed: true, refreshing: false })
       if (showResult) wx.showToast({ title: '刷新失败，请重试', icon: 'none' })
     }
   },
