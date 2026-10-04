@@ -12,7 +12,7 @@
   </view>
   <view class="privacy-section">
     <text class="section-title hand-underline">你可以控制</text>
-    <text>足迹默认仅自己可见。你可以随时编辑或删除单条记录，也可以在“我的”中清除足迹、照片、计划与胶囊。</text>
+    <text>足迹默认仅自己可见。你可以随时编辑或删除单条记录；在“我的 → 个人设置”退出登录会隐藏记录但保留数据，注销账号会永久删除个人资料和记录。注销前可先导出记录；历史支付订单保留用于交易及退款处理。</text>
   </view>
   <view class="privacy-section">
     <text class="section-title hand-underline">按需权限</text>

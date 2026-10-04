@@ -178,11 +178,12 @@ const getOwnedOrder = async (openid, outTradeNo) => {
     .where({ _openid: openid, outTradeNo: String(outTradeNo || '') })
     .limit(1)
     .get()
-  if (!result.data[0]) throw new Error('订单不存在')
+  if (!result.data[0] || result.data[0].accountDeletedAt) throw new Error('订单不存在')
   return result.data[0]
 }
 
 const fulfillPaidOrder = async (found, wxOrderId, paidAt = Date.now()) => {
+  if (found.accountDeletedAt) throw new Error('账号已注销，订单需人工处理')
   if (found.status === 'fulfilled') return found
   const profileResult = await db.collection('user_profiles')
     .where({ _openid: found._openid })
@@ -194,6 +195,7 @@ const fulfillPaidOrder = async (found, wxOrderId, paidAt = Date.now()) => {
 
   await db.runTransaction(async (transaction) => {
     const freshOrder = (await transaction.collection('payment_orders').doc(found._id).get()).data
+    if (freshOrder.accountDeletedAt) throw new Error('账号已注销，订单需人工处理')
     if (freshOrder.status === 'fulfilled') return
     const freshProfile = (await transaction.collection('user_profiles').doc(profile._id).get()).data
     const growth = { ...(freshProfile.growth || {}) }
@@ -347,10 +349,11 @@ exports.main = async (event) => {
 
     if (event.action === 'account') {
       const templateId = membershipTemplateId()
-      let [profile, orders, reminderAuthorizations] = await Promise.all([
-        getProfile(OPENID),
+      let profile = await getProfile(OPENID)
+      const accountCreatedAt = Number(profile.createdAt) || 0
+      let [orders, reminderAuthorizations] = await Promise.all([
         db.collection('payment_orders')
-          .where({ _openid: OPENID })
+          .where({ _openid: OPENID, createdAt: db.command.gte(accountCreatedAt) })
           .orderBy('createdAt', 'desc')
           .limit(30)
           .get(),
@@ -361,7 +364,7 @@ exports.main = async (event) => {
       const reconciledOrders = []
       let reconciliationCount = 0
       let refreshedProfile = false
-      for (const order of orders.data) {
+      for (const order of orders.data.filter((item) => !item.accountDeletedAt && item.createdAt >= accountCreatedAt)) {
         if (order.status === 'pending' && reconciliationCount < 3) {
           reconciliationCount += 1
           try {

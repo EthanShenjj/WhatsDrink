@@ -58,6 +58,29 @@
     <text class="danger-note">清除后无法恢复，请谨慎操作</text>
   </view>
 
+  <view class="settings-group">
+    <text class="group-label">账号管理</text>
+    <view class="settings-card card">
+      <view class="settings-row" bindtap="onSignOut" role="button" aria-label="退出登录">
+        <view class="row-icon"><local-icon name="logout" size="34rpx" /></view>
+        <view class="row-copy">
+          <text class="row-title">退出登录</text>
+          <text class="row-hint">隐藏本机记录，保留云端账号</text>
+        </view>
+        <text class="row-arrow">›</text>
+      </view>
+      <view class="settings-row danger-row {{deletingAccount ? 'is-disabled' : ''}}" bindtap="onDeleteAccount" role="button" aria-label="注销账号" aria-disabled="{{deletingAccount}}">
+        <view class="row-icon danger-icon"><local-icon name="delete" size="34rpx" /></view>
+        <view class="row-copy">
+          <text class="row-title danger-title">{{deletingAccount ? '正在注销…' : '注销账号'}}</text>
+          <text class="row-hint">永久删除个人资料和记录</text>
+        </view>
+        <text class="row-arrow">›</text>
+      </view>
+    </view>
+    <text class="danger-note">重新进入时使用当前微信身份；注销后再次打开会创建空白账号。</text>
+  </view>
+
   <wechat-login-sheet visible="{{loginSheetVisible}}" bind:success="onLoginSuccess" bind:cancel="onLoginCancel" />
   <privacy-popup />
 </view>

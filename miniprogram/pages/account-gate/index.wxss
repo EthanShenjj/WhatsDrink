@@ -1,0 +1,82 @@
+.account-gate {
+  display: flex;
+  min-height: 100vh;
+  padding: 80rpx 48rpx calc(80rpx + env(safe-area-inset-bottom));
+  align-items: center;
+  justify-content: center;
+  background: linear-gradient(165deg, #F7F8FF 0%, #EFF0FF 100%);
+}
+
+.gate-content {
+  display: flex;
+  width: 100%;
+  max-width: 600rpx;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+}
+
+.gate-mark {
+  display: flex;
+  width: 120rpx;
+  height: 120rpx;
+  align-items: center;
+  justify-content: center;
+  border-radius: 36rpx;
+  background: var(--brand-gradient);
+  box-shadow: var(--shadow-fab);
+  color: #fff;
+  font-size: 58rpx;
+  font-weight: 700;
+}
+
+.gate-eyebrow {
+  margin-top: 42rpx;
+  color: var(--brand-primary-deep);
+  font-size: 22rpx;
+  font-weight: 700;
+  letter-spacing: 4rpx;
+}
+
+.gate-title {
+  margin-top: 10rpx;
+  color: var(--ink);
+  font-size: 52rpx;
+  font-weight: 700;
+}
+
+.gate-description {
+  margin-top: 20rpx;
+  color: var(--muted);
+  font-size: 28rpx;
+  line-height: 1.7;
+}
+
+.gate-enter {
+  display: flex;
+  width: 100% !important;
+  height: 96rpx;
+  margin-top: 62rpx;
+  align-items: center;
+  justify-content: center;
+  border-radius: 26rpx;
+  background: var(--brand-gradient);
+  color: #fff;
+  font-size: 30rpx;
+  font-weight: 600;
+}
+
+.gate-enter[disabled] { opacity: .6; }
+
+.gate-error {
+  margin-top: 22rpx;
+  color: var(--danger);
+  font-size: 24rpx;
+}
+
+.gate-note {
+  margin-top: 30rpx;
+  color: var(--muted);
+  font-size: 22rpx;
+  line-height: 1.6;
+}

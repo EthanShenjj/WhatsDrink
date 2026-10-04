@@ -3,7 +3,7 @@ import { describe, expect, it } from 'vitest'
 
 const projectRoot = process.cwd()
 
-const replayPaymentNotifications = (): Record<string, unknown> => {
+const replayPaymentNotifications = (accountDeleted = false): Record<string, unknown> => {
   const script = String.raw`
 const Module = require('module')
 const crypto = require('crypto')
@@ -19,6 +19,7 @@ const state = {
     durationDays: 31,
     entitlementKey: 'plus',
     status: 'pending',
+    accountDeletedAt: ${accountDeleted ? 'now' : 'undefined'},
     createdAt: now,
     updatedAt: now,
   },
@@ -131,6 +132,15 @@ const refundXml = '<xml>'
 }
 
 describe('paymentNotify', () => {
+  it('keeps post-deletion payments for refund review without restoring membership', () => {
+    const result = replayPaymentNotifications(true)
+    const order = result.order as Record<string, unknown>
+    expect(result.delivery).toContain('<ErrCode>0</ErrCode>')
+    expect(result.refund).toContain('<ErrCode>0</ErrCode>')
+    expect(order).toMatchObject({ status: 'refunded', refundReviewRequired: true })
+    expect(result.entitlement).toBeNull()
+  })
+
   it('accepts a refund after fulfillment without confusing channel and XPay order IDs', () => {
     const result = replayPaymentNotifications()
     const order = result.order as Record<string, unknown>

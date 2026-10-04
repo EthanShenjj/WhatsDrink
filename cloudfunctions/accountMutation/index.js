@@ -69,6 +69,26 @@ const clearAllForUser = async (openid) => {
   if (files.length) await deleteCloudFiles(files, openid)
 }
 
+const markHistoricalOrders = async (openid) => {
+  const collection = db.collection('payment_orders')
+  let page = []
+  let offset = 0
+  do {
+    page = (await collection.where({ _openid: openid }).skip(offset).limit(100).get()).data
+    const deletedAt = Date.now()
+    for (const order of page) {
+      if (!order.accountDeletedAt) {
+        await collection.doc(order._id).update({ data: { accountDeletedAt: deletedAt, updatedAt: deletedAt } })
+      }
+    }
+    offset += page.length
+  } while (page.length === 100)
+}
+
+const isMissingCollection = (error) =>
+  /collection.*(?:not.exist|not.found|不存在)|DATABASE_COLLECTION_NOT_EXIST/i
+    .test(`${error && error.code || ''} ${error && error.message || ''}`)
+
 exports.main = async (event) => {
   try {
     const { OPENID } = cloud.getWXContext()
@@ -153,6 +173,11 @@ exports.main = async (event) => {
         .where({ _openid: OPENID })
         .limit(10)
         .get()
+      // Keep payment orders for transaction/refund handling, but detach them from
+      // the account shown if the same WeChat identity creates a new profile.
+      await markHistoricalOrders(OPENID).catch((error) => {
+        if (!isMissingCollection(error)) throw error
+      })
       await clearAllForUser(OPENID)
 
       const avatarFiles = profiles.data
@@ -160,7 +185,15 @@ exports.main = async (event) => {
         .filter((path) => isOwnedCloudFile(path, OPENID))
       if (avatarFiles.length) await deleteCloudFiles(avatarFiles, OPENID)
 
-      await drainCollection('reminder_subscriptions', OPENID).catch(() => undefined)
+      await drainCollection('reminder_subscriptions', OPENID).catch((error) => {
+        if (!isMissingCollection(error)) throw error
+      })
+      await drainCollection('product_events', OPENID).catch((error) => {
+        if (!isMissingCollection(error)) throw error
+      })
+      await drainCollection('user_entitlements', OPENID).catch((error) => {
+        if (!isMissingCollection(error)) throw error
+      })
 
       await Promise.all(
         profiles.data.map((profile) =>

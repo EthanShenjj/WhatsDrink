@@ -90,6 +90,18 @@ const fulfillOrder = async ({
     return
   }
   if (found.status === 'refunded') throw new Error('退款订单不能发货')
+  if (found.accountDeletedAt) {
+    await db.collection('payment_orders').doc(found._id).update({
+      data: {
+        ...(channelOrderId ? { channelOrderId } : {}),
+        ...(wxpayTransactionId ? { wxpayTransactionId } : {}),
+        paidAt: Number.isFinite(paidAt) ? paidAt : Date.now(),
+        refundReviewRequired: true,
+        updatedAt: Date.now(),
+      },
+    })
+    return
+  }
 
   const profileResult = await db.collection('user_profiles')
     .where({ _openid: openid })
@@ -101,6 +113,7 @@ const fulfillOrder = async ({
   const now = Date.now()
   await db.runTransaction(async (transaction) => {
     const freshOrder = (await transaction.collection('payment_orders').doc(found._id).get()).data
+    if (freshOrder.accountDeletedAt) throw new Error('账号已注销，订单需人工处理')
     if (freshOrder.status === 'fulfilled') return
     const freshProfile = (await transaction.collection('user_profiles').doc(profile._id).get()).data
     const entitlementKey = freshOrder.entitlementKey === 'pro' ? 'pro' : 'plus'
@@ -159,6 +172,12 @@ const refundOrder = async ({ outTradeNo, wxOrderId, refundFee }) => {
         refundedAmountFen: Number(refundFee) || 0,
         updatedAt: Date.now(),
       },
+    })
+    return
+  }
+  if (found.accountDeletedAt) {
+    await db.collection('payment_orders').doc(found._id).update({
+      data: { status: 'refunded', ...(wxOrderId ? { wxOrderId } : {}), refundedAt: Date.now(), updatedAt: Date.now() },
     })
     return
   }

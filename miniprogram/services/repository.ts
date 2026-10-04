@@ -29,10 +29,25 @@ let cloudInitialized = false
 let cloudRetryAfter = 0
 let loginPromise: Promise<UserProfile> | null = null
 let profileCache: UserProfile | null = null
+let authEpoch = 0
+const SIGNED_OUT_KEY = 'shiguangji:signed-out'
 const LEGACY_SHARE_SNAPSHOTS_KEY = 'shiguangji:share-snapshots'
 const CLOUD_RETRY_DELAY_MS = 30_000
 
+export const isSignedOut = (): boolean => {
+  try {
+    return wx.getStorageSync<boolean>(SIGNED_OUT_KEY) === true
+  } catch {
+    return false
+  }
+}
+
+const signedOutProfile = (): UserProfile => ({
+  id: 'signed-out', nickname: '', avatarUrl: '', createdAt: 0, updatedAt: 0,
+})
+
 const getStored = <T>(key: string, fallback: T): T => {
+  if (isSignedOut()) return fallback
   try {
     return wx.getStorageSync<T>(key) || fallback
   } catch {
@@ -163,6 +178,7 @@ const persistCloudDetail = async (footprint: Footprint): Promise<void> => {
 
 // 仅更新内存缓存与 globalData，不回写存储：用于本地兜底读取，避免大列表的重复同步 IO
 const rememberFootprints = (list: Footprint[]): void => {
+  if (isSignedOut()) return
   footprintListCache = list
   footprintListCachedAt = Date.now()
   try {
@@ -175,6 +191,7 @@ const rememberFootprints = (list: Footprint[]): void => {
 }
 
 const rememberProfile = (profile: UserProfile): UserProfile => {
+  if (isSignedOut()) return signedOutProfile()
   profileCache = profile
   try {
     getApp<IAppOption>().globalData.profile = profile
@@ -190,6 +207,7 @@ const migrateLegacyDefaultProfile = (profile: UserProfile): UserProfile =>
     : profile
 
 const ensureLocalProfile = (): UserProfile => {
+  if (isSignedOut()) return signedOutProfile()
   if (profileCache) return profileCache
   const existing = getStored<UserProfile | null>(STORAGE_KEYS.profile, null)
   if (existing) {
@@ -244,15 +262,17 @@ export const initializeCloud = (): boolean => {
 }
 
 export const ensureProfile = async (): Promise<UserProfile> => {
+  if (isSignedOut()) return signedOutProfile()
   if (USE_CLOUD && !cloudReady && Date.now() >= cloudRetryAfter) return loginForAccess()
   return ensureLocalProfile()
 }
 
-export const hasSessionAccess = (): boolean => sessionReady
-export const hasCloudAccess = (): boolean => cloudReady
+export const hasSessionAccess = (): boolean => sessionReady && !isSignedOut()
+export const hasCloudAccess = (): boolean => cloudReady && !isSignedOut()
 export const getLocalProfile = (): UserProfile => ensureLocalProfile()
 
 export const loginForAccess = async (options: { force?: boolean } = {}): Promise<UserProfile> => {
+  if (isSignedOut()) return signedOutProfile()
   if (!USE_CLOUD && sessionReady) return ensureLocalProfile()
   if (!USE_CLOUD) {
     sessionReady = true
@@ -266,15 +286,18 @@ export const loginForAccess = async (options: { force?: boolean } = {}): Promise
     return ensureLocalProfile()
   }
 
+  const requestEpoch = authEpoch
   loginPromise = (async () => {
     try {
       const profile = migrateLegacyDefaultProfile(await callCloud<UserProfile>('login', {}))
+      if (requestEpoch !== authEpoch || isSignedOut()) return signedOutProfile()
       cloudReady = true
       cloudRetryAfter = 0
       sessionReady = true
       setStored(STORAGE_KEYS.profile, profile)
       return rememberProfile(profile)
     } catch {
+      if (requestEpoch !== authEpoch || isSignedOut()) return signedOutProfile()
       cloudReady = false
       cloudRetryAfter = Date.now() + CLOUD_RETRY_DELAY_MS
       sessionReady = true
@@ -286,6 +309,50 @@ export const loginForAccess = async (options: { force?: boolean } = {}): Promise
     return await loginPromise
   } finally {
     loginPromise = null
+  }
+}
+
+export const signOutAccount = (): void => {
+  authEpoch += 1
+  wx.setStorageSync(SIGNED_OUT_KEY, true)
+  sessionReady = false
+  cloudReady = false
+  cloudRetryAfter = 0
+  loginPromise = null
+  profileCache = null
+  footprintListCache = null
+  footprintListCachedAt = 0
+  footprintDetailCache.clear()
+  footprintsInFlight = null
+  pendingSyncRerun = false
+  try {
+    const app = getApp<IAppOption>()
+    app.globalData.profile = undefined
+    app.globalData.footprints = []
+    app.globalData.footprintsCachedAt = 0
+    app.globalData.cloudEnabled = false
+  } catch {
+    // App is not available in isolated repository use.
+  }
+}
+
+export const resumeAccount = async (): Promise<UserProfile> => {
+  if (!isSignedOut()) return loginForAccess({ force: true })
+  if (!initializeCloud()) throw new Error('无法连接云端，请联网后重试')
+  const requestEpoch = ++authEpoch
+  try {
+    const profile = migrateLegacyDefaultProfile(await callCloud<UserProfile>('login', {}))
+    if (requestEpoch !== authEpoch) throw new Error('登录已取消，请重试')
+    wx.removeStorageSync(SIGNED_OUT_KEY)
+    sessionReady = true
+    cloudReady = true
+    cloudRetryAfter = 0
+    setStored(STORAGE_KEYS.profile, profile)
+    return rememberProfile(profile)
+  } catch (error) {
+    if (error instanceof CloudBusinessError) throw error
+    if (error instanceof Error && error.message === '登录已取消，请重试') throw error
+    throw new Error('无法连接云端，请联网后重试')
   }
 }
 
@@ -497,7 +564,7 @@ let pendingSyncPromise: Promise<void> | null = null
 let pendingSyncRerun = false
 /** 后台同步不阻塞列表首屏；失败的意图和图片仍保留在本机。 */
 export const syncPendingFootprints = (): Promise<void> => {
-  if (!USE_CLOUD || !cloudReady) return Promise.resolve()
+  if (!USE_CLOUD || !cloudReady || isSignedOut()) return Promise.resolve()
   if (pendingSyncPromise) {
     pendingSyncRerun = true
     return pendingSyncPromise
@@ -505,6 +572,7 @@ export const syncPendingFootprints = (): Promise<void> => {
   readStoredFootprints()
   pendingSyncPromise = (async () => {
     for (const original of pendingFootprints()) {
+      if (isSignedOut()) break
       if (original.footprint.userId !== 'local-user' && original.footprint.userId !== profileCache?.id) continue
       try {
         const fp = { ...original.footprint }
@@ -536,6 +604,7 @@ export const syncPendingFootprints = (): Promise<void> => {
           if (original.edited) saved = await callCloud<Footprint>('footprintMutation', { action: 'update', footprint: { ...fp, id: saved.id } })
         }
         const beforeSync = footprintListCache || readStoredFootprints()
+        if (isSignedOut()) break
         const latest = pendingFootprints()
         // 用户在同步期间编辑或删除了这条记录时，旧响应不能覆盖新意图。
         if (!latest.some((item) => item.footprint.id === fp.id && item.revision === original.revision)) continue
@@ -586,6 +655,7 @@ export const syncPendingFootprints = (): Promise<void> => {
 export const listFootprints = async (
   options: { maxAgeMs?: number } = {},
 ): Promise<Footprint[]> => {
+  if (isSignedOut()) return []
   const maxAgeMs = options.maxAgeMs ?? 0
   if (footprintListCache && maxAgeMs > 0 && Date.now() - footprintListCachedAt < maxAgeMs) {
     return footprintListCache
@@ -617,15 +687,16 @@ export const listFootprints = async (
 }
 
 /** 同步读取当前内存快照，供页面在点击后立即渲染；没有缓存时返回 null。 */
-export const getFootprintSnapshot = (): Footprint[] | null => footprintListCache
+export const getFootprintSnapshot = (): Footprint[] | null => isSignedOut() ? null : footprintListCache
 export const didFootprintCloudLoadFail = (): boolean => footprintCloudLoadFailed
 
-export const getProfileSnapshot = (): UserProfile | null => profileCache
+export const getProfileSnapshot = (): UserProfile | null => isSignedOut() ? null : profileCache
 
 export const getFootprint = async (
   id: string,
   options: { force?: boolean } = {},
 ): Promise<Footprint | undefined> => {
+  if (isSignedOut()) return undefined
   const pending = pendingFootprints().find((item) => item.footprint.id === id)
   if (pending) return pending.action === 'delete' ? undefined : normalizeLocation({ ...pending.footprint, pendingSync: true })
   const detail = footprintDetailCache.get(id)
@@ -1089,12 +1160,30 @@ export const clearAllData = async (): Promise<void> => {
 }
 
 export const deleteAccount = async (): Promise<void> => {
-  await pendingSyncPromise?.catch(() => undefined)
-  await footprintWriteQueue.catch(() => undefined)
+  if (USE_CLOUD && !cloudReady) await loginForAccess({ force: true })
+  if (USE_CLOUD && !cloudReady) {
+    throw new Error('无法连接云端，请联网后重试注销')
+  }
+  const waitForWrites = async (pending: Promise<unknown> | null): Promise<void> => {
+    if (!pending) return
+    let timer: ReturnType<typeof setTimeout> | undefined
+    try {
+      await Promise.race([
+        pending.catch(() => undefined),
+        new Promise<never>((_, reject) => {
+          timer = setTimeout(() => reject(new Error('仍有记录正在同步，请稍后重试注销')), 15_000)
+        }),
+      ])
+    } finally {
+      if (timer) clearTimeout(timer)
+    }
+  }
+  await waitForWrites(pendingSyncPromise)
+  await waitForWrites(footprintWriteQueue)
   const profile = getStored<UserProfile | null>(STORAGE_KEYS.profile, null)
   const footprints = getStored<Footprint[]>(STORAGE_KEYS.footprints, [])
   const legacySnapshots = getStored<Array<{ imageUrl?: string }>>(LEGACY_SHARE_SNAPSHOTS_KEY, [])
-  if (USE_CLOUD && cloudReady) {
+  if (USE_CLOUD) {
     await callCloud('accountMutation', { action: 'deleteAccount' })
   }
   await deleteLocalFiles([
@@ -1104,6 +1193,8 @@ export const deleteAccount = async (): Promise<void> => {
   ])
   Object.values(STORAGE_KEYS).forEach((key) => wx.removeStorageSync(key))
   wx.removeStorageSync(LEGACY_SHARE_SNAPSHOTS_KEY)
+  wx.removeStorageSync('sgj:product-events-pending')
+  wx.removeStorageSync('sgj:first-open-tracked')
   footprintListCache = null
   footprintListCachedAt = 0
   footprintDetailCache.clear()
@@ -1112,6 +1203,15 @@ export const deleteAccount = async (): Promise<void> => {
   cloudRetryAfter = 0
   loginPromise = null
   profileCache = null
+  try {
+    const app = getApp<IAppOption>()
+    app.globalData.profile = undefined
+    app.globalData.footprints = []
+    app.globalData.footprintsCachedAt = Date.now()
+    app.globalData.cloudEnabled = false
+  } catch {
+    // App is not available in isolated repository use.
+  }
 }
 
 // ─── Draft persistence ───

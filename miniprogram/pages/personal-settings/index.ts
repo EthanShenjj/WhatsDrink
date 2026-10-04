@@ -1,5 +1,5 @@
 import type { UserProfile } from '../../domain/types'
-import { clearAllData, ensureProfile } from '../../services/repository'
+import { clearAllData, deleteAccount, ensureProfile, signOutAccount } from '../../services/repository'
 import { buildDataExport } from '../../services/export'
 
 interface PageData {
@@ -7,6 +7,7 @@ interface PageData {
   isLoggedIn: boolean
   loginSheetVisible: boolean
   clearing: boolean
+  deletingAccount: boolean
   exporting: boolean
 }
 
@@ -18,6 +19,7 @@ Page<PageData, WechatMiniprogram.IAnyObject>({
     isLoggedIn: false,
     loginSheetVisible: false,
     clearing: false,
+    deletingAccount: false,
     exporting: false,
   },
 
@@ -54,7 +56,7 @@ Page<PageData, WechatMiniprogram.IAnyObject>({
   },
 
   async onExport() {
-    if (this.data.exporting || this.data.clearing) return
+    if (this.data.exporting || this.data.clearing || this.data.deletingAccount) return
     if (typeof wx.shareFileMessage !== 'function') {
       wx.showToast({ title: '请更新微信后使用文件导出', icon: 'none' })
       return
@@ -93,7 +95,7 @@ Page<PageData, WechatMiniprogram.IAnyObject>({
   },
 
   async onClearAll() {
-    if (this.data.clearing || this.data.exporting) return
+    if (this.data.clearing || this.data.exporting || this.data.deletingAccount) return
     const confirmed = await this.confirmClear()
     if (!confirmed) return
 
@@ -123,5 +125,66 @@ Page<PageData, WechatMiniprogram.IAnyObject>({
         fail: () => resolve(false),
       })
     })
+  },
+
+  async onDeleteAccount() {
+    if (this.data.deletingAccount || this.data.clearing || this.data.exporting) return
+    const confirmed = await new Promise<boolean>((resolve) => {
+      wx.showModal({
+        title: '注销账号',
+        content: '将永久删除账号资料、足迹、照片、计划和胶囊，且无法恢复。历史支付订单仅用于交易及退款处理；再次打开小程序会创建新的空白账号。建议先导出记录。确定注销吗？',
+        confirmText: '确认注销',
+        confirmColor: '#C74E63',
+        cancelText: '取消',
+        success: ({ confirm }) => resolve(Boolean(confirm)),
+        fail: () => resolve(false),
+      })
+    })
+    if (!confirmed || this.data.deletingAccount) return
+    this.setData({ deletingAccount: true })
+    wx.showLoading({ title: '正在注销…', mask: true })
+    try {
+      await deleteAccount()
+      app.globalData.profile = undefined
+      app.globalData.footprints = []
+      app.globalData.footprintsCachedAt = Date.now()
+      app.globalData.cloudEnabled = false
+      wx.hideLoading()
+      wx.showModal({
+        title: '账号已注销',
+        content: '个人记录已删除。再次打开小程序时，将以当前微信身份创建新的空白账号。',
+        showCancel: false,
+        confirmText: '知道了',
+        complete: () => {
+          if (typeof wx.exitMiniProgram === 'function') {
+            wx.exitMiniProgram({ fail: () => wx.reLaunch({ url: '/pages/map/index' }) })
+          } else {
+            wx.reLaunch({ url: '/pages/map/index' })
+          }
+        },
+      })
+    } catch (error) {
+      wx.hideLoading()
+      wx.showToast({ title: error instanceof Error ? error.message : '注销失败，请重试', icon: 'none' })
+    } finally {
+      this.setData({ deletingAccount: false })
+    }
+  },
+
+  async onSignOut() {
+    if (this.data.deletingAccount || this.data.clearing || this.data.exporting) return
+    const confirmed = await new Promise<boolean>((resolve) => {
+      wx.showModal({
+        title: '退出登录',
+        content: '退出后会隐藏本机记录并停止自动读取云端。记录不会删除，重新进入需联网；未同步的记录仍保存在这台设备上。',
+        confirmText: '退出登录',
+        cancelText: '取消',
+        success: ({ confirm }) => resolve(Boolean(confirm)),
+        fail: () => resolve(false),
+      })
+    })
+    if (!confirmed) return
+    signOutAccount()
+    wx.reLaunch({ url: '/pages/account-gate/index' })
   },
 })

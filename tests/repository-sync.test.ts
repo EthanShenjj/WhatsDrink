@@ -65,6 +65,27 @@ beforeEach(() => {
 })
 
 describe('footprint durable synchronization', () => {
+  it('keeps local records when cloud account deletion cannot be confirmed', async () => {
+    const repo = await import('../miniprogram/services/repository')
+    storage[keys.full] = [{ id: 'saved-offline', photos: [] }]
+    online = false
+    await expect(repo.deleteAccount()).rejects.toThrow('无法连接云端')
+    expect(storage[keys.full]).toHaveLength(1)
+    expect(calls.some(({ data }) => data.action === 'deleteAccount')).toBe(false)
+  })
+
+  it('deletes the cloud account before clearing local account data', async () => {
+    const repo = await import('../miniprogram/services/repository')
+    await repo.loginForAccess()
+    storage[keys.full] = [{ id: 'saved-online', photos: [] }]
+    storage['sgj:product-events-pending'] = [{ id: 'event-1' }]
+    await repo.deleteAccount()
+    expect(calls.some(({ name, data }) => name === 'accountMutation' && data.action === 'deleteAccount')).toBe(true)
+    expect(storage[keys.full]).toBeUndefined()
+    expect(storage['sgj:product-events-pending']).toBeUndefined()
+    expect(repo.hasCloudAccess()).toBe(false)
+  })
+
   it('exposes cloud list failure even when an empty local cache is returned', async () => {
     const repo = await import('../miniprogram/services/repository')
     await repo.loginForAccess()

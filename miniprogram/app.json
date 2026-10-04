@@ -13,6 +13,7 @@
     "pages/ticket-share/index",
     "pages/settings/index",
     "pages/personal-settings/index",
+    "pages/account-gate/index",
     "pages/mine-edit/index",
     "pages/privacy/index",
     "pages/travel-plan/index",

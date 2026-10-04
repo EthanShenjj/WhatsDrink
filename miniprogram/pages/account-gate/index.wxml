@@ -1,0 +1,11 @@
+<view class="account-gate">
+  <view class="gate-content">
+    <view class="gate-mark">拾</view>
+    <text class="gate-eyebrow">SHIGUANGJI</text>
+    <text class="gate-title">已退出登录</text>
+    <text class="gate-description">你的记录已隐藏。重新进入后，可以继续查看足迹、计划和时光胶囊。</text>
+    <button class="gate-enter" loading="{{entering}}" disabled="{{entering}}" bindtap="onEnter">{{entering ? '正在连接…' : '使用当前微信账号进入'}}</button>
+    <text wx:if="{{error}}" class="gate-error" role="alert">{{error}}</text>
+    <text class="gate-note">退出不会删除记录。未同步的内容仍保存在这台设备上；重新进入需要网络连接。</text>
+  </view>
+</view>
