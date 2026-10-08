@@ -102,6 +102,44 @@ describe('map startup location flow', () => {
     expect(wx.showLoading).toHaveBeenCalledTimes(1)
     expect(wx.hideLoading).toHaveBeenCalledTimes(1)
   })
+
+  it('responds immediately and reuses startup location when quick check-in is tapped', async () => {
+    let resolveLocation!: (value: { latitude: number; longitude: number }) => void
+    vi.mocked(wx.getSetting).mockImplementation(({ success }: any) => {
+      success?.({ authSetting: { 'scope.userLocation': true } })
+    })
+    vi.mocked(wx.getLocation).mockImplementation(({ success, fail }: any) => {
+      new Promise<{ latitude: number; longitude: number }>((resolve) => {
+        resolveLocation = resolve
+      }).then(success, fail)
+    })
+    const page = createPage()
+    page.isVisible = true
+    page.ensureFootprintsForCheckin = vi.fn().mockResolvedValue(undefined)
+    page.requestInitialLocation()
+
+    page.onCheckin()
+
+    expect(page.data.isLocating).toBe(true)
+    expect(wx.showLoading).toHaveBeenCalledWith({ title: '正在准备打卡', mask: true })
+    expect(wx.getLocation).toHaveBeenCalledTimes(1)
+
+    resolveLocation({ latitude: 31.2304, longitude: 121.4737 })
+    await vi.waitFor(() => expect(page.data.checkinVisible).toBe(true))
+    expect(page.data.isLocating).toBe(false)
+    expect(wx.hideLoading).toHaveBeenCalledTimes(1)
+  })
+
+  it('gives feedback instead of silently ignoring a repeated quick check-in tap', () => {
+    const page = createPage()
+    page.checkinLocationRequested = true
+    page.data.isLocating = true
+
+    page.onCheckin()
+
+    expect(wx.showToast).toHaveBeenCalledWith({ title: '正在获取位置', icon: 'none' })
+    expect(wx.getSetting).not.toHaveBeenCalled()
+  })
   it('limits dense native markers and lets a maximum-zoom cluster open its records', () => {
     const page = createPage()
     page.mapReady = true

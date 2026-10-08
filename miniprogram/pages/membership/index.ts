@@ -1,5 +1,6 @@
 import type {
   MembershipBenefit,
+  MembershipAccount,
   MembershipLevelView,
   MembershipTier,
   PaymentOrder,
@@ -13,6 +14,7 @@ import { trackProductEvent } from '../../services/product-events'
 import { installUpdatePerformanceLogger, startPerformanceSpan } from '../../utils/performance'
 import {
   createPaymentOrder,
+  getCachedMembershipAccount,
   getMembershipAccount,
   getPaymentOrder,
   saveReminderSubscription,
@@ -274,74 +276,78 @@ Page<PageData, WechatMiniprogram.IAnyObject>({
   onLoad() {
     installUpdatePerformanceLogger(this, 'membership')
     trackProductEvent('membership_page_viewed')
+    // 先用本地会员快照完成首屏，云端账户在后台校准购买记录和提醒状态。
+    this.applyAccount(getCachedMembershipAccount(), false)
     this.loadAccount()
   },
 
-  async loadAccount(showResult = false) {
+  applyAccount(account: MembershipAccount, settled = true) {
+    const growth = account.profile.growth
+    const plusUntil = growth?.plusUntil
+    const proUntil = growth?.proUntil
+    const isPlus = isGrowthPlusActive(growth)
+    const isPro = isGrowthProActive(growth)
+    const membershipLevel = getMembershipLevelView(growth)
+    const selectedProduct = !this.selectionInitialized && membershipLevel.level === 'pro'
+      ? proProduct
+      : productViews.find((item) => item.id === this.data.selectedProductId) || plusProducts[1]
+    this.selectionInitialized = true
+    const accountOrders: OrderView[] = account.orders.map((order) => ({
+      ...order,
+      priceLabel: formatPrice(order.amountFen),
+      statusLabel: STATUS_LABELS[order.status],
+      dateLabel: formatDate(order.fulfilledAt || order.createdAt),
+    }))
+    const orders = accountOrders.slice(0, 3)
+    const hasFulfilledOrder = account.hasFulfilledOrder
+      ?? accountOrders.some((order) => order.status === 'fulfilled')
+    const plusDaysLeft = membershipDaysLeft(plusUntil)
+    const proDaysLeft = membershipDaysLeft(proUntil)
+    const membershipExpiring = isPlus
+      && membershipLevel.level !== 'trial'
+      && isMembershipExpiringSoon(isPro ? proUntil : plusUntil)
+    const activeExpiryLabel = !isPlus
+      ? ''
+      : isPro
+        ? `剩余 ${proDaysLeft} 天 · ${formatDate(proUntil)} 到期${membershipExpiring ? '，即将到期' : ''}`
+        : `剩余 ${plusDaysLeft} 天 · ${formatDate(plusUntil)} 到期${membershipExpiring ? '，即将到期' : ''}`
+    const currentLevelIndex = membershipLevel.level === 'pro' ? 2 : membershipLevel.level === 'free' ? 0 : 1
+    this.setData({
+      profile: account.profile,
+      memberNumber: String(account.profile.id || 'MEMBER').slice(-6).toUpperCase(),
+      orders,
+      isPlus,
+      isPro,
+      membershipLevel,
+      selectedTier: selectedProduct.tier,
+      selectedProductId: selectedProduct.id,
+      selectedIsPro: selectedProduct.tier === 'pro',
+      selectedProductName: selectedProduct.name,
+      currentLevelIndex,
+      ...levelPreviewData(currentLevelIndex, currentLevelIndex),
+      isTrial: membershipLevel.level === 'trial',
+      plusUntilLabel: plusUntil ? formatDate(plusUntil) : '',
+      proUntilLabel: proUntil ? formatDate(proUntil) : '',
+      activeExpiryLabel,
+      membershipExpiring,
+      hasExpiredMembership: !isPlus && hasFulfilledOrder,
+      hasExpiredTrial: !isPlus
+        && Boolean(growth?.trialStartedAt)
+        && !hasFulfilledOrder,
+      reminderTemplateId: account.reminderTemplateId || '',
+      reminderAvailable: Boolean(account.reminderTemplateId),
+      reminderEnabled: (account.reminderAuthorizations || 0) > 0,
+      selectedBuyLabel: buyLabel(selectedProduct, membershipLevel.level),
+      ...(settled ? { loading: false, loadFailed: false, refreshing: false } : {}),
+    })
+  },
+
+  async loadAccount(showResult = false, reconcilePending = false) {
     const end = startPerformanceSpan('membership.loadAccount')
     try {
-      const account = await getMembershipAccount()
-      const growth = account.profile.growth
-      const plusUntil = growth?.plusUntil
-      const proUntil = growth?.proUntil
-      const isPlus = isGrowthPlusActive(growth)
-      const isPro = isGrowthProActive(growth)
-      const membershipLevel = getMembershipLevelView(growth)
-      const selectedProduct = !this.selectionInitialized && membershipLevel.level === 'pro'
-        ? proProduct
-        : productViews.find((item) => item.id === this.data.selectedProductId) || plusProducts[1]
-      this.selectionInitialized = true
-      const accountOrders: OrderView[] = account.orders.map((order) => ({
-        ...order,
-        priceLabel: formatPrice(order.amountFen),
-        statusLabel: STATUS_LABELS[order.status],
-        dateLabel: formatDate(order.fulfilledAt || order.createdAt),
-      }))
-      const orders = accountOrders.slice(0, 3)
-      const hasFulfilledOrder = account.hasFulfilledOrder
-        ?? accountOrders.some((order) => order.status === 'fulfilled')
-      const plusDaysLeft = membershipDaysLeft(plusUntil)
-      const proDaysLeft = membershipDaysLeft(proUntil)
-      // Pro 生效期间 plusUntil 不会早于 proUntil，展示等级对应的到期口径
-      const membershipExpiring = isPlus
-        && membershipLevel.level !== 'trial'
-        && isMembershipExpiringSoon(isPro ? proUntil : plusUntil)
-      const activeExpiryLabel = !isPlus
-        ? ''
-        : isPro
-          ? `剩余 ${proDaysLeft} 天 · ${formatDate(proUntil)} 到期${membershipExpiring ? '，即将到期' : ''}`
-          : `剩余 ${plusDaysLeft} 天 · ${formatDate(plusUntil)} 到期${membershipExpiring ? '，即将到期' : ''}`
-      const currentLevelIndex = membershipLevel.level === 'pro' ? 2 : membershipLevel.level === 'free' ? 0 : 1
-      this.setData({
-        profile: account.profile,
-        memberNumber: String(account.profile.id || 'MEMBER').slice(-6).toUpperCase(),
-        orders,
-        isPlus,
-        isPro,
-        membershipLevel,
-        selectedTier: selectedProduct.tier,
-        selectedProductId: selectedProduct.id,
-        selectedIsPro: selectedProduct.tier === 'pro',
-        selectedProductName: selectedProduct.name,
-        currentLevelIndex,
-        ...levelPreviewData(currentLevelIndex, currentLevelIndex),
-        isTrial: membershipLevel.level === 'trial',
-        plusUntilLabel: plusUntil ? formatDate(plusUntil) : '',
-        proUntilLabel: proUntil ? formatDate(proUntil) : '',
-        activeExpiryLabel,
-        membershipExpiring,
-        hasExpiredMembership: !isPlus && hasFulfilledOrder,
-        hasExpiredTrial: !isPlus
-          && Boolean(growth?.trialStartedAt)
-          && !hasFulfilledOrder,
-        reminderTemplateId: account.reminderTemplateId || '',
-        reminderAvailable: Boolean(account.reminderTemplateId),
-        reminderEnabled: (account.reminderAuthorizations || 0) > 0,
-        selectedBuyLabel: buyLabel(selectedProduct, membershipLevel.level),
-        loading: false,
-        loadFailed: false,
-        refreshing: false,
-      }, () => end({ orders: account.orders.length }))
+      const account = await getMembershipAccount({ reconcilePending })
+      this.applyAccount(account)
+      end({ orders: account.orders.length })
       if (showResult) wx.showToast({ title: '权益已刷新', icon: 'success' })
     } catch (error) {
       end({ failed: 1 })
@@ -507,7 +513,7 @@ Page<PageData, WechatMiniprogram.IAnyObject>({
   onSyncPaymentStatus() {
     if (this.data.refreshing) return
     this.setData({ refreshing: true })
-    this.loadAccount(true)
+    this.loadAccount(true, true)
   },
 
   onOrdersTap() {

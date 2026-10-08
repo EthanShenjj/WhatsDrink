@@ -349,13 +349,18 @@ exports.main = async (event) => {
 
     if (event.action === 'account') {
       const templateId = membershipTemplateId()
+      const reconcilePending = event.reconcilePending === true
       let profile = await getProfile(OPENID)
       const accountCreatedAt = Number(profile.createdAt) || 0
       let [orders, fulfilledOrders, reminderAuthorizations] = await Promise.all([
         db.collection('payment_orders')
-          .where({ _openid: OPENID, createdAt: db.command.gte(accountCreatedAt) })
+          .where({
+            _openid: OPENID,
+            createdAt: db.command.gte(accountCreatedAt),
+            hiddenAt: db.command.exists(false),
+          })
           .orderBy('createdAt', 'desc')
-          .limit(30)
+          .limit(3)
           .get(),
         db.collection('payment_orders')
           .where({
@@ -372,7 +377,7 @@ exports.main = async (event) => {
       let reconciliationCount = 0
       let refreshedProfile = false
       for (const order of orders.data.filter((item) => !item.accountDeletedAt && item.createdAt >= accountCreatedAt)) {
-        if (order.status === 'pending' && reconciliationCount < 3) {
+        if (reconcilePending && order.status === 'pending' && reconciliationCount < 3) {
           reconciliationCount += 1
           try {
             const reconciled = await reconcileOrder(order)

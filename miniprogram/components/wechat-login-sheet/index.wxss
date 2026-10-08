@@ -232,12 +232,12 @@
   width: 100% !important;
   max-width: none !important;
   min-width: 0 !important;
-  min-height: 94rpx;
+  min-height: 88rpx;
   align-items: center;
   justify-content: center;
   margin: 0 !important;
   padding: 0 20rpx;
-  border-radius: 47rpx;
+  border-radius: 44rpx;
   background: linear-gradient(135deg, #5b76ff 0%, #927dff 100%);
   box-shadow: 0 12rpx 28rpx rgba(91, 108, 255, 0.28);
   color: #ffffff;

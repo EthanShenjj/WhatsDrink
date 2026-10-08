@@ -10,5 +10,5 @@ page { background: #F7F8FF; }
 .option { display: flex; justify-content: space-between; align-items: center; min-height: 96rpx; color: #30364E; font-size: 25rpx; }
 .option + .option { border-top: 1rpx solid #EFF0F5; }
 .option-hint { display: block; padding-top: 14rpx; color: #9299AE; font-size: 21rpx; line-height: 1.5; }
-.save-button { margin-top: 36rpx; border-radius: 20rpx; background: #5B6CFF; color: #fff; font-size: 28rpx; line-height: 96rpx; }
+.save-button { min-height: 88rpx; margin-top: 32rpx; border-radius: 24rpx; background: #5B6CFF; color: #fff; font-size: 27rpx; line-height: 88rpx; }
 .save-button[disabled] { background: #BFC5E5; color: #fff; }

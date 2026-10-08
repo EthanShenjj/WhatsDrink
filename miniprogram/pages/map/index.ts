@@ -1387,19 +1387,27 @@ Page<PageData, WechatMiniprogram.IAnyObject>({
   onCheckin() {
     recordInteraction('map.checkin')
     if (this.data.checkinPressed) this.setData({ checkinPressed: false })
-    if (this.data.isLocating || this.data.checkinVisible || this.checkinNavigating) return
+    if (this.data.checkinVisible || this.checkinNavigating) return
+    if (this.checkinLocationRequested || this.data.isLocating) {
+      wx.showToast({ title: '正在获取位置', icon: 'none' })
+      return
+    }
     this.checkinLocationRequested = true
     this.setData({ isLocating: true })
+    // getSetting 在部分真机上也可能有可感知延迟，点击后先给即时反馈。
+    // 后续定位复用 getCurrentLocation 的在途请求，避免与首屏自动定位重复申请。
+    wx.showLoading({ title: '正在准备打卡', mask: true })
     wx.getSetting({
       success: ({ authSetting }) => {
         if (authSetting['scope.userLocation'] === false) {
           this.setData({ isLocating: false })
+          wx.hideLoading()
           this.showLocationPermissionGuide()
           return
         }
-        this.requestCheckinLocation()
+        this.requestCheckinLocation(true)
       },
-      fail: () => this.requestCheckinLocation(),
+      fail: () => this.requestCheckinLocation(true),
     })
   },
 
@@ -1422,8 +1430,8 @@ Page<PageData, WechatMiniprogram.IAnyObject>({
     }
   },
 
-  async requestCheckinLocation() {
-    wx.showLoading({ title: '正在准备打卡', mask: true })
+  async requestCheckinLocation(loadingAlreadyVisible = false) {
+    if (!loadingAlreadyVisible) wx.showLoading({ title: '正在准备打卡', mask: true })
     try {
       const res = await this.getCurrentLocation()
       this.resolveInitialLocation(true)

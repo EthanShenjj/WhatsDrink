@@ -28,6 +28,15 @@ describe('audited presentation regressions', () => {
     expect(tab).toContain('this.syncMapRecordSheet(true)')
     expect(tab).toContain('this.syncMapRecordSheet(false)')
   })
+  it('shows immediate progress for quick check-in and keeps common action buttons compact', () => {
+    const map = read('pages/map/index.wxml')
+    const appStyles = read('app.wxss')
+    const tabStyles = read('custom-tab-bar/index.wxss')
+    expect(map).toContain("isLocating ? '正在定位' : '快捷打卡'")
+    expect(appStyles).toMatch(/\.primary-button\s*\{[\s\S]*?min-height:\s*88rpx/)
+    expect(appStyles).not.toMatch(/\.primary-button\s*\{[\s\S]*?min-height:\s*96rpx/)
+    expect(tabStyles).toMatch(/\.tab-sheet-option\s*\{[\s\S]*?min-height:\s*88rpx/)
+  })
   it('uses the same guide page title as its entry and content', () => {
     expect(JSON.parse(read('pages/guide/index.json')).navigationBarTitleText).toBe('想去与计划')
   })

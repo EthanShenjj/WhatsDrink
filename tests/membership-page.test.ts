@@ -2,6 +2,7 @@ import { beforeAll, beforeEach, describe, expect, it, vi } from 'vitest'
 
 const repository = vi.hoisted(() => ({
   createPaymentOrder: vi.fn(),
+  getCachedMembershipAccount: vi.fn(),
   getMembershipAccount: vi.fn(),
   getPaymentOrder: vi.fn(),
   saveReminderSubscription: vi.fn(),
@@ -47,6 +48,7 @@ beforeEach(() => {
     setData(patch: Record<string, unknown>) { Object.assign(this.data, patch) },
   }
   repository.getMembershipAccount.mockReset().mockResolvedValue(account())
+  repository.getCachedMembershipAccount.mockReset().mockReturnValue(account())
   repository.createPaymentOrder.mockReset()
   repository.getPaymentOrder.mockReset()
   repository.saveReminderSubscription.mockReset()
@@ -59,6 +61,24 @@ beforeEach(() => {
 })
 
 describe('membership page interactions', () => {
+  it('renders the cached membership immediately while the cloud account refresh is pending', async () => {
+    let resolveRemote!: (value: ReturnType<typeof account>) => void
+    const cached = account({ plusUntil: Date.now() + 31 * 86_400_000 })
+    repository.getCachedMembershipAccount.mockReturnValueOnce(cached)
+    repository.getMembershipAccount.mockImplementationOnce(() => new Promise((resolve) => {
+      resolveRemote = resolve
+    }))
+
+    page.onLoad()
+
+    expect(repository.getCachedMembershipAccount).toHaveBeenCalledOnce()
+    expect(page.data.membershipLevel.level).toBe('plus')
+    expect(page.data.loading).toBe(true)
+
+    resolveRemote(cached)
+    await vi.waitFor(() => expect(page.data.loading).toBe(false))
+  })
+
   it('switches tier first, then lets Plus users choose either duration with the exact CTA', () => {
     page.onTierTap({ currentTarget: { dataset: { tier: 'pro' } } })
     expect(page.data.selectedTier).toBe('pro')
@@ -116,6 +136,14 @@ describe('membership page interactions', () => {
   it('opens the paginated order history from the recent purchase section', () => {
     page.onOrdersTap()
     expect(wx.navigateTo).toHaveBeenCalledWith({ url: '/pages/payment-orders/index' })
+  })
+
+  it('only reconciles pending payments after an explicit sync action', async () => {
+    page.onSyncPaymentStatus()
+    await vi.waitFor(() => expect(repository.getMembershipAccount).toHaveBeenCalledWith({
+      reconcilePending: true,
+    }))
+    expect(page.data.refreshing).toBe(false)
   })
 
   it('keeps the membership page preview to the three most recent orders', async () => {

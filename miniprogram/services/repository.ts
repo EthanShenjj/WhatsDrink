@@ -456,16 +456,23 @@ const syncMembershipAccount = (account: MembershipAccount): MembershipAccount =>
   return account
 }
 
-export const getMembershipAccount = async (): Promise<MembershipAccount> => {
+export const getCachedMembershipAccount = (): MembershipAccount => ({
+  profile: getLocalProfile(),
+  orders: getStored<PaymentOrder[]>(STORAGE_KEYS.paymentOrders, []).slice(0, 3),
+})
+
+export const getMembershipAccount = async (
+  options: { reconcilePending?: boolean } = {},
+): Promise<MembershipAccount> => {
   if (USE_CLOUD && !cloudReady) await loginForAccess()
   if (USE_CLOUD && cloudReady) {
-    const account = await callCloud<MembershipAccount>('paymentMutation', { action: 'account' })
+    const account = await callCloud<MembershipAccount>('paymentMutation', {
+      action: 'account',
+      reconcilePending: Boolean(options.reconcilePending),
+    })
     return syncMembershipAccount(account)
   }
-  return {
-    profile: await ensureProfile(),
-    orders: getStored<PaymentOrder[]>(STORAGE_KEYS.paymentOrders, []),
-  }
+  return getCachedMembershipAccount()
 }
 
 export const createPaymentOrder = async (

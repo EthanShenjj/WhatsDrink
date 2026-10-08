@@ -1,4 +1,5 @@
 import { execFileSync } from 'node:child_process'
+import { readFileSync } from 'node:fs'
 import { describe, expect, it } from 'vitest'
 
 const runCloudScenario = (script: string): Record<string, any> => JSON.parse(execFileSync(
@@ -8,6 +9,13 @@ const runCloudScenario = (script: string): Record<string, any> => JSON.parse(exe
 ))
 
 describe('membership cloud enforcement', () => {
+  it('keeps the membership account query lightweight until payment sync is requested', () => {
+    const source = readFileSync('cloudfunctions/paymentMutation/index.js', 'utf8')
+    expect(source).toContain('const reconcilePending = event.reconcilePending === true')
+    expect(source).toMatch(/action === 'account'[\s\S]*?\.limit\(3\)/)
+    expect(source).toContain("if (reconcilePending && order.status === 'pending'")
+  })
+
   it('never shortens paid Plus time when the trial endpoint is called', () => {
     const result = runCloudScenario(String.raw`
 const Module = require('module')

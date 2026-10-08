@@ -145,8 +145,8 @@
   align-items: center;
   box-sizing: border-box;
   gap: 16rpx;
-  min-height: 96rpx;
-  padding: 10rpx 8rpx;
+  min-height: 88rpx;
+  padding: 8rpx;
   border-bottom: 1rpx solid var(--line);
 }
 
@@ -158,10 +158,10 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  width: 58rpx;
-  height: 58rpx;
-  flex: 0 0 58rpx;
-  border-radius: 18rpx;
+  width: 54rpx;
+  height: 54rpx;
+  flex: 0 0 54rpx;
+  border-radius: 17rpx;
   background: var(--brand-surface-tint);
   color: var(--brand-primary-deep);
 }
@@ -186,13 +186,13 @@
 
 .tab-sheet-title {
   color: var(--ink);
-  font-size: 26rpx;
+  font-size: 25rpx;
   font-weight: 600;
 }
 
 .tab-sheet-sub {
   color: var(--muted);
-  font-size: 20rpx;
+  font-size: 19rpx;
 }
 
 .tab-sheet-arrow {

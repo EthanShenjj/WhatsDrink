@@ -130,12 +130,12 @@ button::after {
   align-items: center;
   justify-content: center;
   width: 100% !important;
-  min-height: 96rpx;
-  border-radius: 48rpx;
+  min-height: 88rpx;
+  border-radius: 44rpx;
   background: var(--brand-gradient);
   box-shadow: var(--shadow-fab);
   color: #FFFFFF;
-  font-size: 32rpx;
+  font-size: 29rpx;
   font-weight: 600;
   letter-spacing: 1rpx;
 }
@@ -145,12 +145,12 @@ button::after {
   align-items: center;
   justify-content: center;
   width: 100% !important;
-  min-height: 96rpx;
-  border-radius: 48rpx;
+  min-height: 88rpx;
+  border-radius: 44rpx;
   background: var(--amber);
   box-shadow: var(--shadow-fab);
   color: #FFFFFF;
-  font-size: 32rpx;
+  font-size: 29rpx;
   font-weight: 600;
 }
 

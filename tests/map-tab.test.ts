@@ -76,4 +76,26 @@ describe('map tab location intent', () => {
       ;(globalThis as any).getCurrentPages = () => [{ onLocate: locate }]
     }
   })
+
+  it('starts quick check-in on the current map page when chosen from the record sheet', () => {
+    const checkin = vi.fn()
+    ;(globalThis as any).getCurrentPages = () => [{
+      route: 'pages/map/index',
+      onCheckin: checkin,
+      onRecordSheetVisibilityChange: vi.fn(),
+    }]
+    try {
+      const tab = createTab(0)
+      tab.data.sheetVisible = true
+
+      tab.chooseAction({ currentTarget: { dataset: { index: 0 } } })
+
+      expect(checkin).toHaveBeenCalledOnce()
+      expect(wx.switchTab).not.toHaveBeenCalled()
+      expect(tab.data.sheetVisible).toBe(false)
+      expect(tab.data.hidden).toBe(false)
+    } finally {
+      ;(globalThis as any).getCurrentPages = () => [{ onLocate: locate }]
+    }
+  })
 })

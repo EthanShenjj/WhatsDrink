@@ -182,20 +182,21 @@
 
   <cover-view
     wx:if="{{mode === 'visited' && tabReady && !modeEmpty && !recordSheetVisible && !checkinVisible && !checkinClosing && !detailVisible && !detailClosing && !filterVisible}}"
-    class="map-checkin-cta {{checkinPressed ? 'map-checkin-cta--pressed' : ''}}"
+    class="map-checkin-cta {{checkinPressed ? 'map-checkin-cta--pressed' : ''}} {{isLocating ? 'is-loading' : ''}}"
     bindtouchstart="onCheckinPressStart"
     bindtouchend="onCheckinPressEnd"
     bindtouchcancel="onCheckinPressEnd"
     bindtap="onCheckin"
     role="button"
-    aria-label="当前位置快捷打卡"
+    aria-label="{{isLocating ? '正在获取当前位置' : '当前位置快捷打卡'}}"
+    aria-disabled="{{isLocating}}"
   >
     <cover-view class="map-checkin-icon">
       <cover-image class="map-checkin-icon-image" src="/assets/icons/locate-white.png" />
     </cover-view>
     <cover-view class="map-checkin-copy">
-      <cover-view class="map-checkin-title">快捷打卡</cover-view>
-      <cover-view class="map-checkin-subtitle">记录此刻位置</cover-view>
+      <cover-view class="map-checkin-title">{{isLocating ? '正在定位' : '快捷打卡'}}</cover-view>
+      <cover-view class="map-checkin-subtitle">{{isLocating ? '请稍候…' : '记录此刻位置'}}</cover-view>
     </cover-view>
   </cover-view>
   </view>
