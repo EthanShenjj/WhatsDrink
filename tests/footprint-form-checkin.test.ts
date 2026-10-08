@@ -17,6 +17,7 @@ vi.mock('../miniprogram/services/repository', () => repositoryMocks)
 vi.mock('../miniprogram/utils/performance', () => ({
   installUpdatePerformanceLogger: vi.fn(),
   recordInteraction: vi.fn(),
+  startPerformanceSpan: vi.fn(() => vi.fn()),
 }))
 
 type PageDefinition = Record<string, any> & { data: Record<string, any> }

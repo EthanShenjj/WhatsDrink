@@ -1,4 +1,5 @@
 import type {
+  AnnualMemoryReport,
   Footprint,
   GrowthColorId,
   GrowthColorView,
@@ -7,6 +8,7 @@ import type {
   GrowthPreferences,
   GrowthOverview,
   GrowthSnapshot,
+  HistoricalMonthReport,
   UserProfile,
 } from '../domain/types'
 import { placeKey } from './footprint'
@@ -128,10 +130,109 @@ const selectState = (params: {
 }
 
 export const isGrowthPlusActive = (preferences?: GrowthPreferences, now = Date.now()): boolean =>
-  Boolean(preferences?.plusUntil && preferences.plusUntil > now)
+  Boolean(
+    (preferences?.plusUntil && preferences.plusUntil > now)
+    || (preferences?.proUntil && preferences.proUntil > now),
+  )
 
 export const isGrowthProActive = (preferences?: GrowthPreferences, now = Date.now()): boolean =>
   Boolean(preferences?.proUntil && preferences.proUntil > now)
+
+const fulfilledTime = (item: Footprint): number =>
+  item.fulfilledAt || item.updatedAt || item.createdAt
+
+const reportVisits = (footprints: Footprint[]): Footprint[] =>
+  footprints.filter((item) => item.status === 'visited' && item.recordLevel !== 'city')
+
+const reportFulfilled = (footprints: Footprint[]): Footprint[] => [
+  ...footprints.filter((item) => item.status === 'fulfilled'),
+  ...footprints.filter((item) => item.status === 'visited' && item.convertedFromWishlist && !item.wishId),
+]
+
+const topCityOf = (visits: Footprint[]): string | undefined => {
+  const counts = new Map<string, number>()
+  visits.forEach((item) => {
+    if (item.city) counts.set(item.city, (counts.get(item.city) || 0) + 1)
+  })
+  return [...counts.entries()].sort((a, b) => b[1] - a[1])[0]?.[0]
+}
+
+/** Plus 历史月份回顾：只返回当前月份之前且有足迹的月份，不保存报告副本。 */
+export const buildHistoricalMonthReports = (
+  footprints: Footprint[],
+  now = Date.now(),
+): HistoricalMonthReport[] => {
+  const currentMonth = monthKeyOf(now)
+  const visits = reportVisits(footprints)
+  const fulfilled = reportFulfilled(footprints)
+  const groups = new Map<string, Footprint[]>()
+  visits.forEach((item) => {
+    const key = monthKeyOf(visitTime(item))
+    if (key >= currentMonth) return
+    groups.set(key, [...(groups.get(key) || []), item])
+  })
+  return [...groups.entries()]
+    .sort(([left], [right]) => right.localeCompare(left))
+    .map(([key, monthVisits]) => {
+      const year = Number(key.slice(0, 4))
+      const month = Number(key.slice(5, 7))
+      const topCity = topCityOf(monthVisits)
+      const fulfilledCount = fulfilled.filter((item) => monthKeyOf(fulfilledTime(item)) === key).length
+      return {
+        key,
+        year,
+        month,
+        label: `${year} 年 ${month} 月`,
+        title: `${month} 月回顾`,
+        summary: `留下 ${monthVisits.length} 段足迹${topCity ? `，最常走进 ${topCity}` : ''}${fulfilledCount ? `，实现 ${fulfilledCount} 个想去` : ''}。`,
+        visitCount: monthVisits.length,
+        cityCount: new Set(monthVisits.map((item) => item.city).filter(Boolean)).size,
+        fulfilledCount,
+      }
+    })
+}
+
+/** Pro 年度回顾：按现有足迹实时计算；只有上一年也有记录时才生成跨年对比。 */
+export const buildAnnualMemoryReports = (
+  footprints: Footprint[],
+  now = Date.now(),
+): AnnualMemoryReport[] => {
+  const currentYear = new Date(now).getFullYear()
+  const visits = reportVisits(footprints)
+  const fulfilled = reportFulfilled(footprints)
+  const groups = new Map<number, Footprint[]>()
+  visits.forEach((item) => {
+    const year = new Date(visitTime(item)).getFullYear()
+    groups.set(year, [...(groups.get(year) || []), item])
+  })
+  const ascending = [...groups.entries()]
+    .sort(([left], [right]) => left - right)
+    .map(([year, yearVisits]) => {
+      const topCity = topCityOf(yearVisits)
+      const fulfilledCount = fulfilled.filter((item) => new Date(fulfilledTime(item)).getFullYear() === year).length
+      return {
+        year,
+        label: year === currentYear ? `${year} 年至今` : `${year} 年`,
+        title: year === currentYear ? `${year} 年至今回顾` : `${year} 年度回顾`,
+        summary: `这一年留下 ${yearVisits.length} 段足迹${topCity ? `，在 ${topCity} 记录得最多` : ''}${fulfilledCount ? `，实现 ${fulfilledCount} 个想去` : ''}。`,
+        visitCount: yearVisits.length,
+        cityCount: new Set(yearVisits.map((item) => item.city).filter(Boolean)).size,
+        photoCount: yearVisits.reduce((total, item) => total + (item.photoCount ?? item.photos.length), 0),
+        fulfilledCount,
+      }
+    })
+  return ascending.map((report, index) => {
+    const previous = ascending[index - 1]
+    if (!previous || previous.year !== report.year - 1) return report
+    const delta = report.visitCount - previous.visitCount
+    const comparisonText = delta === 0
+      ? `与 ${previous.year} 年记录数量相同`
+      : delta > 0
+        ? `比 ${previous.year} 年多记录 ${delta} 段足迹`
+        : `比 ${previous.year} 年少记录 ${Math.abs(delta)} 段足迹`
+    return { ...report, comparisonText }
+  }).reverse()
+}
 
 export const computeGrowthOverview = (
   footprints: Footprint[],

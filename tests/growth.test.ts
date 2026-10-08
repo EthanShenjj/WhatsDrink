@@ -1,6 +1,8 @@
 import { describe, expect, it } from 'vitest'
 import type { Footprint, UserProfile } from '../miniprogram/domain/types'
 import {
+  buildAnnualMemoryReports,
+  buildHistoricalMonthReports,
   computeGrowthOverview,
   computeGrowthSnapshot,
   hasDistantPairDeferred,
@@ -125,6 +127,16 @@ describe('Lumi 成长', () => {
     expect(snapshot.proDaysLeft).toBe(372)
   })
 
+  it('treats Pro as including Plus even when a migrated profile has no plusUntil value', () => {
+    const now = at('2026-09-24')
+    const snapshot = computeGrowthSnapshot([], makeProfile({
+      growth: { proUntil: now + 30 * 86_400_000 },
+    }), now)
+
+    expect(snapshot.isPro).toBe(true)
+    expect(snapshot.isPlus).toBe(true)
+  })
+
   it('builds a lightweight overview for navigation surfaces', () => {
     const overview = computeGrowthOverview([
       makeFootprint('1', '2026-09-20'),
@@ -144,5 +156,28 @@ describe('Lumi 成长', () => {
     ]
 
     await expect(hasDistantPairDeferred(visits, 1000, 1)).resolves.toBe(true)
+  })
+
+  it('builds historical month reports while keeping the current month outside the Plus archive', () => {
+    const reports = buildHistoricalMonthReports([
+      makeFootprint('january', '2026-01-05', { city: '成都' }),
+      makeFootprint('february', '2026-02-05', { city: '上海' }),
+      makeFootprint('current', '2026-09-20', { city: '北京' }),
+    ], at('2026-09-24'))
+
+    expect(reports.map((report) => report.key)).toEqual(['2026-02', '2026-01'])
+    expect(reports[0]).toMatchObject({ visitCount: 1, cityCount: 1 })
+  })
+
+  it('builds Pro annual reports and only compares consecutive years with records', () => {
+    const reports = buildAnnualMemoryReports([
+      makeFootprint('2025-a', '2025-05-01', { photos: ['a.jpg'] }),
+      makeFootprint('2026-a', '2026-04-01', { photos: ['b.jpg', 'c.jpg'] }),
+      makeFootprint('2026-b', '2026-06-01', { city: '上海' }),
+    ], at('2026-09-24'))
+
+    expect(reports[0]).toMatchObject({ year: 2026, visitCount: 2, cityCount: 2, photoCount: 2 })
+    expect(reports[0].comparisonText).toBe('比 2025 年多记录 1 段足迹')
+    expect(reports[1].comparisonText).toBeUndefined()
   })
 })

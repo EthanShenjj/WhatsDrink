@@ -80,6 +80,31 @@ describe('clusterFootprints', () => {
     expect(result.some((r) => 'count' in r && r.count >= 4)).toBe(true)
   })
 
+  it('keeps distant coastal cities separate at wide zoom and anchors the local badge on a visit', () => {
+    const footprints = [
+      makeFootprint(31.89815, 121.17393, 'nantong-a'),
+      makeFootprint(31.89296, 121.17055, 'nantong-b'),
+      makeFootprint(31.87297, 121.17919, 'nantong-c'),
+      makeFootprint(31.86935, 121.18214, 'nantong-d'),
+      makeFootprint(31.23247, 121.48700, 'shanghai-a'),
+      makeFootprint(31.23162, 121.48461, 'shanghai-b'),
+      makeFootprint(31.23040, 121.47370, 'shanghai-c'),
+    ]
+    const result = clusterFootprints(footprints, 4)
+    const cluster = result.find((item) => 'footprintIds' in item)
+    expect(cluster).toBeDefined()
+    expect(cluster!.count).toBe(4)
+    expect(cluster!.footprintIds).toEqual([
+      'nantong-a', 'nantong-b', 'nantong-c', 'nantong-d',
+    ])
+    expect(footprints.some((fp) => fp.lat === cluster!.latitude && fp.lng === cluster!.longitude)).toBe(true)
+    expect(cluster!.latitude).toBeGreaterThan(31.8)
+    expect(result.filter((item) => !('footprintIds' in item)).map((item) => item.id)).toEqual([
+      'shanghai-a', 'shanghai-b', 'shanghai-c',
+    ])
+    expect(clusterFootprints(footprints, 12).some((item) => 'count' in item && item.count === 7)).toBe(false)
+  })
+
   it('does not cluster spread-out footprints', () => {
     const fps = [
       makeFootprint(30, 104, 'a'),
@@ -148,6 +173,14 @@ describe('fitBounds', () => {
     ])
     expect(result.latitude).toBeCloseTo(30, 0)
     expect(result.longitude).toBeCloseTo(105, 0)
+  })
+
+  it('leaves room to show coastal visits that are roughly 70 km apart', () => {
+    const result = fitBounds([
+      makeFootprint(31.89815, 121.17393, 'nantong'),
+      makeFootprint(31.23040, 121.47370, 'shanghai'),
+    ])
+    expect(result.scale).toBe(9)
   })
 
   it('centers overseas visits across the date line instead of the wrong side of the world', () => {

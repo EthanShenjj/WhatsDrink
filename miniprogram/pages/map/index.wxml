@@ -12,7 +12,7 @@
     markers="{{markers}}"
     circles="{{growthCircles}}"
     polygons="{{provincePolygons}}"
-    show-location="{{hasLocationAuth}}"
+    show-location="{{false}}"
     enable-rotate="{{false}}"
     enable-overlooking="{{true}}"
     enable-3D="{{false}}"
@@ -21,6 +21,7 @@
     enable-scroll="{{true}}"
     bindtap="onMapTap"
     bindmarkertap="onMarkerTap"
+    bindcallouttap="onMarkerTap"
     bindregionchange="onRegionChange"
     binderror="onMapError"
     bindabilityfail="onMapAbilityFail"
@@ -50,7 +51,7 @@
   </view>
   <view wx:if="{{dataLoadFailed && !loading}}" class="map-runtime-error map-data-error">
     <text class="map-runtime-error-title">足迹暂时没加载出来</text>
-    <text class="map-runtime-error-copy">请检查网络后重试</text>
+    <text class="map-runtime-error-copy">已加载的记录会保留，请检查网络后重试</text>
     <button class="map-runtime-retry" bindtap="retryFootprints">重新加载足迹</button>
   </view>
   <view wx:if="{{locationStatus === 'locating' && !mapLoadFailed && !dataLoadFailed}}" class="map-runtime-status map-locating-status">
@@ -106,22 +107,39 @@
   </view>
 
   <!-- 底部浮层栈：状态信息在上，快捷打卡固定靠近底部导航。 -->
-  <view class="map-bottom-stack {{checkinVisible || checkinClosing || detailVisible || detailClosing || filterVisible ? 'is-covered' : ''}}">
-  <view wx:if="{{unplacedFootprints.length && mode !== 'lighting'}}" class="unplaced-panel">
+  <view class="map-bottom-stack {{checkinVisible || checkinClosing || detailVisible || detailClosing || filterVisible || recordSheetVisible ? 'is-covered' : ''}}">
+  <view wx:if="{{clusterTotal}}" class="unplaced-panel">
     <view class="unplaced-head">
-      <text class="unplaced-title">待补充位置</text>
-      <text class="unplaced-count">{{unplacedFootprints.length}}</text>
+      <text class="unplaced-title">聚合中的足迹</text>
+      <text class="unplaced-count">{{clusterTotal}}</text>
+      <text class="unplaced-head-action" bindtap="onClusterClose">关闭</text>
+    </view>
+    <scroll-view scroll-y class="unplaced-list">
+      <view wx:for="{{clusterItems}}" wx:key="id" class="unplaced-row" data-id="{{item.id}}" bindtap="onClusterItemTap">
+        <view class="unplaced-copy">
+          <text class="unplaced-name">{{item.poiName}}</text>
+          <text class="unplaced-date">{{item.dateLabel || item.locationLabel}}</text>
+        </view>
+        <text class="unplaced-arrow">›</text>
+      </view>
+    </scroll-view>
+    <view wx:if="{{clusterItems.length < clusterTotal}}" class="unplaced-more" bindtap="onClusterLoadMore">加载更多</view>
+  </view>
+  <view wx:if="{{unplacedTotal && mode !== 'lighting' && !clusterTotal}}" class="unplaced-panel">
+    <view class="unplaced-head">
+      <text class="unplaced-title">{{mode === 'wishlist' ? '想去的地方' : '待补充位置'}}</text>
+      <text class="unplaced-count">{{unplacedTotal}}</text>
     </view>
     <scroll-view scroll-y class="unplaced-list">
       <view
         wx:for="{{unplacedFootprints}}"
         wx:key="id"
-        class="unplaced-row"
+        class="unplaced-row {{selectedWishlistId === item.id ? 'is-selected' : ''}}"
         hover-class="press-dim"
         data-id="{{item.id}}"
         bindtap="onUnplacedTap"
         role="button"
-        aria-label="为 {{item.poiName}} 补充位置"
+        aria-label="{{mode === 'wishlist' && item.canFocusOnMap ? '查看' : '为'}} {{item.poiName}} {{mode === 'wishlist' && item.canFocusOnMap ? '在地图上的位置' : '补充位置'}}"
       >
         <view class="unplaced-thumb">
           <image wx:if="{{item.photo}}" class="unplaced-photo" src="{{item.photo}}" mode="aspectFill" lazy-load />
@@ -133,12 +151,14 @@
           <text class="unplaced-name">{{item.poiName}}</text>
           <view class="unplaced-meta">
             <text class="unplaced-status {{item.isWishlist ? 'is-wishlist' : ''}}">{{item.statusLabel}}</text>
-            <text wx:if="{{item.dateLabel}}" class="unplaced-date">{{item.dateLabel}}</text>
+            <text class="unplaced-date">{{mode === 'wishlist' ? item.locationLabel : (item.dateLabel || item.locationLabel)}}</text>
           </view>
         </view>
-        <text class="unplaced-arrow">›</text>
+        <view wx:if="{{mode === 'wishlist' && !item.hasExactLocation}}" class="unplaced-edit" data-id="{{item.id}}" catchtap="onUnplacedEdit" role="button" aria-label="为 {{item.poiName}} 补充精确位置">补位置</view>
+        <text wx:else class="unplaced-arrow">›</text>
       </view>
     </scroll-view>
+    <view wx:if="{{unplacedFootprints.length < unplacedTotal}}" class="unplaced-more" bindtap="onUnplacedLoadMore">加载更多</view>
   </view>
 
   <view wx:if="{{modeEmpty && !loading && !dataLoadFailed && mode !== 'lighting'}}" class="map-empty">
@@ -161,7 +181,7 @@
   </view>
 
   <cover-view
-    wx:if="{{mode === 'visited' && tabReady && !modeEmpty}}"
+    wx:if="{{mode === 'visited' && tabReady && !modeEmpty && !recordSheetVisible && !checkinVisible && !checkinClosing && !detailVisible && !detailClosing && !filterVisible}}"
     class="map-checkin-cta {{checkinPressed ? 'map-checkin-cta--pressed' : ''}}"
     bindtouchstart="onCheckinPressStart"
     bindtouchend="onCheckinPressEnd"
@@ -171,7 +191,7 @@
     aria-label="当前位置快捷打卡"
   >
     <cover-view class="map-checkin-icon">
-      <cover-image class="map-checkin-icon-image" src="/assets/icons/locate-white.svg" />
+      <cover-image class="map-checkin-icon-image" src="/assets/icons/locate-white.png" />
     </cover-view>
     <cover-view class="map-checkin-copy">
       <cover-view class="map-checkin-title">快捷打卡</cover-view>
@@ -289,8 +309,8 @@
   </view>
 
   <!-- Footprint detail sheet (half screen) -->
-  <view wx:if="{{(detailVisible || detailClosing) && selectedFootprint}}" class="detail-sheet-layer {{detailClosing ? 'is-closing' : ''}}" catchtouchmove="preventMove">
-    <view class="detail-sheet-mask" bindtap="onDetailClose"></view>
+  <view wx:if="{{(detailVisible || detailClosing) && selectedFootprint}}" class="detail-sheet-layer {{detailClosing ? 'is-closing' : ''}}">
+    <view class="detail-sheet-mask" bindtap="onDetailClose" catchtouchmove="preventMove"></view>
     <view class="detail-sheet">
       <view class="detail-sheet-handle"></view>
       <footprint-card
@@ -306,8 +326,8 @@
   </view>
 
   <!-- Current-location check-in confirmation -->
-  <view wx:if="{{checkinVisible || checkinClosing}}" class="checkin-sheet-layer {{checkinClosing ? 'is-closing' : ''}}" catchtouchmove="preventMove">
-    <view class="checkin-sheet-mask" bindtap="onCheckinClose"></view>
+  <view wx:if="{{checkinVisible || checkinClosing}}" class="checkin-sheet-layer {{checkinClosing ? 'is-closing' : ''}}">
+    <view class="checkin-sheet-mask" bindtap="onCheckinClose" catchtouchmove="preventMove"></view>
     <view class="checkin-sheet" role="dialog" aria-modal="true" aria-labelledby="checkin-sheet-title">
       <view class="detail-sheet-handle"></view>
       <view class="checkin-sheet-heading">

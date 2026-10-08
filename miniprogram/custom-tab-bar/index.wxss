@@ -122,7 +122,10 @@
   right: 0;
   bottom: 0;
   left: 0;
-  padding: 16rpx 32rpx 0;
+  box-sizing: border-box;
+  max-height: 78vh;
+  overflow-y: auto;
+  padding: 12rpx 32rpx 0;
   border-radius: 40rpx 40rpx 0 0;
   background: var(--surface);
   box-shadow: 0 -24rpx 80rpx rgba(28, 27, 45, 0.2);
@@ -132,7 +135,7 @@
 .tab-sheet-handle {
   width: 64rpx;
   height: 7rpx;
-  margin: 0 auto 24rpx;
+  margin: 0 auto 14rpx;
   border-radius: 999rpx;
   background: var(--surface-highest);
 }
@@ -140,9 +143,10 @@
 .tab-sheet-option {
   display: flex;
   align-items: center;
-  gap: 20rpx;
-  min-height: 120rpx;
-  padding: 16rpx 8rpx;
+  box-sizing: border-box;
+  gap: 16rpx;
+  min-height: 96rpx;
+  padding: 10rpx 8rpx;
   border-bottom: 1rpx solid var(--line);
 }
 
@@ -154,9 +158,10 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  width: 72rpx;
-  height: 72rpx;
-  border-radius: 24rpx;
+  width: 58rpx;
+  height: 58rpx;
+  flex: 0 0 58rpx;
+  border-radius: 18rpx;
   background: var(--brand-surface-tint);
   color: var(--brand-primary-deep);
 }
@@ -176,23 +181,23 @@
   min-width: 0;
   flex: 1;
   flex-direction: column;
-  gap: 4rpx;
+  gap: 2rpx;
 }
 
 .tab-sheet-title {
   color: var(--ink);
-  font-size: 28rpx;
+  font-size: 26rpx;
   font-weight: 600;
 }
 
 .tab-sheet-sub {
   color: var(--muted);
-  font-size: 22rpx;
+  font-size: 20rpx;
 }
 
 .tab-sheet-arrow {
   color: var(--outline);
-  font-size: 40rpx;
+  font-size: 32rpx;
   line-height: 1;
 }
 
@@ -202,8 +207,8 @@
   width: 100%;
   align-items: center;
   justify-content: center;
-  margin-top: 16rpx;
-  min-height: var(--control-height);
+  margin-top: 8rpx;
+  min-height: 76rpx;
   border-radius: var(--radius-sm);
   background: transparent;
   color: var(--muted);

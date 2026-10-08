@@ -1,0 +1,7 @@
+{
+  "navigationBarTitleText": "购买记录",
+  "enablePullDownRefresh": true,
+  "usingComponents": {
+    "privacy-popup": "/components/privacy-popup/index"
+  }
+}

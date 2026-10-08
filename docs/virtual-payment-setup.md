@@ -35,6 +35,8 @@ npm run deploy:payment -- --target=sandbox
 索引：
 
 - `payment_orders`: `_openid` 升序、`createdAt` 降序。
+- `payment_orders`: `_openid` 升序、`hiddenAt` 升序、`createdAt` 降序（购买记录分页）。
+- `payment_orders`: `_openid` 升序、`status` 升序、`createdAt` 降序（已购状态判断）。
 - `payment_orders`: `outTradeNo` 升序，唯一索引。
 - `payment_orders`: `wxOrderId` 升序，普通索引。不要建唯一索引：文档数据库会把缺失字段都视为 null，第二笔待支付订单就会插入失败；发货幂等由事务内的状态检查保证。
 - `user_entitlements`: `_openid` 升序、`expiresAt` 降序。
@@ -128,6 +130,8 @@ npm run deploy:payment -- --target=sandbox
 - [ ] 三个道具均已发布，价格与代码白名单一致。
 - [ ] 创建 ¥6 真单，客户端能拉起 `wx.requestVirtualPayment`。
 - [ ] 支付成功后收到通知，`payment_orders.status` 变为 `fulfilled`。
+- [ ] 购买记录每次加载 10 条；左滑“隐藏”只写入 `hiddenAt`，不会删除订单或影响退款、查单与权益核对。
+- [ ] “同步支付结果”可重新查询待确认订单，并刷新当前会员权益。
 - [ ] `user_profiles.growth.plusUntil` 增加 31 天。
 - [ ] 购买 Pro 年卡后 `proUntil` 增加 372 天，且 `plusUntil` 至少覆盖同一到期日。
 - [ ] 同一通知重复发送不会重复增加时长。

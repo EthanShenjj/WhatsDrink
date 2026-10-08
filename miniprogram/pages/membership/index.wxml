@@ -1,104 +1,126 @@
 <view class="page-shell membership-page">
-  <view class="membership-hero">
-    <view class="hero-copy">
-      <text class="eyebrow">SHIGUANG MEMBERSHIP</text>
-      <text class="display-title">让每段足迹，都有更完整的回响</text>
-      <text class="hero-note">完整回顾、专属表达与更安心的保存。</text>
+  <view class="member-stage stage-{{previewLevelIndex}}">
+    <view class="stage-heading">
+      <view><text class="stage-kicker">SHIGUANGJI MEMBERSHIP</text><text class="stage-title">拾光迹会员</text></view>
+      <view class="current-level-chip"><text>当前</text><text>{{membershipLevel.title}}</text></view>
     </view>
-    <ip-mascot state="companion" expression="happy" size="190rpx" motion="float" label="陪伴状态的 Lumi" />
-  </view>
 
-  <view wx:if="{{isPlus}}" class="active-card card {{isPro ? 'is-pro' : ''}} {{membershipExpiring ? 'is-expiring' : ''}}">
-    <view class="active-icon"><local-icon name="check-circle" size="38rpx" /></view>
-    <view class="active-copy">
-      <text class="active-title">{{isPro ? 'Pro 会员已生效' : 'Plus 会员已生效'}}</text>
-      <text class="active-note">{{activeExpiryLabel}}</text>
-      <text wx:if="{{membershipExpiring}}" class="active-hint">续购会从当前到期日顺延，剩余时长不会清零。</text>
+    <view class="member-pass pass-level-{{previewLevelIndex}}">
+      <view class="pass-route" aria-hidden="true"><view></view><view></view><view></view></view>
+      <view class="pass-topline">
+        <view class="pass-owner"><view class="pass-seal">拾</view><text>{{profile.nickname || '拾光用户'}}</text></view>
+        <text class="pass-status">{{previewLevelIndex === currentLevelIndex ? (isTrial && previewLevelIndex === 1 ? '体验中' : '当前等级') : (currentLevelIndex > previewLevelIndex ? '已包含' : '可升级')}}</text>
+      </view>
+      <view class="pass-main">
+        <text class="pass-tier">{{previewLevelTitle}}</text>
+        <text class="pass-caption">{{previewLevelCaption}}</text>
+      </view>
+      <view class="pass-bottom">
+        <text wx:if="{{previewLevelIndex === currentLevelIndex && activeExpiryLabel}}">{{activeExpiryLabel}}</text>
+        <text wx:elif="{{previewCanUpgrade}}">升级后立即解锁下方权益</text>
+        <text wx:elif="{{previewLevelIndex < currentLevelIndex}}">当前会员已包含此等级权益</text>
+        <text wx:else>{{hasExpiredMembership ? '会员已到期，原始足迹仍保留' : (hasExpiredTrial ? 'Plus 体验已结束' : '免费能力长期可用')}}</text>
+        <text class="pass-number">NO. {{memberNumber}}</text>
+      </view>
     </view>
-    <view wx:if="{{reminderAvailable}}" class="reminder-toggle">
-      <text class="reminder-toggle-label">到期提醒</text>
-      <switch checked="{{reminderEnabled}}" disabled="{{reminderBusy}}" color="#5B6CFF" bindchange="onReminderToggle" />
+
+    <view class="tier-card-rail" aria-label="切换会员等级">
+      <view wx:for="{{levelSteps}}" wx:key="key" data-index="{{item.index}}" bindtap="onLevelPreviewTap" role="button" aria-label="查看 {{item.name}} 权益" class="tier-card {{previewLevelIndex === item.index ? 'is-selected' : ''}} {{currentLevelIndex === item.index ? 'is-current' : ''}} tier-card-{{item.index}}">
+        <text class="tier-card-index">0{{item.index + 1}}</text>
+        <text class="tier-card-name">{{item.name}}</text>
+        <text class="tier-card-state">{{currentLevelIndex === item.index ? (isTrial && item.index === 1 ? '体验中' : '当前') : (currentLevelIndex > item.index ? '已包含' : '查看权益')}}</text>
+      </view>
     </view>
   </view>
 
-  <view wx:elif="{{hasExpiredMembership}}" class="active-card card is-lapsed">
-    <view class="active-icon is-lapsed-icon"><local-icon name="clock" size="38rpx" /></view>
-    <view class="active-copy">
-      <text class="active-title">会员已到期</text>
-      <text class="active-note">已记录的足迹与照片仍可查看、导出，续购立即恢复权益。</text>
+  <view class="featured-benefits">
+    <view class="featured-heading">
+      <view><text class="section-title">{{previewLevelTitle}} 可用权益</text><text class="section-subtitle">{{previewLevelCaption}}</text></view>
+      <text wx:if="{{previewLevelIndex === currentLevelIndex}}" class="featured-current">当前等级</text>
+    </view>
+    <view class="benefit-icon-grid">
+      <view wx:for="{{previewLevelBenefits}}" wx:key="name" class="benefit-icon-item">
+        <view class="benefit-icon benefit-icon-{{previewLevelIndex}}"><local-icon name="{{item.icon}}" size="38rpx" /></view>
+        <view><text>{{item.name}}</text><text>{{item.description}}</text></view>
+      </view>
+    </view>
+    <button wx:if="{{previewCanUpgrade}}" class="preview-action preview-action-{{previewLevelIndex}}" bindtap="onPreviewPlanTap"><text>{{previewActionLabel}}</text><text>↓</text></button>
+    <text wx:else class="preview-included">{{previewActionLabel}}</text>
+  </view>
+
+  <view wx:if="{{isPlus && reminderAvailable}}" class="reminder-row card">
+    <view><text>到期提醒</text><text>到期前 {{remindDaysLabel}} 天尝试发送一次微信提醒</text></view>
+    <switch checked="{{reminderEnabled}}" disabled="{{reminderBusy}}" color="#5B6CFF" bindchange="onReminderToggle" />
+  </view>
+
+  <view class="section-heading benefit-heading"><view><text class="section-title">全部等级对比</text><text class="section-subtitle">同一行看清升级后新增什么</text></view></view>
+  <view class="benefit-table-scroll">
+    <view class="benefit-table">
+      <view class="benefit-table-row benefit-table-head"><text class="benefit-name">能力</text><text>免费</text><text>Plus</text><text>Pro</text></view>
+      <view wx:for="{{benefits}}" wx:key="key" class="benefit-table-row">
+        <text class="benefit-name">{{item.name}}</text><text>{{item.free}}</text><text class="benefit-plus">{{item.plus}}</text><text class="benefit-pro">{{item.pro}}</text>
+      </view>
+    </view>
+  </view>
+  <button class="benefit-detail-toggle" bindtap="onToggleBenefits" aria-expanded="{{benefitsExpanded}}">{{benefitsExpanded ? '收起权益说明' : '查看权益使用位置与限制'}}</button>
+  <view wx:if="{{benefitsExpanded}}" class="benefit-details card">
+    <view wx:for="{{benefits}}" wx:key="key" class="benefit-detail-row"><text>{{item.name}}</text><text>{{item.description}}</text></view>
+  </view>
+
+  <view id="plan-section" class="section-heading plan-heading"><view><text class="section-title">选择等级与时长</text><text class="section-subtitle">一次性购买，不会自动续费</text></view></view>
+  <view class="tier-switch" role="tablist">
+    <view class="tier-option {{selectedTier === 'plus' ? 'is-active' : ''}}" data-tier="plus" bindtap="onTierTap" hover-class="press-dim" role="tab" aria-selected="{{selectedTier === 'plus'}}">
+      <view class="tier-option-head"><text>Plus</text><text wx:if="{{selectedTier === 'plus'}}" class="tier-selected">已选</text></view>
+      <text class="tier-option-benefit">历史月份回顾</text>
+      <text class="tier-option-price">¥6 起</text>
+    </view>
+    <view class="tier-option tier-pro {{selectedTier === 'pro' ? 'is-active' : ''}}" data-tier="pro" bindtap="onTierTap" hover-class="press-dim" role="tab" aria-selected="{{selectedTier === 'pro'}}">
+      <view class="tier-option-head"><text>Pro</text><text wx:if="{{selectedTier === 'pro'}}" class="tier-selected">已选</text></view>
+      <text class="tier-option-benefit">年度时光回顾</text>
+      <text class="tier-option-price">¥99 / 372 天</text>
     </view>
   </view>
 
-  <view class="benefit-card card">
-    <view class="benefit-row"><local-icon name="heart" size="34rpx" /><view><text>Lumi 专属主题</text><text>让应用里的陪伴状态更像你</text></view></view>
-    <view class="benefit-row"><local-icon name="secured" size="34rpx" /><view><text>不限数量的时光胶囊</text><text>继续为未来的自己封存重要回忆</text></view></view>
-  </view>
-
-  <view class="section-heading">
-    <text class="section-title">选择方案</text>
-    <text>单次购买，不会自动续费</text>
-  </view>
-
-  <view class="product-list">
-    <view
-      wx:for="{{products}}"
-      wx:key="id"
-      class="product-card {{selectedProductId === item.id ? 'is-selected' : ''}} {{item.tier === 'pro' ? 'is-pro' : ''}}"
-      hover-class="press-dim"
-      data-id="{{item.id}}"
-      bindtap="onProductTap"
-      role="radio"
-      aria-checked="{{selectedProductId === item.id}}"
-    >
+  <view wx:if="{{selectedTier === 'plus'}}" class="product-list">
+    <view wx:for="{{plusProducts}}" wx:key="id" class="product-card {{selectedProductId === item.id ? 'is-selected' : ''}}" hover-class="press-dim" data-id="{{item.id}}" bindtap="onProductTap" role="radio" aria-checked="{{selectedProductId === item.id}}">
       <text wx:if="{{item.badge}}" class="product-badge">{{item.badge}}</text>
       <view class="product-radio"><view></view></view>
-      <view class="product-copy">
-        <text class="product-name">{{item.shortName}}</text>
-        <text class="product-description">{{item.description}}</text>
-        <text class="product-average">{{item.perMonthLabel}}</text>
-      </view>
+      <view class="product-copy"><text class="product-name">{{item.shortName}}</text><text class="product-description">{{item.description}}</text><text class="product-average">{{item.perMonthLabel}}</text></view>
       <view class="product-price"><text>¥</text><text>{{item.priceLabel}}</text></view>
     </view>
+    <text class="same-benefit-note">31 天卡与 372 天卡权益完全相同，只是有效期不同。</text>
   </view>
 
-  <view wx:if="{{selectedIsPro}}" class="pro-preview-card">
-    <view class="pro-preview-heading">
-      <text class="pro-preview-badge">PRO</text>
-      <text>面向未来的年度会员</text>
-    </view>
-    <text>完整包含 Plus 权益，并获得未来新功能的优先体验机会。</text>
-    <text class="pro-preview-note">未来能力将分阶段上线，具体功能、开放范围和使用额度以上线说明为准。</text>
+  <view wx:else class="pro-plan-card" data-id="{{proProduct.id}}" bindtap="onProductTap" role="radio" aria-checked="true">
+    <view class="pro-plan-head"><view><text class="pro-mark">PRO</text><text class="product-name">{{proProduct.shortName}}</text></view><view class="product-price"><text>¥</text><text>{{proProduct.priceLabel}}</text></view></view>
+    <view class="pro-benefit-list"><text>✓ 年度时光回顾与规则化年度故事</text><text>✓ 连续两年有记录时展示跨年对比</text><text>✓ 包含历史月份回顾、不限胶囊与 Lumi 主题</text></view>
   </view>
 
-  <button class="primary-button buy-button" loading="{{purchasing}}" disabled="{{purchasing}}" bindtap="onBuy">
-    {{purchasing ? '正在处理…' : ('开通 ' + selectedProductName)}}
-  </button>
-  <text class="purchase-note">同一等级续购会从该等级到期日顺延；Pro 生效后同时包含 Plus 权益，已有 Plus 到期日不会缩短。</text>
+  <view wx:if="{{membershipLevel.level === 'plus' && selectedTier === 'pro'}}" class="upgrade-rule"><text>Plus 升级 Pro 说明</text><text>本次支付 ¥99 全价；Pro 从生效时起算 372 天。原 Plus 到期时间保留，不折价、不暂停。</text></view>
+
+  <button class="primary-button buy-button" loading="{{purchasing}}" disabled="{{purchasing}}" bindtap="onBuy">{{purchasing ? '正在处理…' : selectedBuyLabel}}</button>
+  <text class="purchase-note">同一等级续购从该等级到期日顺延；Pro 生效时同时拥有全部 Plus 权益。</text>
 
   <view class="policy-card card">
     <text class="policy-title">购买与数据说明</text>
-    <text>· 本商品为一次性购买的时长卡，不是自动续费订阅；支付时一次性收取所选方案全额，到期后可自主续购。</text>
-    <text>· 授权到期提醒后，我们将在到期前 {{remindDaysLabel}} 天尝试发送一条微信提醒，实际送达以微信为准，可随时关闭。</text>
-    <text>· Pro 年卡包含 Plus 权益；未来功能以上线时的实际说明为准。</text>
-    <text>· 权益到期后，已创建的足迹与照片仍可查看，不会因会员到期而删除。</text>
+    <text>· 本商品是一次性购买的时长卡，支付时收取所选方案全额，不会自动续费。</text>
+    <text>· 历史月份与年度回顾根据已有足迹实时计算，不另外保存报告副本，也不使用 AI 生成。</text>
+    <text>· 权益到期后，已创建的足迹与照片仍可查看、编辑和导出。</text>
     <text>· 退款渠道以支付终端为准：Android 等终端请联系客服处理；iOS 订单需通过 App Store 申请并由 Apple 审核。</text>
   </view>
 
   <view class="order-section">
-    <view class="order-heading">
-      <text class="section-title">购买记录</text>
-      <button class="text-button" loading="{{refreshing}}" bindtap="onRefresh">恢复购买与权益</button>
-    </view>
+    <view class="order-heading"><view><text class="section-title">最近购买</text><text class="section-subtitle">支付与权益变更记录</text></view><button class="text-button" bindtap="onOrdersTap">查看全部</button></view>
     <view wx:if="{{orders.length}}" class="order-card card">
-      <view wx:for="{{orders}}" wx:key="outTradeNo" class="order-row">
-        <view class="order-copy"><text>{{item.productName}}</text><text>{{item.dateLabel}} · {{item.outTradeNo}}</text></view>
-        <view class="order-meta"><text>¥{{item.priceLabel}}</text><text class="status-{{item.status}}">{{item.statusLabel}}</text></view>
-      </view>
+      <view wx:for="{{orders}}" wx:key="outTradeNo" class="order-row"><view class="order-copy"><text>{{item.productName}}</text><text>{{item.dateLabel}} · {{item.outTradeNo}}</text></view><view class="order-meta"><text>¥{{item.priceLabel}}</text><text class="status-{{item.status}}">{{item.statusLabel}}</text></view></view>
     </view>
     <text wx:elif="{{loading}}" class="order-empty">正在加载购买记录…</text>
-    <text wx:elif="{{loadFailed}}" class="order-empty">购买记录暂时无法加载，请点击“恢复购买与权益”重试</text>
+    <text wx:elif="{{loadFailed}}" class="order-empty">购买记录暂时无法加载，请点击下方按钮重试</text>
     <text wx:else class="order-empty">还没有购买记录</text>
+    <view class="sync-row">
+      <view><text>支付成功但权益未显示？</text><text>重新查询微信支付结果并刷新会员状态</text></view>
+      <button class="sync-button" loading="{{refreshing}}" disabled="{{refreshing}}" bindtap="onSyncPaymentStatus">同步支付结果</button>
+    </view>
   </view>
-
   <privacy-popup />
 </view>

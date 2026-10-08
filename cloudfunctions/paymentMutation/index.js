@@ -351,12 +351,19 @@ exports.main = async (event) => {
       const templateId = membershipTemplateId()
       let profile = await getProfile(OPENID)
       const accountCreatedAt = Number(profile.createdAt) || 0
-      let [orders, reminderAuthorizations] = await Promise.all([
+      let [orders, fulfilledOrders, reminderAuthorizations] = await Promise.all([
         db.collection('payment_orders')
           .where({ _openid: OPENID, createdAt: db.command.gte(accountCreatedAt) })
           .orderBy('createdAt', 'desc')
           .limit(30)
           .get(),
+        db.collection('payment_orders')
+          .where({
+            _openid: OPENID,
+            createdAt: db.command.gte(accountCreatedAt),
+            status: 'fulfilled',
+          })
+          .count(),
         templateId
           ? countReminderAuthorizations(OPENID, templateId).catch(() => 0)
           : Promise.resolve(0),
@@ -383,11 +390,57 @@ exports.main = async (event) => {
         ok: true,
         data: {
           profile: profileForClient(OPENID, profile),
-          orders: reconciledOrders.map(orderForClient),
+          orders: reconciledOrders
+            .filter((order) => !order.hiddenAt)
+            .slice(0, 3)
+            .map(orderForClient),
+          hasFulfilledOrder: fulfilledOrders.total > 0
+            || reconciledOrders.some((order) => order.status === 'fulfilled'),
           ...(templateId ? { reminderTemplateId: templateId } : {}),
           reminderAuthorizations,
         },
       }
+    }
+
+    if (event.action === 'listOrders') {
+      const profile = await getProfile(OPENID)
+      const accountCreatedAt = Number(profile.createdAt) || 0
+      const offset = Math.max(0, Math.floor(Number(event.offset) || 0))
+      const limit = Math.min(20, Math.max(1, Math.floor(Number(event.limit) || 10)))
+      const query = {
+        _openid: OPENID,
+        createdAt: db.command.gte(accountCreatedAt),
+        hiddenAt: db.command.exists(false),
+      }
+      const [orders, count] = await Promise.all([
+        db.collection('payment_orders')
+          .where(query)
+          .orderBy('createdAt', 'desc')
+          .skip(offset)
+          .limit(limit)
+          .get(),
+        db.collection('payment_orders').where(query).count(),
+      ])
+      const visibleOrders = orders.data.filter((order) => !order.accountDeletedAt)
+      const nextOffset = offset + visibleOrders.length
+      return {
+        ok: true,
+        data: {
+          orders: visibleOrders.map(orderForClient),
+          total: count.total,
+          nextOffset,
+          hasMore: nextOffset < count.total,
+        },
+      }
+    }
+
+    if (event.action === 'hideOrder') {
+      const order = await getOwnedOrder(OPENID, event.outTradeNo)
+      const now = Date.now()
+      await db.collection('payment_orders').doc(order._id).update({
+        data: { hiddenAt: now, updatedAt: now },
+      })
+      return { ok: true, data: { hidden: true } }
     }
 
     if (event.action === 'getOrder') {

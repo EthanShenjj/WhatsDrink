@@ -179,8 +179,9 @@ exports.main = async (event = {}) => {
         db.collection('user_profiles').where({ _openid: OPENID }).limit(1).get(),
         capsules.where({ _openid: OPENID }).count(),
       ])
-      const plusUntil = Number(profileResult.data[0]?.growth?.plusUntil) || 0
-      if (capsuleCount.total >= FREE_CAPSULE_LIMIT && plusUntil <= Date.now()) {
+      const growth = profileResult.data[0]?.growth || {}
+      const membershipUntil = Math.max(Number(growth.plusUntil) || 0, Number(growth.proUntil) || 0)
+      if (capsuleCount.total >= FREE_CAPSULE_LIMIT && membershipUntil <= Date.now()) {
         throw new Error('免费版最多可创建 3 个时光胶囊，开通会员后不限数量')
       }
       const data = sanitizeCapsule(input, OPENID)

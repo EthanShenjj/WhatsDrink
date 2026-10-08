@@ -11,6 +11,7 @@ import type {
   CreatePaymentOrderResult,
   MembershipAccount,
   PaymentOrder,
+  PaymentOrderPage,
   PaymentProductId,
 } from '../domain/types'
 import { createId } from '../utils/id'
@@ -22,6 +23,7 @@ import { hasTimeCapsuleCapacity } from '../utils/payment'
 import { fitImageWithin } from '../utils/image'
 import { locationRegion, shortCity, shortProvince } from '../utils/location'
 import { provinceAt } from '../utils/province-map'
+import { isPerformanceDebugEnabled, startPerformanceSpan } from '../utils/performance'
 
 let sessionReady = false
 let cloudReady = false
@@ -229,10 +231,18 @@ const ensureLocalProfile = (): UserProfile => {
 
 class CloudBusinessError extends Error {}
 const callCloud = async <T>(name: string, data: object): Promise<T> => {
-  const response = await wx.cloud.callFunction({ name, data })
-  const result = response.result as { ok: boolean; data?: T; message?: string }
-  if (!result?.ok) throw new CloudBusinessError(result?.message || '云端操作失败')
-  return result.data as T
+  const action = 'action' in data ? String(data.action) : 'call'
+  const end = startPerformanceSpan(`cloud.${name}.${action}`)
+  try {
+    const response = await wx.cloud.callFunction({ name, data })
+    const result = response.result as { ok: boolean; data?: T; message?: string }
+    if (!result?.ok) throw new CloudBusinessError(result?.message || '云端操作失败')
+    end(isPerformanceDebugEnabled() ? { responseBytes: JSON.stringify(result.data ?? null).length } : undefined)
+    return result.data as T
+  } catch (error) {
+    end({ failed: 1 })
+    throw error
+  }
 }
 
 const deleteLocalFiles = async (paths: Array<string | undefined>): Promise<void> => {
@@ -292,6 +302,7 @@ export const loginForAccess = async (options: { force?: boolean } = {}): Promise
       const profile = migrateLegacyDefaultProfile(await callCloud<UserProfile>('login', {}))
       if (requestEpoch !== authEpoch || isSignedOut()) return signedOutProfile()
       cloudReady = true
+      footprintListCachedAt = 0
       cloudRetryAfter = 0
       sessionReady = true
       setStored(STORAGE_KEYS.profile, profile)
@@ -414,12 +425,13 @@ export const startGrowthTrial = async (): Promise<UserProfile> => {
   const current = await ensureProfile()
   if (current.growth?.trialStartedAt) return current
   const now = Date.now()
+  const trialUntil = now + 7 * 86_400_000
   const next: UserProfile = {
     ...current,
     growth: {
       ...current.growth,
       trialStartedAt: now,
-      plusUntil: now + 7 * 86_400_000,
+      plusUntil: Math.max(current.growth?.plusUntil || 0, trialUntil),
     },
     updatedAt: now,
   }
@@ -497,6 +509,49 @@ export const getPaymentOrder = async (outTradeNo: string): Promise<PaymentOrder>
   return order
 }
 
+export const listPaymentOrders = async (
+  offset = 0,
+  limit = 10,
+): Promise<PaymentOrderPage> => {
+  if (USE_CLOUD && !cloudReady) await loginForAccess()
+  // Cached account data only contains recent orders. It cannot stand in for
+  // the complete paginated history when the cloud is temporarily unavailable.
+  if (USE_CLOUD && !cloudReady) throw new Error('购买记录暂时无法连接云端')
+  if (!USE_CLOUD) {
+    const orders = getStored<PaymentOrder[]>(STORAGE_KEYS.paymentOrders, [])
+    const page = orders.slice(offset, offset + limit)
+    return {
+      orders: page,
+      total: orders.length,
+      nextOffset: offset + page.length,
+      hasMore: offset + page.length < orders.length,
+    }
+  }
+  return callCloud<PaymentOrderPage>('paymentMutation', {
+    action: 'listOrders',
+    offset,
+    limit,
+  })
+}
+
+export const hidePaymentOrder = async (outTradeNo: string): Promise<void> => {
+  if (USE_CLOUD && !cloudReady) await loginForAccess()
+  // Hiding is an account-level preference; a local-only change would reappear
+  // as soon as the cloud list loads again.
+  if (USE_CLOUD && !cloudReady) throw new Error('购买记录暂时无法连接云端')
+  if (!USE_CLOUD) {
+    const orders = getStored<PaymentOrder[]>(STORAGE_KEYS.paymentOrders, [])
+    setStored(STORAGE_KEYS.paymentOrders, orders.filter((order) => order.outTradeNo !== outTradeNo))
+    return
+  }
+  await callCloud<{ hidden: boolean }>('paymentMutation', {
+    action: 'hideOrder',
+    outTradeNo,
+  })
+  const orders = getStored<PaymentOrder[]>(STORAGE_KEYS.paymentOrders, [])
+  setStored(STORAGE_KEYS.paymentOrders, orders.filter((order) => order.outTradeNo !== outTradeNo))
+}
+
 // 到期提醒依赖一次性订阅授权：授权记录保存在云端 reminder_subscriptions，
 // 关闭开关会删除未使用的授权，已发出的提醒无法撤回。
 export const saveReminderSubscription = async (
@@ -514,8 +569,50 @@ export const saveReminderSubscription = async (
   })
 }
 
-const listCloudFootprints = (): Promise<Footprint[]> =>
-  callCloud<Footprint[]>('footprintMutation', { action: 'list' })
+interface FootprintPage {
+  items: Footprint[]
+  nextCursor: string | null
+  hasMore: boolean
+}
+
+type FootprintProgress = (items: Footprint[], hasMore: boolean) => void
+const footprintProgressListeners = new Set<FootprintProgress>()
+
+const listCloudFootprints = async (): Promise<Footprint[]> => {
+  const seen = new Set<string>()
+  const byId = new Map<string, Footprint>()
+  let cursor: string | null = null
+  let pageNumber = 0
+  do {
+    let page: FootprintPage
+    try {
+      page = await callCloud<FootprintPage>('footprintMutation', { action: 'listPage', limit: 100, cursor })
+    } catch (error) {
+      // 先部署云函数再发布客户端；尚未部署新版时沿用旧接口。
+      if (pageNumber === 0 && error instanceof CloudBusinessError && error.message === '不支持的操作') {
+        return callCloud<Footprint[]>('footprintMutation', { action: 'list' })
+      }
+      throw error
+    }
+    if (!page || !Array.isArray(page.items) || typeof page.hasMore !== 'boolean') {
+      throw new Error('足迹分页响应无效')
+    }
+    for (const item of page.items) byId.set(item.id, item)
+    pageNumber += 1
+    for (const listener of footprintProgressListeners) {
+      try {
+        listener(mergePendingFootprints([...byId.values()]), page.hasMore)
+      } catch (error) {
+        console.warn('[repository] footprint progress listener failed', error)
+      }
+    }
+    if (!page.hasMore) break
+    if (!page.nextCursor || seen.has(page.nextCursor)) throw new Error('足迹分页游标重复')
+    seen.add(page.nextCursor)
+    cursor = page.nextCursor
+  } while (true)
+  return [...byId.values()]
+}
 
 const getCloudFootprint = (id: string): Promise<Footprint> =>
   callCloud<Footprint>('footprintMutation', { action: 'get', id })
@@ -653,19 +750,33 @@ export const syncPendingFootprints = (): Promise<void> => {
 }
 
 export const listFootprints = async (
-  options: { maxAgeMs?: number } = {},
+  options: { maxAgeMs?: number; onProgress?: FootprintProgress } = {},
 ): Promise<Footprint[]> => {
   if (isSignedOut()) return []
   const maxAgeMs = options.maxAgeMs ?? 0
-  if (footprintListCache && maxAgeMs > 0 && Date.now() - footprintListCachedAt < maxAgeMs) {
+  if (footprintListCache && !footprintCloudLoadFailed && maxAgeMs > 0 && Date.now() - footprintListCachedAt < maxAgeMs) {
     return footprintListCache
   }
+  if (options.onProgress) footprintProgressListeners.add(options.onProgress)
   if (!footprintsInFlight) {
     footprintsInFlight = (async () => {
       if (USE_CLOUD && cloudReady) {
         try {
+          const prior = footprintListCache
+          const requestEpoch = authEpoch
           const cloud = await listCloudFootprints()
+          if (requestEpoch !== authEpoch || isSignedOut()) return []
           footprintCloudLoadFailed = false
+          // 本轮请求期间用户可能新增、编辑或删除了足迹；保留这些较新的本地意图。
+          if (footprintListCache !== prior) {
+            const before = new Map((prior || []).map((item) => [item.id, item]))
+            const current = new Map((footprintListCache || []).map((item) => [item.id, item]))
+            const merged = new Map(cloud.map((item) => [item.id, item]))
+            for (const id of before.keys()) if (!current.has(id)) merged.delete(id)
+            for (const [id, item] of current) if (before.get(id) !== item) merged.set(id, item)
+            cloud.splice(0, cloud.length, ...[...merged.values()].sort((a, b) =>
+              b.updatedAt - a.updatedAt || b.id.localeCompare(a.id)))
+          }
           readStoredFootprints()
           await persistCloudSnapshot(cloud)
           const merged = footprintListCache || mergePendingFootprints(cloud)
@@ -677,13 +788,19 @@ export const listFootprints = async (
         }
       }
       const local = readStoredFootprints()
+      // 失败后的空列表不是完整快照；下次可立即重试。
+      if (footprintCloudLoadFailed && !local.length) return local
       rememberFootprints(local)
       return local
     })().finally(() => {
       footprintsInFlight = null
     })
   }
-  return footprintsInFlight
+  try {
+    return await footprintsInFlight
+  } finally {
+    if (options.onProgress) footprintProgressListeners.delete(options.onProgress)
+  }
 }
 
 /** 同步读取当前内存快照，供页面在点击后立即渲染；没有缓存时返回 null。 */
@@ -858,12 +975,13 @@ const prepareImage = async (
   maxEdge: number,
   quality: number,
 ): Promise<string> => {
+  const end = startPerformanceSpan('image.prepare')
   try {
     const info = await new Promise<WechatMiniprogram.GetImageInfoSuccessCallbackResult>((resolve, reject) => {
       wx.getImageInfo({ src: tempFilePath, success: resolve, fail: reject })
     })
     const target = fitImageWithin(info.width, info.height, maxEdge)
-    return await new Promise<string>((resolve, reject) => {
+    const prepared = await new Promise<string>((resolve, reject) => {
       wx.compressImage({
         src: tempFilePath,
         quality,
@@ -873,8 +991,11 @@ const prepareImage = async (
         fail: reject,
       })
     })
+    end({ maxEdge })
+    return prepared
   } catch {
     // 个别旧格式或旧基础库不支持尺寸压缩时仍允许保存原图。
+    end({ maxEdge, fallback: 1 })
     return tempFilePath
   }
 }
@@ -890,8 +1011,15 @@ const saveLocalImage = (tempFilePath: string): Promise<string> =>
 
 const uploadPreparedImage = async (tempFilePath: string, cloudPath: string): Promise<string> => {
   if (!USE_CLOUD || !cloudReady) return saveLocalImage(tempFilePath)
-  const res = await wx.cloud.uploadFile({ cloudPath, filePath: tempFilePath })
-  return res.fileID
+  const end = startPerformanceSpan('image.upload')
+  try {
+    const res = await wx.cloud.uploadFile({ cloudPath, filePath: tempFilePath })
+    end()
+    return res.fileID
+  } catch (error) {
+    end({ failed: 1 })
+    throw error
+  }
 }
 
 const uploadToken = (): string => `${Date.now()}-${Math.random().toString(36).slice(2)}`

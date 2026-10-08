@@ -4,7 +4,7 @@
 
   <view class="privacy-section">
     <text class="section-title hand-underline">我们保存什么</text>
-    <text>微信身份对应的内部用户标识、你主动填写的头像昵称，以及你创建的城市点亮、地点、日期、照片、心情、短记、想去清单、旅行计划和时光胶囊。为改进首次使用体验，还记录少量功能动作与时间；动作统计不包含照片、文字或精确位置。</text>
+    <text>微信身份对应的内部用户标识、你主动填写的头像昵称，以及你创建的城市点亮、地点、日期、照片、心情、短记、想去清单、旅行计划和时光胶囊。为改进产品体验，还记录少量功能动作与时间；动作统计不包含照片、文字或精确位置。</text>
   </view>
   <view class="privacy-section">
     <text class="section-title hand-underline">为什么需要</text>

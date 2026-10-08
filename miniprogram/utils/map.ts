@@ -2,6 +2,9 @@ import type { Footprint, ClusterMarker, MapMode } from '../domain/types'
 
 const EARTH_RADIUS = 6378137
 const MAX_LAT = 85.0511
+// A distant map view can put separate cities inside the same 60 px grid.
+// Keep a count badge local to one real place instead of merging a whole region.
+const MAX_CLUSTER_DISTANCE_METERS = 15000
 
 const toRad = (deg: number): number => (deg * Math.PI) / 180
 
@@ -76,7 +79,7 @@ export const clusterFootprints = (
   gridSize = 60,
 ): Array<Footprint | ClusterMarker> => {
   const valid = footprints.filter(
-    (fp) => typeof fp.lat === 'number' && typeof fp.lng === 'number',
+    hasMapCoordinates,
   )
   if (valid.length <= 1) return valid
 
@@ -119,7 +122,8 @@ export const clusterFootprints = (
           if (
             !visited.has(other.id) &&
             Math.abs(other.x - current.x) < gridSize &&
-            Math.abs(other.y - current.y) < gridSize
+            Math.abs(other.y - current.y) < gridSize &&
+            haversine(current.fp.lat!, current.fp.lng!, other.fp.lat!, other.fp.lng!) <= MAX_CLUSTER_DISTANCE_METERS
           ) {
             nearby.push(other)
           }
@@ -137,12 +141,19 @@ export const clusterFootprints = (
       continue
     }
 
-    const sumLat = nearby.reduce((s, n) => s + n.fp.lat!, 0)
-    const sumLng = nearby.reduce((s, n) => s + n.fp.lng!, 0)
+    // The arithmetic center can sit in water or another place with no visit.
+    // Anchor the badge to the member closest to the cluster's screen center.
+    const centerX = nearby.reduce((sum, point) => sum + point.x, 0) / nearby.length
+    const centerY = nearby.reduce((sum, point) => sum + point.y, 0) / nearby.length
+    const anchor = nearby.reduce((closest, point) => {
+      const distance = (point.x - centerX) ** 2 + (point.y - centerY) ** 2
+      const closestDistance = (closest.x - centerX) ** 2 + (closest.y - centerY) ** 2
+      return distance < closestDistance ? point : closest
+    })
     clusters.push({
       id: clusters.length,
-      latitude: sumLat / nearby.length,
-      longitude: sumLng / nearby.length,
+      latitude: anchor.fp.lat!,
+      longitude: anchor.fp.lng!,
       count: nearby.length,
       footprintIds: nearby.map((n) => n.id),
     })
@@ -154,7 +165,7 @@ export const clusterFootprints = (
 }
 
 export const fitBounds = (
-  footprints: Footprint[],
+  footprints: Array<Pick<Footprint, 'lat' | 'lng'>>,
 ): { latitude: number; longitude: number; scale: number } => {
   const valid = footprints.filter(
     (fp) => typeof fp.lat === 'number' && typeof fp.lng === 'number',
@@ -178,9 +189,11 @@ export const fitBounds = (
   else if (maxSpan > 10) scale = 5
   else if (maxSpan > 5) scale = 6
   else if (maxSpan > 2) scale = 8
-  else if (maxSpan > 1) scale = 10
-  else if (maxSpan > 0.3) scale = 12
-  else if (maxSpan > 0.1) scale = 14
+  else if (maxSpan > 1) scale = 9
+  // Leave room for markers at the edges of a narrow phone viewport.
+  else if (maxSpan > 0.3) scale = 9
+  else if (maxSpan > 0.1) scale = 12
+  else if (maxSpan > 0.03) scale = 14
   return { latitude: centerLat, longitude: centerLng, scale }
 }
 

@@ -1,6 +1,7 @@
 .mine-page { padding-bottom: calc(210rpx + env(safe-area-inset-bottom)); }
-.mine-page > brand-card { display: block; margin-top: 28rpx; }
-.profile-hero { display: flex; min-height: 176rpx; align-items: center; gap: 24rpx; padding: 28rpx; }
+.mine-overview { overflow: hidden; margin-top: 28rpx; padding: 0; }
+.profile-hero { display: flex; min-height: 158rpx; align-items: center; gap: 24rpx; padding: 24rpx 28rpx; transition: background-color 160ms ease; }
+.overview-divider { height: 1rpx; margin: 0 28rpx; background: var(--line); }
 .profile-avatar { display: flex; width: 112rpx; height: 112rpx; flex: 0 0 112rpx; align-items: center; justify-content: center; border: 5rpx solid #fff; border-radius: 50%; background: var(--surface-high); box-shadow: 0 0 0 1rpx rgba(91,108,255,.12), 0 8rpx 22rpx rgba(39,45,92,.12); color: var(--brand-primary-deep); font-size: 44rpx; font-weight: 700; }
 .profile-avatar-empty { background: linear-gradient(145deg, #EEF1FF, #F5EAFF); }
 .profile-copy { display: flex; min-width: 0; flex: 1; flex-direction: column; }
@@ -8,19 +9,33 @@
 .profile-hint { margin-top: 5rpx; color: var(--muted); font-size: 22rpx; }
 .profile-arrow { color: var(--outline); font-size: 42rpx; line-height: 1; }
 
-.membership-card { display: flex; min-height: 142rpx; align-items: center; gap: 20rpx; margin-top: 24rpx; padding: 24rpx 26rpx; border: 1rpx solid rgba(100,89,210,.16); border-radius: 30rpx; background: linear-gradient(120deg, #292A58, #6259BA 62%, #916FD2); box-shadow: 0 18rpx 44rpx rgba(57,52,126,.2); }
-.membership-card.is-active { background: linear-gradient(120deg, #264D50, #3E7F7E 62%, #72A990); }
-.membership-card.is-pro { background: linear-gradient(120deg, #3F2D13, #8A5A13 58%, #D79B2B); }
-.membership-symbol { display: flex; width: 68rpx; height: 68rpx; flex: 0 0 68rpx; align-items: center; justify-content: center; border: 1rpx solid rgba(255,255,255,.28); border-radius: 23rpx; background: rgba(255,255,255,.14); color: #fff; }
-.membership-sparkles { position: relative; width: 40rpx; height: 40rpx; color: #fff; filter: drop-shadow(0 2rpx 5rpx rgba(20, 18, 68, .25)); }
-.membership-sparkle-main { position: absolute; top: 0; left: 0; font-size: 36rpx; font-weight: 700; line-height: 40rpx; }
-.membership-sparkle-small { position: absolute; right: 0; bottom: -1rpx; font-size: 19rpx; font-weight: 700; line-height: 22rpx; }
-.membership-copy { display: flex; min-width: 0; flex: 1; flex-direction: column; }
-.membership-title-row { display: flex; align-items: center; gap: 12rpx; }
-.membership-title { color: #fff; font-size: 28rpx; font-weight: 700; }
-.membership-pill { padding: 4rpx 11rpx; border-radius: 99rpx; background: rgba(255,255,255,.16); color: rgba(255,255,255,.92); font-size: 20rpx; font-weight: 700; }
-.membership-note { display: block; margin-top: 7rpx; color: rgba(255,255,255,.72); font-size: 20rpx; line-height: 1.45; }
-.membership-arrow { color: rgba(255,255,255,.74); font-size: 40rpx; line-height: 1; }
+.membership-wallet { position: relative; display: block; min-height: 356rpx; overflow: hidden; margin-top: 24rpx; padding: 28rpx; border: 1rpx solid rgba(255,255,255,.5); border-radius: 34rpx; background: linear-gradient(135deg, #f9f8f2, #dce5dd); box-shadow: 0 24rpx 58rpx rgba(45,53,48,.15); color: #26352c; }
+.membership-wallet::after { position: absolute; right: -100rpx; bottom: -160rpx; width: 390rpx; height: 390rpx; border: 1rpx solid rgba(51,75,61,.13); border-radius: 50%; content: ''; }
+.membership-wallet.is-trial, .membership-wallet.is-plus { background: linear-gradient(135deg, #24273f, #4b4c85 58%, #8074aa); box-shadow: 0 24rpx 58rpx rgba(46,45,91,.23); color: #fff; }
+.membership-wallet.is-pro { background: linear-gradient(135deg, #2c241b, #665039 56%, #a87a44); box-shadow: 0 24rpx 58rpx rgba(79,57,30,.24); color: #fff8e9; }
+.wallet-route { position: absolute; right: 10rpx; top: 68rpx; width: 260rpx; height: 126rpx; opacity: .38; }
+.wallet-route::before { position: absolute; top: 52rpx; right: 24rpx; width: 200rpx; height: 60rpx; border-top: 2rpx solid currentColor; border-radius: 50%; content: ''; transform: rotate(-11deg); }
+.wallet-route view { position: absolute; width: 12rpx; height: 12rpx; border: 3rpx solid currentColor; border-radius: 50%; }
+.wallet-route view:nth-child(1) { top: 40rpx; right: 8rpx; }
+.wallet-route view:nth-child(2) { top: 78rpx; right: 108rpx; }
+.wallet-route view:nth-child(3) { top: 34rpx; right: 218rpx; }
+.wallet-topline, .wallet-footer { position: relative; z-index: 1; display: flex; align-items: center; justify-content: space-between; gap: 18rpx; }
+.wallet-brand { display: flex; align-items: center; gap: 12rpx; font-size: 20rpx; font-weight: 680; letter-spacing: 1rpx; }
+.wallet-brand view { display: flex; width: 44rpx; height: 44rpx; align-items: center; justify-content: center; border: 1rpx solid currentColor; border-radius: 50%; font-size: 20rpx; }
+.membership-pill { flex: none; padding: 6rpx 12rpx; border-radius: 99rpx; background: rgba(38,67,51,.08); font-size: 17rpx; font-weight: 700; }
+.is-plus .membership-pill, .is-trial .membership-pill, .is-pro .membership-pill { background: rgba(255,255,255,.16); }
+.wallet-heading { position: relative; z-index: 1; display: flex; margin-top: 26rpx; flex-direction: column; }
+.membership-title { font-family: Georgia, 'Times New Roman', serif; font-size: 50rpx; font-weight: 650; line-height: 1.08; }
+.membership-note { display: block; margin-top: 9rpx; opacity: .72; font-size: 20rpx; line-height: 1.45; }
+.wallet-benefits { position: relative; z-index: 1; display: grid; gap: 10rpx; margin-top: 28rpx; grid-template-columns: repeat(3, minmax(0, 1fr)); }
+.wallet-benefits > view { display: flex; min-width: 0; align-items: center; gap: 8rpx; padding: 12rpx 9rpx; border-radius: 17rpx; background: rgba(255,255,255,.38); font-size: 17rpx; font-weight: 650; }
+.is-plus .wallet-benefits > view, .is-trial .wallet-benefits > view, .is-pro .wallet-benefits > view { background: rgba(255,255,255,.12); }
+.wallet-benefit-icon { display: flex; width: 42rpx; height: 42rpx; flex: 0 0 42rpx; align-items: center; justify-content: center; border-radius: 50%; background: rgba(255,255,255,.54); }
+.wallet-benefits text { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.wallet-footer { margin-top: 23rpx; padding-top: 18rpx; border-top: 1rpx solid rgba(39,63,49,.12); font-size: 18rpx; }
+.is-plus .wallet-footer, .is-trial .wallet-footer, .is-pro .wallet-footer { border-top-color: rgba(255,255,255,.17); }
+.wallet-footer > text:first-child { min-width: 0; overflow: hidden; opacity: .7; text-overflow: ellipsis; white-space: nowrap; }
+.membership-action { flex: none; font-size: 19rpx; font-weight: 680; }
 
 .growth-card { display: flex; min-height: 148rpx; align-items: center; gap: 18rpx; margin-top: 28rpx; padding: 18rpx 24rpx 18rpx 18rpx; border: 1rpx solid rgba(91,108,255,.08); border-radius: 32rpx; box-shadow: var(--shadow-card); overflow: hidden; }
 .growth-journey { background: linear-gradient(135deg, #EEF1FF, #F5EAFF); }
@@ -37,7 +52,7 @@
 .growth-goal-text { display: block; overflow: hidden; margin-top: 5rpx; color: #5C62A0; font-size: 20rpx; text-overflow: ellipsis; white-space: nowrap; }
 .growth-card-arrow { flex: none; color: var(--brand-primary-deep); font-size: 42rpx; line-height: 1; }
 
-.stats-card { margin-top: 28rpx; padding: 30rpx; }
+.stats-card { padding: 26rpx 28rpx 30rpx; }
 .stats-heading { display: flex; align-items: flex-start; justify-content: space-between; gap: 20rpx; }
 .stats-heading > view { display: flex; flex-direction: column; }
 .stats-subtitle { margin-top: 2rpx; color: var(--muted); font-size: 20rpx; }

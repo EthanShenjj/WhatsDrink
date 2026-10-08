@@ -109,6 +109,8 @@ const INDEXES = [
     collection: 'payment_orders',
     indexes: [
       { name: 'openid_createdAt_idx', unique: false, keys: [{ Name: '_openid', Direction: '1' }, { Name: 'createdAt', Direction: '-1' }] },
+      { name: 'openid_hidden_createdAt_idx', unique: false, keys: [{ Name: '_openid', Direction: '1' }, { Name: 'hiddenAt', Direction: '1' }, { Name: 'createdAt', Direction: '-1' }] },
+      { name: 'openid_status_createdAt_idx', unique: false, keys: [{ Name: '_openid', Direction: '1' }, { Name: 'status', Direction: '1' }, { Name: 'createdAt', Direction: '-1' }] },
       { name: 'outTradeNo_unique', unique: true, keys: [{ Name: 'outTradeNo', Direction: '1' }] },
       // wxOrderId 不能建唯一索引：MongoDB 会把缺失字段都视为 null，第二笔待支付订单就会冲突。
       // 发货幂等由事务内的 status 检查保证，这里只做查询加速。

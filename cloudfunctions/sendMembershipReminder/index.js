@@ -36,11 +36,11 @@ const entitlementTarget = (profile) => {
   const growth = profile && typeof profile.growth === 'object' ? profile.growth : {}
   const plusUntil = Number(growth.plusUntil) || 0
   const proUntil = Number(growth.proUntil) || 0
-  const until = Math.max(plusUntil, proUntil)
-  if (!until) return null
-  // Pro 到期日不低于 Plus（发货时 Pro 会同时延长 Plus），按更高等级称呼会员
-  const isPro = proUntil >= plusUntil
-  return { until, isPro }
+  const now = Date.now()
+  // Pro 到期后可能仍保留更长的 Plus 时长；先提醒当前最高等级的到期。
+  if (proUntil > now - DAY) return { until: proUntil, isPro: true }
+  if (plusUntil) return { until: plusUntil, isPro: false }
+  return null
 }
 
 const sendReminder = async (openid, target) => {
@@ -76,7 +76,8 @@ const sendReminder = async (openid, target) => {
   }
 }
 
-const state = { sent: 0, failed: 0, skipped: 0, terminal: 0, profiles: new Map() }
+const freshState = () => ({ sent: 0, failed: 0, skipped: 0, terminal: 0, profiles: new Map() })
+let state = freshState()
 
 const getProfile = async (openid) => {
   if (!state.profiles.has(openid)) {
@@ -153,6 +154,8 @@ const collectRowIds = async (condition) => {
 }
 
 exports.main = async () => {
+  // 云函数实例会被复用；每次执行都重置计数与资料缓存，避免沿用上次运行的会员状态。
+  state = freshState()
   try {
     const { OPENID } = cloud.getWXContext()
     if (OPENID) throw new Error('该函数只允许定时触发器调用')

@@ -20,7 +20,7 @@ import {
   MARKER_EMOJIS,
   moodLabel,
 } from '../../data/options'
-import { installUpdatePerformanceLogger, recordInteraction } from '../../utils/performance'
+import { installUpdatePerformanceLogger, recordInteraction, startPerformanceSpan } from '../../utils/performance'
 import { hasMapCoordinates } from '../../utils/map'
 import { CHECKIN_SOURCE_STORAGE_KEY } from '../../utils/checkin'
 import { createId } from '../../utils/id'
@@ -498,6 +498,7 @@ Page<PageData, WechatMiniprogram.IAnyObject>({
 
   async uploadPhotos(tempPaths: string[], retry = false) {
     if (!tempPaths.length || this.uploadInProgress || this.data.saving) return
+    const endUpload = startPerformanceSpan('form.uploadPhotos')
     this.uploadInProgress = true
     const previousFailures = retry ? [] : this.data.pendingUploads.slice(0, this.data.uploadFailedCount)
     wx.showLoading({ title: '上传中…', mask: true })
@@ -526,6 +527,7 @@ Page<PageData, WechatMiniprogram.IAnyObject>({
     } finally {
       this.uploadInProgress = false
       wx.hideLoading()
+      endUpload({ photos: tempPaths.length, failed: failed.length })
     }
   },
 
@@ -610,6 +612,7 @@ Page<PageData, WechatMiniprogram.IAnyObject>({
       return
     }
     this.setData({ saving: true })
+    const endSave = startPerformanceSpan('form.save')
     const draft: FootprintDraft = {
       clientRequestId: this.requestId || (this.requestId = createId('req')),
       id: this.data.id,
@@ -644,6 +647,7 @@ Page<PageData, WechatMiniprogram.IAnyObject>({
         ? await fulfillWishlistFootprint(this.data.id, draft)
         : null
       const saved = result ? result.visit : await saveFootprint(draft)
+      endSave({ photos: draft.photos.length, pendingSync: saved.pendingSync ? 1 : 0 })
       if (saved.status === 'visited' && !this.data.isEditing) trackProductEvent('place_added')
       const removedLocalPhotos = this.data.originalPhotos.filter(
         (path) => path.startsWith('wxfile://') && !this.data.photos.includes(path),
@@ -695,6 +699,7 @@ Page<PageData, WechatMiniprogram.IAnyObject>({
         })
       }
     } catch (err) {
+      endSave({ failed: 1 })
       wx.showToast({ title: err instanceof Error ? err.message : '保存失败，请重试', icon: 'none' })
       this.setData({ saving: false })
     }

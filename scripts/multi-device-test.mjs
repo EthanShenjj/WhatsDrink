@@ -32,7 +32,6 @@ const only = arg('--only', '')
 const devices = only ? DEVICES.filter((d) => only.split(',').includes(d.key)) : DEVICES
 
 // ---- 测试页面清单（按 app.json 顺序的子集）----
-let fpId = '' // 运行时从地图页数据里取
 const PAGES = (fpId) => [
   { key: '01-map', url: '/pages/map/index', tab: true, settle: 2500, waitFootprints: true },
   { key: '02-time', url: '/pages/time/index', tab: true, settle: 1800 },
@@ -49,7 +48,8 @@ const PAGES = (fpId) => [
   { key: '12-time-capsule', url: '/pages/time-capsule/index', settle: 1800 },
   { key: '13-growth', url: '/pages/growth/index', settle: 1800 },
   { key: '14-membership', url: '/pages/membership/index', settle: 1800 },
-  { key: '15-guide', url: '/pages/guide/index', settle: 1500 },
+  { key: '15-payment-orders', url: '/pages/payment-orders/index', settle: 1800 },
+  { key: '16-guide', url: '/pages/guide/index', settle: 1500 },
 ].filter(Boolean)
 
 // ---- IDE 退出与机型改写 ----
@@ -99,7 +99,8 @@ function setDevice(index) {
 async function testDevice(dev) {
   const outDir = path.join(OUT_ROOT, dev.key)
   mkdirSync(outDir, { recursive: true })
-  const report = { device: dev.name, key: dev.key, pages: {}, exceptions: [], console: [] }
+  const report = { device: dev.name, key: dev.key, pages: {}, skipped: [], exceptions: [], console: [] }
+  let fpId = '' // 每台设备都从当前地图数据中选一条，避免复用上一台设备的 ID
 
   console.log(`\n========== [${dev.key}] ${dev.name} ==========`)
   quitIde()
@@ -150,8 +151,9 @@ async function testDevice(dev) {
     if (!report.widthMatch)
       console.warn(`[warn] windowWidth=${sys.windowWidth} 期望 ${dev.expectWidth}，机型切换可能未生效`)
 
-    const pages = PAGES(fpId)
-    for (const p of pages) {
+    let pages = PAGES(fpId)
+    for (let index = 0; index < pages.length; index++) {
+      const p = pages[index]
       const tagStart = report.console.length
       try {
         let page
@@ -162,17 +164,22 @@ async function testDevice(dev) {
           page = await miniProgram.currentPage()
         }
         if (p.waitFootprints) {
-          // 地图页：等足迹数据（取一条 id 供详情页用），最多 15s
+          // 地图页把完整足迹留在页面实例而非 data；从实例取一条 ID 供详情页用。
           const dl = Date.now() + 15000
           while (Date.now() < dl) {
-            const data = await page.data().catch(() => ({}))
-            const fps = data.footprints || []
-            if (fps.length > 0) {
-              if (!fpId) fpId = fps[0].id
+            const ids = await miniProgram.evaluate(() => {
+              const stack = getCurrentPages()
+              const current = stack[stack.length - 1]
+              return (current?.allFootprints || []).map((fp) => fp.id)
+            }).catch(() => [])
+            if (ids.length > 0) {
+              fpId = ids[0]
+              pages = PAGES(fpId)
               break
             }
             await sleep(1200)
           }
+          if (!fpId) report.skipped.push('05-footprint-detail: 当前设备没有可用足迹')
         }
         await sleep(p.settle)
         const shotPath = path.join(outDir, `${p.key}.png`)
@@ -213,7 +220,7 @@ for (const [k, r] of Object.entries(all)) {
     const errs = Object.values(r.pages).filter((p) => p.error).length
     const pageErrs = Object.values(r.pages).filter((p) => p.errors > 0).length
     console.log(
-      `  ${k}: 平台=${r.systemInfo?.platform} ${r.systemInfo?.windowWidth}x${r.systemInfo?.windowHeight} dpr=${r.systemInfo?.pixelRatio} 宽度匹配=${r.widthMatch} 页面异常=${errs} 控制台错误页数=${pageErrs} 全局异常=${r.exceptions.length}`,
+      `  ${k}: 平台=${r.systemInfo?.platform} ${r.systemInfo?.windowWidth}x${r.systemInfo?.windowHeight} dpr=${r.systemInfo?.pixelRatio} 宽度匹配=${r.widthMatch} 页面异常=${errs} 控制台错误页数=${pageErrs} 跳过=${r.skipped.length} 全局异常=${r.exceptions.length}`,
     )
   }
 }

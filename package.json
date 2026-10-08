@@ -6,9 +6,11 @@
   "scripts": {
     "typecheck": "tsc --noEmit",
     "validate:project": "node scripts/validate-project.mjs",
-    "test": "vitest run",
+    "test": "vitest run tests",
     "test:watch": "vitest",
     "check": "npm run validate:project && npm run typecheck && npm test",
+    "perf:baseline": "vitest run scripts/performance-baseline.test.ts",
+    "perf:simulator": "node scripts/performance-simulator.mjs",
     "deploy:payment": "node scripts/deploy-payment.mjs"
   },
   "devDependencies": {

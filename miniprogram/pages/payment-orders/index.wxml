@@ -1,0 +1,34 @@
+<view class="page-shell orders-page">
+  <view class="orders-header">
+    <view>
+      <text class="display-title">购买记录</text>
+      <text wx:if="{{loading}}" class="orders-subtitle">正在查询购买记录…</text>
+      <text wx:elif="{{loadFailed && !orders.length}}" class="orders-subtitle">购买记录暂时无法加载</text>
+      <text wx:else class="orders-subtitle">共 {{total}} 条记录，每次显示 10 条</text>
+    </view>
+    <button class="sync-button" loading="{{syncing}}" disabled="{{syncing}}" bindtap="onSyncPaymentStatus">同步支付结果</button>
+  </view>
+
+  <view class="order-help">
+    <text>左滑记录可隐藏</text>
+    <text>隐藏不会删除支付订单，退款与权益核对仍可正常处理。</text>
+  </view>
+
+  <view wx:if="{{orders.length}}" class="order-list">
+    <view wx:for="{{orders}}" wx:key="outTradeNo" class="swipe-row">
+      <button class="hide-action" data-no="{{item.outTradeNo}}" bindtap="onHideOrder">隐藏</button>
+      <view class="order-card {{revealedOrderNo === item.outTradeNo ? 'is-revealed' : ''}}" data-no="{{item.outTradeNo}}" bindtouchstart="onOrderTouchStart" bindtouchend="onOrderTouchEnd" bindtap="onOrderTap">
+        <view class="order-main"><text class="order-name">{{item.productName}}</text><text class="order-number">{{item.dateLabel}} · {{item.outTradeNo}}</text></view>
+        <view class="order-meta"><text class="order-price">¥{{item.priceLabel}}</text><text class="status-{{item.status}}">{{item.statusLabel}}</text></view>
+      </view>
+    </view>
+  </view>
+
+  <view wx:if="{{loading}}" class="state-card"><text>正在加载购买记录…</text></view>
+  <view wx:elif="{{loadFailed && !orders.length}}" class="state-card"><text>购买记录暂时无法加载</text><button bindtap="onRetryLoad">重新加载</button></view>
+  <view wx:elif="{{!orders.length}}" class="state-card"><text>还没有购买记录</text><text>购买会员后，订单会显示在这里。</text></view>
+
+  <button wx:if="{{hasMore && !loading}}" class="load-more" loading="{{loadingMore}}" disabled="{{loadingMore}}" bindtap="loadMore">{{loadingMore ? '加载中…' : loadFailed ? '加载失败，点击重试' : '加载更多'}}</button>
+  <text wx:elif="{{orders.length && !hasMore}}" class="list-end">已显示全部 {{total}} 条记录</text>
+  <privacy-popup />
+</view>

@@ -57,42 +57,74 @@
       <text class="card-arrow">›</text>
     </view>
 
-    <view class="section-head">
-      <view><text class="section-title">Lumi 显示颜色</text><text class="section-sub">默认自动调整，也可固定已解锁颜色</text></view>
+    <view class="section-head recap-heading">
+      <view><text class="section-title">历史与年度回顾</text><text class="section-sub">根据已有足迹实时整理，不另外保存报告副本</text></view>
     </view>
-    <button class="auto-color-option {{snapshot.colorMode === 'auto' ? 'is-selected' : ''}}" disabled="{{saving}}" bindtap="onAutoColorTap" aria-pressed="{{snapshot.colorMode === 'auto'}}">
+    <view class="recap-feature history-feature {{snapshot.isPlus ? 'is-unlocked' : 'is-locked'}}">
+      <view class="recap-feature-head"><view><text class="recap-tier">PLUS</text><text class="recap-title">历史月份回顾</text></view><text>{{snapshot.isPlus ? '已解锁' : 'Plus 权益'}}</text></view>
+      <text class="recap-copy">回看每个有足迹的历史月份，查看地点、城市与实现想去的数量。</text>
+      <scroll-view wx:if="{{snapshot.isPlus && historicalReports.length}}" class="recap-scroll" scroll-x enhanced show-scrollbar="{{false}}">
+        <view class="recap-list">
+          <view wx:for="{{historicalReports}}" wx:key="key" class="recap-item" data-key="{{item.key}}" bindtap="onHistoricalReportTap" role="button">
+            <text>{{item.label}}</text><text>{{item.visitCount}} 段足迹 · {{item.cityCount}} 座城市</text>
+          </view>
+        </view>
+      </scroll-view>
+      <text wx:elif="{{snapshot.isPlus}}" class="recap-empty">有了跨月足迹后，这里会出现历史月份。</text>
+      <button wx:else class="recap-unlock" bindtap="onHistoricalReportTap">{{profile.growth.trialStartedAt ? '查看 Plus 方案' : '体验 Plus 权益'}}</button>
+    </view>
+
+    <view class="recap-feature annual-feature {{snapshot.isPro ? 'is-unlocked' : 'is-locked'}}">
+      <view class="recap-feature-head"><view><text class="recap-tier">PRO</text><text class="recap-title">年度时光回顾</text></view><text>{{snapshot.isPro ? '已解锁' : 'Pro 权益'}}</text></view>
+      <text class="recap-copy">查看年度统计与规则化故事；相邻两年都有记录时，增加跨年对比。</text>
+      <scroll-view wx:if="{{snapshot.isPro && annualReports.length}}" class="recap-scroll" scroll-x enhanced show-scrollbar="{{false}}">
+        <view class="recap-list">
+          <view wx:for="{{annualReports}}" wx:key="year" class="recap-item annual" data-year="{{item.year}}" bindtap="onAnnualReportTap" role="button">
+            <text>{{item.label}}</text><text>{{item.visitCount}} 段足迹 · {{item.photoCount}} 张照片</text>
+          </view>
+        </view>
+      </scroll-view>
+      <text wx:elif="{{snapshot.isPro}}" class="recap-empty">记录第一段足迹后，这里会生成年度回顾。</text>
+      <button wx:else class="recap-unlock" bindtap="onAnnualReportTap">查看 Pro 方案</button>
+    </view>
+
+    <view class="section-head">
+      <view><text class="section-title">Lumi 显示颜色</text><text class="section-sub">点击整张颜色卡片即可切换，点自动调整可恢复默认</text></view>
+    </view>
+    <button class="auto-color-option {{applyingColorId === 'auto' || (!applyingColorId && snapshot.colorMode === 'auto') ? 'is-selected' : ''}}" disabled="{{saving}}" bindtap="onAutoColorTap" aria-pressed="{{snapshot.colorMode === 'auto'}}">
       <view class="auto-color-copy">
         <text class="auto-color-title">自动调整</text>
         <text class="auto-color-description">根据近 7 天足迹变化，展示本周状态颜色</text>
       </view>
-      <text class="auto-color-status">{{snapshot.colorMode === 'auto' ? '当前选择' : '选择'}}</text>
+      <text class="auto-color-status">{{applyingColorId === 'auto' ? '切换中…' : (snapshot.colorMode === 'auto' ? '已开启' : '点击切换')}}</text>
     </button>
     <scroll-view class="color-scroll" scroll-x enhanced show-scrollbar="{{false}}">
       <view class="color-list">
         <view
           wx:for="{{snapshot.colors}}"
           wx:key="id"
-          class="color-card color-{{item.id}} {{!item.unlocked ? 'is-locked' : ''}} {{snapshot.colorMode === 'fixed' && snapshot.activeColorId === item.id ? 'is-selected' : ''}}"
+          class="color-card color-{{item.id}} {{!item.unlocked ? 'is-locked' : ''}} {{applyingColorId === item.id || (!applyingColorId && snapshot.colorMode === 'fixed' && snapshot.activeColorId === item.id) ? 'is-selected' : ''}}"
           role="button"
           hover-class="press-dim"
+          aria-label="{{item.unlocked ? (snapshot.colorMode === 'fixed' && snapshot.activeColorId === item.id ? item.name + '，当前固定展示' : '点击整张卡片固定展示' + item.name) : item.name + '，尚未解锁'}}"
           data-id="{{item.id}}"
           bindtap="onColorTap"
         >
-          <text wx:if="{{snapshot.colorMode === 'fixed' && snapshot.activeColorId === item.id}}" class="selected-pill">展示中</text>
-          <text wx:elif="{{!item.unlocked}}" class="locked-pill">{{item.hidden ? '???' : '待解锁'}}</text>
+          <text wx:if="{{!item.unlocked}}" class="locked-pill">{{item.hidden ? '???' : '待解锁'}}</text>
           <ip-mascot state="{{item.id}}" expression="default" size="150rpx" label="{{item.name}} Lumi" />
           <text class="color-name">{{item.unlocked ? item.name : (item.hidden ? '隐藏款' : item.shortName)}}</text>
           <text class="color-description">{{item.description}}</text>
+          <text wx:if="{{item.unlocked}}" class="color-card-action">{{applyingColorId === item.id ? '切换中…' : (snapshot.colorMode === 'fixed' && snapshot.activeColorId === item.id ? '✓ 当前固定展示' : (snapshot.colorMode === 'auto' && snapshot.activeColorId === item.id ? '本周展示 · 点击固定' : '点击固定展示'))}}</text>
         </view>
       </view>
     </scroll-view>
 
     <view class="plus-card plus-card-inline">
-      <view class="plus-badge">{{snapshot.isPro ? 'PRO' : '会员'}}</view>
-      <text class="plus-title">{{snapshot.isPro ? '与 Lumi 一起走向更多可能' : '让 Lumi 更像你'}}</text>
-      <text class="plus-copy">{{snapshot.isPro ? '已获得全部会员权益，以及未来新功能的优先体验机会。' : '解锁 Lumi 专属主题与更多时光胶囊，让每段成长有自己的表达。'}}</text>
+      <view class="plus-badge">{{membershipLevel.badge}}</view>
+      <text class="plus-title">{{snapshot.isPro ? '年度时光回顾已解锁' : (membershipLevel.level === 'trial' ? 'Plus 体验权益已生效' : (snapshot.isPlus ? 'Plus 权益已生效' : '从历史月份继续回看'))}}</text>
+      <text class="plus-copy">{{snapshot.isPro ? '查看年度统计、规则化故事，以及有连续记录时的跨年对比。' : (snapshot.isPlus ? '回看历史月份、不限时光胶囊，并使用 Lumi 应用内主题。' : 'Plus 解锁历史月份回顾、不限时光胶囊与 Lumi 应用内主题。')}}</text>
       <button class="plus-button" bindtap="onStartTrial" loading="{{saving}}" disabled="{{saving}}">
-        {{snapshot.isPro ? ('Pro 会员 · 剩余 ' + snapshot.proDaysLeft + ' 天') : (snapshot.isPlus ? ('Plus 会员 · 剩余 ' + snapshot.plusDaysLeft + ' 天') : (profile.growth.trialStartedAt ? '查看会员' : '免费体验 7 天'))}}
+        {{membershipLevel.daysLeft ? (membershipLevel.title + ' · 剩余 ' + membershipLevel.daysLeft + ' 天') : (profile.growth.trialStartedAt ? '查看会员' : '免费体验 7 天')}}
       </button>
       <button class="plus-plan-link" bindtap="onMembershipTap">{{snapshot.isPlus ? '查看权益与购买记录' : '查看会员方案'}}</button>
       <text class="plus-footnote">已解锁颜色可免费固定展示，会员主题另享权益。</text>
@@ -161,15 +193,25 @@
     <view wx:if="{{reportVisible}}" class="report-mask" catchtouchmove="noop" bindtap="onReportClose">
       <view class="report-panel" catchtap="noop">
         <view class="report-handle"></view>
-        <text class="report-kicker">MONTHLY MOMENTS</text>
-        <text class="report-title">{{snapshot.monthlyTitle}}</text>
-        <ip-mascot state="{{snapshot.activeColorId}}" expression="happy" size="190rpx" motion="pop" label="月度 Lumi 回顾" />
-        <text class="report-summary">{{snapshot.monthlySummary}}</text>
-        <view class="report-stats">
-          <view><text class="report-number">{{snapshot.monthVisitCount}}</text><text>新增地点</text></view>
-          <view><text class="report-number">{{snapshot.monthCityCount}}</text><text>新增城市</text></view>
-          <view><text class="report-number">+5</text><text>成长值</text></view>
-        </view>
+        <block wx:if="{{reportMode === 'current'}}">
+          <text class="report-kicker">本月记录回顾</text><text class="report-title">{{snapshot.monthlyTitle}}</text>
+          <ip-mascot state="{{snapshot.activeColorId}}" expression="happy" size="190rpx" motion="pop" label="月度 Lumi 回顾" />
+          <text class="report-summary">{{snapshot.monthlySummary}}</text>
+          <view class="report-stats"><view><text class="report-number">{{snapshot.monthVisitCount}}</text><text>新增地点</text></view><view><text class="report-number">{{snapshot.monthCityCount}}</text><text>新增城市</text></view><view><text class="report-number">+5</text><text>成长值</text></view></view>
+        </block>
+        <block wx:elif="{{reportMode === 'history' && selectedMonthReport}}">
+          <text class="report-kicker">历史月份回顾</text><text class="report-title">{{selectedMonthReport.label}}</text>
+          <ip-mascot state="{{snapshot.activeColorId}}" expression="companion" size="190rpx" motion="pop" label="历史月份 Lumi 回顾" />
+          <text class="report-summary">{{selectedMonthReport.summary}}</text>
+          <view class="report-stats"><view><text class="report-number">{{selectedMonthReport.visitCount}}</text><text>足迹</text></view><view><text class="report-number">{{selectedMonthReport.cityCount}}</text><text>城市</text></view><view><text class="report-number">{{selectedMonthReport.fulfilledCount}}</text><text>实现想去</text></view></view>
+        </block>
+        <block wx:elif="{{reportMode === 'annual' && selectedAnnualReport}}">
+          <text class="report-kicker">Pro 年度时光回顾</text><text class="report-title">{{selectedAnnualReport.title}}</text>
+          <ip-mascot state="highlight" expression="happy" size="190rpx" motion="pop" label="年度 Lumi 回顾" />
+          <text class="report-summary">{{selectedAnnualReport.summary}}</text>
+          <text wx:if="{{selectedAnnualReport.comparisonText}}" class="report-comparison">{{selectedAnnualReport.comparisonText}}</text>
+          <view class="report-stats report-stats-four"><view><text class="report-number">{{selectedAnnualReport.visitCount}}</text><text>足迹</text></view><view><text class="report-number">{{selectedAnnualReport.cityCount}}</text><text>城市</text></view><view><text class="report-number">{{selectedAnnualReport.photoCount}}</text><text>照片</text></view><view><text class="report-number">{{selectedAnnualReport.fulfilledCount}}</text><text>实现想去</text></view></view>
+        </block>
         <button class="report-close" bindtap="onReportClose">稍后再看</button>
       </view>
     </view>

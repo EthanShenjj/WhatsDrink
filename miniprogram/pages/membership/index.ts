@@ -1,4 +1,7 @@
 import type {
+  MembershipBenefit,
+  MembershipLevelView,
+  MembershipTier,
   PaymentOrder,
   PaymentProduct,
   PaymentProductId,
@@ -6,6 +9,8 @@ import type {
   VirtualPaymentData,
 } from '../../domain/types'
 import { MEMBERSHIP_REMIND_DAYS } from '../../services/config'
+import { trackProductEvent } from '../../services/product-events'
+import { installUpdatePerformanceLogger, startPerformanceSpan } from '../../utils/performance'
 import {
   createPaymentOrder,
   getMembershipAccount,
@@ -14,7 +19,9 @@ import {
 } from '../../services/repository'
 import {
   PAYMENT_PRODUCTS,
+  MEMBERSHIP_BENEFITS,
   formatPrice,
+  getMembershipLevelView,
   isMembershipExpiringSoon,
   membershipDaysLeft,
 } from '../../utils/payment'
@@ -31,9 +38,20 @@ interface OrderView extends PaymentOrder {
   dateLabel: string
 }
 
+interface PreviewBenefit {
+  icon: string
+  name: string
+  description: string
+}
+
 interface PageData {
   profile: UserProfile | null
-  products: ProductView[]
+  memberNumber: string
+  plusProducts: ProductView[]
+  proProduct: ProductView
+  benefits: readonly MembershipBenefit[]
+  benefitsExpanded: boolean
+  selectedTier: MembershipTier
   selectedProductId: PaymentProductId
   orders: OrderView[]
   loading: boolean
@@ -46,9 +64,21 @@ interface PageData {
   proUntilLabel: string
   selectedIsPro: boolean
   selectedProductName: string
+  selectedBuyLabel: string
+  membershipLevel: MembershipLevelView
+  currentLevelIndex: number
+  levelSteps: Array<{ key: string; name: string; index: number }>
+  previewLevelIndex: number
+  previewLevelTitle: string
+  previewLevelCaption: string
+  previewLevelBenefits: PreviewBenefit[]
+  previewActionLabel: string
+  previewCanUpgrade: boolean
+  isTrial: boolean
   activeExpiryLabel: string
   membershipExpiring: boolean
   hasExpiredMembership: boolean
+  hasExpiredTrial: boolean
   reminderTemplateId: string
   reminderAvailable: boolean
   reminderEnabled: boolean
@@ -77,6 +107,65 @@ const productViews: ProductView[] = PAYMENT_PRODUCTS.map((product) => ({
     ? `${product.tier === 'pro' ? '含 Plus · ' : ''}一次性支付，折合约 ¥${(product.priceFen / 100 / 12).toFixed(1)}/月`
     : '一次购买，31 天有效',
 }))
+
+const plusProducts = productViews.filter((product) => product.tier === 'plus')
+const proProduct = productViews.find((product) => product.tier === 'pro') as ProductView
+
+const buyLabel = (product: ProductView, level: MembershipLevelView['level']): string => {
+  const renewing = product.tier === 'pro'
+    ? level === 'pro'
+    : level === 'plus' || level === 'pro'
+  return `¥${product.priceLabel} ${renewing ? '续购' : '开通'} ${product.name}`
+}
+
+const LEVEL_PREVIEWS = [
+  {
+    title: '免费版',
+    caption: '记录旅程的基础能力',
+    benefits: [
+      { icon: 'map', name: '足迹地图', description: '记录去过与想去' },
+      { icon: 'calendar', name: '本月回顾', description: '查看本月足迹变化' },
+      { icon: 'clock-brand', name: '时光胶囊', description: '最多创建 3 个' },
+      { icon: 'download', name: '基础导出', description: '足迹和照片可导出' },
+    ],
+  },
+  {
+    title: 'Plus',
+    caption: '适合持续记录与回看',
+    benefits: [
+      { icon: 'calendar', name: '历史月份回顾', description: '查看过往月份' },
+      { icon: 'unlock', name: '不限时光胶囊', description: '创建数量不受限制' },
+      { icon: 'sparkles', name: 'Lumi 专属主题', description: '使用会员专属主题' },
+      { icon: 'map', name: '包含免费版', description: '基础记录能力持续可用' },
+    ],
+  },
+  {
+    title: 'Pro',
+    caption: '为长期旅行记录生成年度总结',
+    benefits: [
+      { icon: 'sparkles', name: '年度时光回顾', description: '年度统计与规则化故事' },
+      { icon: 'route', name: '跨年对比', description: '连续两年有记录时展示' },
+      { icon: 'secured', name: '全部 Plus 权益', description: '包含 Plus 全部能力' },
+    ],
+  },
+] as const
+
+const levelPreviewData = (previewIndex: number, currentIndex: number) => {
+  const preview = LEVEL_PREVIEWS[previewIndex] || LEVEL_PREVIEWS[0]
+  const previewCanUpgrade = previewIndex > currentIndex
+  return {
+    previewLevelIndex: previewIndex,
+    previewLevelTitle: preview.title,
+    previewLevelCaption: preview.caption,
+    previewLevelBenefits: [...preview.benefits],
+    previewCanUpgrade,
+    previewActionLabel: previewCanUpgrade
+      ? `查看 ${preview.title} 购买方案`
+      : previewIndex === currentIndex
+        ? '当前正在使用'
+        : '当前会员已包含',
+  }
+}
 
 const requestVirtualPayment = (payData: VirtualPaymentData): Promise<void> =>
   new Promise((resolve, reject) => {
@@ -140,9 +229,15 @@ const supportsPayment = (): boolean => {
 }
 
 Page<PageData, WechatMiniprogram.IAnyObject>({
+  selectionInitialized: false,
   data: {
     profile: null,
-    products: productViews,
+    memberNumber: 'MEMBER',
+    plusProducts,
+    proProduct,
+    benefits: MEMBERSHIP_BENEFITS,
+    benefitsExpanded: false,
+    selectedTier: 'plus',
     selectedProductId: 'plus_372d_v1',
     orders: [],
     loading: true,
@@ -155,9 +250,20 @@ Page<PageData, WechatMiniprogram.IAnyObject>({
     proUntilLabel: '',
     selectedIsPro: false,
     selectedProductName: 'Plus 372 天',
+    selectedBuyLabel: buyLabel(plusProducts[1], 'free'),
+    membershipLevel: getMembershipLevelView(),
+    currentLevelIndex: 0,
+    levelSteps: [
+      { key: 'free', name: '免费版', index: 0 },
+      { key: 'plus', name: 'Plus', index: 1 },
+      { key: 'pro', name: 'Pro', index: 2 },
+    ],
+    ...levelPreviewData(0, 0),
+    isTrial: false,
     activeExpiryLabel: '',
     membershipExpiring: false,
     hasExpiredMembership: false,
+    hasExpiredTrial: false,
     reminderTemplateId: '',
     reminderAvailable: false,
     reminderEnabled: false,
@@ -166,10 +272,13 @@ Page<PageData, WechatMiniprogram.IAnyObject>({
   },
 
   onLoad() {
+    installUpdatePerformanceLogger(this, 'membership')
+    trackProductEvent('membership_page_viewed')
     this.loadAccount()
   },
 
   async loadAccount(showResult = false) {
+    const end = startPerformanceSpan('membership.loadAccount')
     try {
       const account = await getMembershipAccount()
       const growth = account.profile.growth
@@ -177,41 +286,65 @@ Page<PageData, WechatMiniprogram.IAnyObject>({
       const proUntil = growth?.proUntil
       const isPlus = isGrowthPlusActive(growth)
       const isPro = isGrowthProActive(growth)
-      const orders: OrderView[] = account.orders.map((order) => ({
+      const membershipLevel = getMembershipLevelView(growth)
+      const selectedProduct = !this.selectionInitialized && membershipLevel.level === 'pro'
+        ? proProduct
+        : productViews.find((item) => item.id === this.data.selectedProductId) || plusProducts[1]
+      this.selectionInitialized = true
+      const accountOrders: OrderView[] = account.orders.map((order) => ({
         ...order,
         priceLabel: formatPrice(order.amountFen),
         statusLabel: STATUS_LABELS[order.status],
         dateLabel: formatDate(order.fulfilledAt || order.createdAt),
       }))
+      const orders = accountOrders.slice(0, 3)
+      const hasFulfilledOrder = account.hasFulfilledOrder
+        ?? accountOrders.some((order) => order.status === 'fulfilled')
       const plusDaysLeft = membershipDaysLeft(plusUntil)
       const proDaysLeft = membershipDaysLeft(proUntil)
       // Pro 生效期间 plusUntil 不会早于 proUntil，展示等级对应的到期口径
       const membershipExpiring = isPlus
+        && membershipLevel.level !== 'trial'
         && isMembershipExpiringSoon(isPro ? proUntil : plusUntil)
       const activeExpiryLabel = !isPlus
         ? ''
         : isPro
           ? `剩余 ${proDaysLeft} 天 · ${formatDate(proUntil)} 到期${membershipExpiring ? '，即将到期' : ''}`
           : `剩余 ${plusDaysLeft} 天 · ${formatDate(plusUntil)} 到期${membershipExpiring ? '，即将到期' : ''}`
+      const currentLevelIndex = membershipLevel.level === 'pro' ? 2 : membershipLevel.level === 'free' ? 0 : 1
       this.setData({
         profile: account.profile,
+        memberNumber: String(account.profile.id || 'MEMBER').slice(-6).toUpperCase(),
         orders,
         isPlus,
         isPro,
+        membershipLevel,
+        selectedTier: selectedProduct.tier,
+        selectedProductId: selectedProduct.id,
+        selectedIsPro: selectedProduct.tier === 'pro',
+        selectedProductName: selectedProduct.name,
+        currentLevelIndex,
+        ...levelPreviewData(currentLevelIndex, currentLevelIndex),
+        isTrial: membershipLevel.level === 'trial',
         plusUntilLabel: plusUntil ? formatDate(plusUntil) : '',
         proUntilLabel: proUntil ? formatDate(proUntil) : '',
         activeExpiryLabel,
         membershipExpiring,
-        hasExpiredMembership: !isPlus && orders.some((order) => order.status === 'fulfilled'),
+        hasExpiredMembership: !isPlus && hasFulfilledOrder,
+        hasExpiredTrial: !isPlus
+          && Boolean(growth?.trialStartedAt)
+          && !hasFulfilledOrder,
         reminderTemplateId: account.reminderTemplateId || '',
         reminderAvailable: Boolean(account.reminderTemplateId),
         reminderEnabled: (account.reminderAuthorizations || 0) > 0,
+        selectedBuyLabel: buyLabel(selectedProduct, membershipLevel.level),
         loading: false,
         loadFailed: false,
         refreshing: false,
-      })
+      }, () => end({ orders: account.orders.length }))
       if (showResult) wx.showToast({ title: '权益已刷新', icon: 'success' })
     } catch (error) {
+      end({ failed: 1 })
       console.warn('[membership] load failed', error)
       this.setData({ loading: false, loadFailed: true, refreshing: false })
       if (showResult) wx.showToast({ title: '刷新失败，请重试', icon: 'none' })
@@ -259,19 +392,66 @@ Page<PageData, WechatMiniprogram.IAnyObject>({
   onProductTap(event: WechatMiniprogram.TouchEvent) {
     const productId = String(event.currentTarget.dataset.id || '') as PaymentProductId
     if (PAYMENT_PRODUCTS.some((product) => product.id === productId)) {
-      const product = PAYMENT_PRODUCTS.find((item) => item.id === productId)
+      const product = productViews.find((item) => item.id === productId)
       this.setData({
         selectedProductId: productId,
+        selectedTier: product?.tier || 'plus',
         selectedIsPro: product?.tier === 'pro',
         selectedProductName: product?.name || 'Plus',
+        selectedBuyLabel: buyLabel(product || plusProducts[1], this.data.membershipLevel.level),
       })
     }
   },
 
+  onTierTap(event: WechatMiniprogram.TouchEvent) {
+    const tier = String(event.currentTarget.dataset.tier || '') as MembershipTier
+    if (tier !== 'plus' && tier !== 'pro') return
+    const product = tier === 'pro'
+      ? proProduct
+      : plusProducts.find((item) => item.id === this.data.selectedProductId) || plusProducts[1]
+    trackProductEvent(tier === 'pro' ? 'membership_pro_selected' : 'membership_plus_selected')
+    this.setData({
+      selectedTier: tier,
+      selectedProductId: product.id,
+      selectedIsPro: tier === 'pro',
+      selectedProductName: product.name,
+      selectedBuyLabel: buyLabel(product, this.data.membershipLevel.level),
+    })
+  },
+
+  onLevelPreviewTap(event: WechatMiniprogram.TouchEvent) {
+    const previewIndex = Number(event.currentTarget.dataset.index)
+    if (!Number.isInteger(previewIndex) || previewIndex < 0 || previewIndex > 2) return
+    this.setData(levelPreviewData(previewIndex, this.data.currentLevelIndex))
+  },
+
+  onPreviewPlanTap() {
+    const previewIndex = this.data.previewLevelIndex
+    if (!this.data.previewCanUpgrade || previewIndex === 0) return
+    const tier: MembershipTier = previewIndex === 2 ? 'pro' : 'plus'
+    const product = tier === 'pro' ? proProduct : plusProducts[1]
+    trackProductEvent(tier === 'pro' ? 'membership_pro_selected' : 'membership_plus_selected')
+    this.setData({
+      selectedTier: tier,
+      selectedProductId: product.id,
+      selectedIsPro: tier === 'pro',
+      selectedProductName: product.name,
+      selectedBuyLabel: buyLabel(product, this.data.membershipLevel.level),
+    })
+    wx.pageScrollTo({ selector: '#plan-section', duration: 320 })
+  },
+
+  onToggleBenefits() {
+    const expanded = !this.data.benefitsExpanded
+    if (expanded) trackProductEvent('membership_benefits_viewed')
+    this.setData({ benefitsExpanded: expanded })
+  },
+
   async onBuy() {
     if (this.data.purchasing || !supportsPayment()) return
-    const product = PAYMENT_PRODUCTS.find((item) => item.id === this.data.selectedProductId)
+    const product = productViews.find((item) => item.id === this.data.selectedProductId)
     if (!product) return
+    trackProductEvent('membership_purchase_started')
     this.setData({ purchasing: true })
     wx.showLoading({ title: '正在创建订单…', mask: true })
     try {
@@ -283,11 +463,12 @@ Page<PageData, WechatMiniprogram.IAnyObject>({
       wx.hideLoading()
       await this.loadAccount()
       if (fulfilled) {
+        trackProductEvent('membership_entitlement_activated')
         wx.showToast({ title: product.tier === 'pro' ? 'Pro 会员已生效' : 'Plus 会员已生效', icon: 'success' })
       } else {
         wx.showModal({
           title: '支付结果确认中',
-          content: '平台正在确认订单，权益通常会在几秒内到账。你可以稍后点击“恢复购买与权益”刷新。',
+          content: '平台正在确认订单，权益通常会在几秒内到账。你可以稍后点击“同步支付结果”刷新。',
           showCancel: false,
         })
       }
@@ -323,9 +504,13 @@ Page<PageData, WechatMiniprogram.IAnyObject>({
     return false
   },
 
-  onRefresh() {
+  onSyncPaymentStatus() {
     if (this.data.refreshing) return
     this.setData({ refreshing: true })
     this.loadAccount(true)
+  },
+
+  onOrdersTap() {
+    wx.navigateTo({ url: '/pages/payment-orders/index' })
   },
 })

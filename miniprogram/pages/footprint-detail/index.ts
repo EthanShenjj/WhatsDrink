@@ -1,6 +1,6 @@
 import type { Footprint } from '../../domain/types'
 import { getFootprint, getFootprintSnapshot, listFootprints, deleteFootprint, saveFootprint } from '../../services/repository'
-import { placeKey, visitsAtPlace } from '../../utils/footprint'
+import { visitsAtPlace } from '../../utils/footprint'
 import { formatVisitDate } from '../../utils/date'
 import {
   moodLabel,
@@ -8,7 +8,7 @@ import {
   categoryLabel,
   categoryEmoji,
 } from '../../data/options'
-import { installUpdatePerformanceLogger, recordInteraction } from '../../utils/performance'
+import { installUpdatePerformanceLogger, recordInteraction, startPerformanceSpan } from '../../utils/performance'
 import { trackProductEvent } from '../../services/product-events'
 
 interface TicketVisit extends Footprint {
@@ -108,6 +108,7 @@ Page<PageData, WechatMiniprogram.IAnyObject>({
   },
 
   onShow() {
+    wx.hideShareMenu({ menus: ['shareAppMessage', 'shareTimeline'] })
     if (this.data.id) this.loadFootprint(this.data.id)
   },
 
@@ -120,6 +121,7 @@ Page<PageData, WechatMiniprogram.IAnyObject>({
   },
 
   async loadFootprint(id: string, force = false) {
+    const end = startPerformanceSpan('detail.load')
     if (!this.data.footprint) this.setData({ loading: true })
     try {
       const [all, fullFootprint] = await Promise.all([
@@ -128,11 +130,15 @@ Page<PageData, WechatMiniprogram.IAnyObject>({
           : Promise.resolve(getFootprintSnapshot() || listFootprints({ maxAgeMs: 60_000 })),
         getFootprint(id, { force }),
       ])
-      if (!force && all === this.lastSnapshot && this.data.footprint?.id === id) return
+      if (!force && all === this.lastSnapshot && this.data.footprint?.id === id) {
+        end({ cached: 1 })
+        return
+      }
       this.lastSnapshot = all
       const fp = fullFootprint || all.find((f) => f.id === id)
       if (!fp) {
         this.setData({ footprint: undefined, loading: false })
+        end({ missing: 1 })
         return
       }
       const related = visitsAtPlace(all.map((item) => item.id === fp.id ? fp : item), fp)
@@ -157,7 +163,7 @@ Page<PageData, WechatMiniprogram.IAnyObject>({
           hasPhoto: (visit.photoCount ?? visit.photos.length) > 0,
           previewPhoto: visit.photoThumbs?.[0] || visit.photos[0] || '',
         }
-      })
+      }, () => end({ relatedVisits: related.length }))
       const ticketsExpanded = related.length > 3 && visitIndex >= 3
       const locationParts = [fp.province, fp.city, fp.district].filter(Boolean) as string[]
       this.setData({
@@ -188,6 +194,7 @@ Page<PageData, WechatMiniprogram.IAnyObject>({
         title: fp.status === 'wishlist' ? '想去详情' : fp.status === 'fulfilled' ? '已实现的愿望' : '回忆票根',
       })
     } catch (err) {
+      end({ failed: 1 })
       this.setData({ loading: false })
       wx.showToast({ title: '加载失败', icon: 'none' })
     }
@@ -220,22 +227,6 @@ Page<PageData, WechatMiniprogram.IAnyObject>({
 
   onEmptyReturn() {
     wx.navigateBack({ fail: () => wx.switchTab({ url: '/pages/map/index' }) })
-  },
-
-  onShareAppMessage() {
-    const footprint = this.data.footprint
-    if (!footprint) return { title: '拾光迹 · 私人记忆地图', path: '/pages/map/index' }
-    // 票根只带用户主动选择公开的地点与日期，不包含照片、短记或坐标。
-    const ticket = encodeURIComponent(JSON.stringify({
-      name: footprint.poiName.slice(0, 40),
-      date: footprint.visitDate || '',
-      location: (footprint.city || footprint.province || '').slice(0, 30),
-      code: this.data.ticketVisits.find((item) => item.id === footprint.id)?.ticketCode || ticketCode(footprint, 1),
-    }))
-    return {
-      title: `${footprint.poiName} · 我的回忆票根`,
-      path: `/pages/ticket-share/index?ticket=${ticket}`,
-    }
   },
 
   onEdit() {
@@ -293,45 +284,12 @@ Page<PageData, WechatMiniprogram.IAnyObject>({
         firstVisit: this.data.firstVisit?.id === saved.id ? saved : this.data.firstVisit,
         latestVisit: this.data.latestVisit?.id === saved.id ? saved : this.data.latestVisit,
       })
-      wx.showToast({ title: fp.isImportant ? '已取消重要标记' : '已标记重要', icon: 'none' })
+      wx.showToast({ title: fp.isImportant ? '已取消珍藏' : '已珍藏这张票根', icon: 'none' })
     } catch {
       wx.showToast({ title: '标记失败', icon: 'none' })
     } finally {
       this.markingImportant = false
     }
-  },
-
-  async onAddWishlistAgain() {
-    const fp = this.data.footprint
-    if (!fp || fp.status !== 'visited') return
-    try {
-      const all = getFootprintSnapshot() || await listFootprints({ maxAgeMs: 60_000 })
-      if (all.some((item) => item.status === 'wishlist' && placeKey(item) === placeKey(fp))) {
-        wx.showToast({ title: '这个地点已在想去清单', icon: 'none' })
-        return
-      }
-      await saveFootprint({
-        ...fp,
-        id: undefined,
-        status: 'wishlist',
-        visitDate: undefined,
-        photos: [],
-        mood: undefined,
-        note: undefined,
-        isImportant: false,
-        wishId: undefined,
-        wishlistCreatedAt: Date.now(),
-        convertedFromWishlist: false,
-      })
-      wx.showToast({ title: '已加入想再去', icon: 'none' })
-    } catch {
-      wx.showToast({ title: '添加失败', icon: 'none' })
-    }
-  },
-
-  onCreateCapsule() {
-    if (!this.data.footprint) return
-    wx.navigateTo({ url: `/pages/time-capsule/index?footprintId=${this.data.footprint.id}` })
   },
 
   onDelete() {

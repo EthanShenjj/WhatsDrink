@@ -8,7 +8,7 @@ import {
   formatVisitDate,
   weekdays,
 } from '../../utils/date'
-import { installUpdatePerformanceLogger, recordInteraction } from '../../utils/performance'
+import { installUpdatePerformanceLogger, recordInteraction, startPerformanceSpan } from '../../utils/performance'
 
 interface TimelineGroup {
   key: string
@@ -150,6 +150,7 @@ Page<PageData, WechatMiniprogram.IAnyObject>({
   },
 
   applyFootprints(list: Footprint[]) {
+    const end = startPerformanceSpan('time.applyFootprints')
     const { year, month, selectedKey } = this.data
     const today = new Date()
     const visited = list.filter((fp) => fp.status === 'visited' && Boolean(fp.visitDate))
@@ -181,7 +182,7 @@ Page<PageData, WechatMiniprogram.IAnyObject>({
       loading: false,
       empty: visited.length === 0,
       loadFailed: false,
-    })
+    }, () => end({ records: list.length, timelineGroups: allTimelineGroups.length }))
   },
 
   monthFootprintCount(year: number, month: number): number {

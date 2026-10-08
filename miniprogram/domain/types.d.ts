@@ -95,6 +95,26 @@ export interface GrowthPreferences {
   viewedMonthlyReports?: string[]
 }
 
+export type MembershipLevel = 'free' | 'trial' | 'plus' | 'pro'
+
+export interface MembershipLevelView {
+  level: MembershipLevel
+  title: string
+  badge: string
+  summary: string
+  expiresAt?: number
+  daysLeft: number
+}
+
+export interface MembershipBenefit {
+  key: 'core' | 'capsules' | 'theme' | 'history' | 'annual'
+  name: string
+  description: string
+  free: string
+  plus: string
+  pro: string
+}
+
 export type MembershipTier = 'plus' | 'pro'
 export type PaymentProductId = 'plus_31d_v1' | 'plus_372d_v1' | 'pro_372d_v1'
 
@@ -148,10 +168,19 @@ export interface CreatePaymentOrderResult {
 export interface MembershipAccount {
   profile: UserProfile
   orders: PaymentOrder[]
+  /** 是否曾有已生效订单；用于区分免费用户和已过期付费用户 */
+  hasFulfilledOrder?: boolean
   /** 服务端启用的会员到期提醒模板；为空时客户端隐藏提醒入口 */
   reminderTemplateId?: string
   /** 服务端仍保留的到期提醒一次性订阅授权条数 */
   reminderAuthorizations?: number
+}
+
+export interface PaymentOrderPage {
+  orders: PaymentOrder[]
+  total: number
+  nextOffset: number
+  hasMore: boolean
 }
 
 export interface GrowthColorView {
@@ -224,6 +253,30 @@ export interface GrowthOverview {
   plusDaysLeft: number
   isPro: boolean
   proDaysLeft: number
+}
+
+export interface HistoricalMonthReport {
+  key: string
+  year: number
+  month: number
+  label: string
+  title: string
+  summary: string
+  visitCount: number
+  cityCount: number
+  fulfilledCount: number
+}
+
+export interface AnnualMemoryReport {
+  year: number
+  label: string
+  title: string
+  summary: string
+  visitCount: number
+  cityCount: number
+  photoCount: number
+  fulfilledCount: number
+  comparisonText?: string
 }
 
 export interface LightingStats {

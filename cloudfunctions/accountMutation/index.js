@@ -139,7 +139,7 @@ exports.main = async (event) => {
       const growth = cleanGrowth(previous.growth)
       if (event.action === 'startGrowthTrial' && !growth.trialStartedAt) {
         growth.trialStartedAt = now
-        growth.plusUntil = now + 7 * 86400000
+        growth.plusUntil = Math.max(Number(growth.plusUntil) || 0, now + 7 * 86400000)
       }
       if (event.action === 'saveGrowthPreferences') {
         const patch = event.patch && typeof event.patch === 'object' ? event.patch : {}

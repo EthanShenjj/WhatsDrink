@@ -227,7 +227,7 @@
       <button wx:if="{{canExpandTickets}}" class="text-button memory-ticket-toggle" bindtap="onToggleTickets">
         {{ticketsExpanded ? '收起票根' : '展开全部 ' + relatedVisits.length + ' 张'}}
       </button>
-      <button wx:if="{{relatedVisits.length > 1}}" class="secondary-button place-ring-compare" bindtap="onToggleComparison">{{comparisonOpen ? '收起变化' : '看看变化'}}</button>
+      <button wx:if="{{relatedVisits.length > 1}}" class="secondary-button place-ring-compare" bindtap="onToggleComparison">{{comparisonOpen ? '收起到访对比' : '对比首次与最近一次'}}</button>
       <view wx:if="{{comparisonOpen && relatedVisits.length > 1}}" class="place-ring-comparison">
         <view class="place-ring-compare-side">
           <text class="muted">第一次 · {{firstVisit.visitDate}}</text>
@@ -240,17 +240,23 @@
           <text>{{latestVisit.note || '这次没有写下短记'}}</text>
         </view>
       </view>
+      <view wx:if="{{isVisit}}" class="ticket-keep-action">
+        <view class="ticket-keep-copy">
+          <text class="ticket-keep-title">{{footprint.isImportant ? '这张票根已珍藏' : '想特别留下这次到访？'}}</text>
+          <text class="ticket-keep-hint">{{footprint.isImportant ? '仅这张票根带有「珍藏」标记，可随时取消。' : '给当前票根加上「珍藏」标记，不影响其他到访。'}}</text>
+        </view>
+        <button class="ticket-keep-button" bindtap="onMarkImportant">{{footprint.isImportant ? '取消珍藏' : '珍藏这张票根'}}</button>
+      </view>
     </view>
 
-    <!-- 底部操作栏 -->
+    <!-- 与当前地点相关的下一步 -->
     <button wx:if="{{isWishlist}}" class="amber-button detail-convert-button" bindtap="onConvertWishlist">
       我去过了 · 补充这次回忆
     </button>
-    <view wx:if="{{isVisit || isFulfilled}}" class="place-ring-actions">
-      <button class="amber-button" bindtap="onAddAnotherVisit">新增这一次</button>
-      <button wx:if="{{isVisit}}" class="secondary-button" bindtap="onMarkImportant">{{footprint.isImportant ? '取消重要标记' : '标记重要一刻'}}</button>
-      <button wx:if="{{isVisit}}" class="secondary-button" bindtap="onAddWishlistAgain">加入想再去</button>
-      <button class="secondary-button" bindtap="onCreateCapsule">埋一个胶囊</button>
+    <view wx:if="{{isVisit || isFulfilled}}" class="new-visit-action">
+      <text class="new-visit-title">又来到了这个地方？</text>
+      <text class="new-visit-hint">为新的到访创建一张票根，之前的记录会保留。</text>
+      <button class="amber-button" bindtap="onAddAnotherVisit">记录再次到访</button>
     </view>
     <view class="detail-actions">
       <view class="detail-action" bindtap="onViewInMap">
@@ -266,7 +272,6 @@
         <text class="detail-action-label">删除</text>
       </view>
     </view>
-    <button class="detail-share-button" open-type="share">转发票根（仅地点与日期）</button>
     <view class="safe-bottom"></view>
   </block>
 </view>

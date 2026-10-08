@@ -1,4 +1,4 @@
-import type { Footprint, GrowthOverview, LightingStats, UserProfile } from '../../domain/types'
+import type { Footprint, GrowthOverview, LightingStats, MembershipLevelView, UserProfile } from '../../domain/types'
 import {
   ensureProfile,
   getFootprintSnapshot,
@@ -7,7 +7,8 @@ import {
 import { APP_VERSION } from '../../services/config'
 import { computeLighting } from '../../utils/footprint'
 import { computeGrowthOverview } from '../../utils/growth'
-import { installUpdatePerformanceLogger, recordInteraction } from '../../utils/performance'
+import { getMembershipLevelView } from '../../utils/payment'
+import { installUpdatePerformanceLogger, recordInteraction, startPerformanceSpan } from '../../utils/performance'
 
 interface MenuRow {
   key: string
@@ -21,6 +22,8 @@ interface PageData {
   isLoggedIn: boolean
   stats: LightingStats | null
   growth: GrowthOverview | null
+  membershipLevel: MembershipLevelView
+  avatarLoadFailed: boolean
   menu: MenuRow[]
   version: string
   loading: boolean
@@ -44,6 +47,8 @@ Page<PageData, WechatMiniprogram.IAnyObject>({
     isLoggedIn: false,
     stats: null,
     growth: null,
+    membershipLevel: getMembershipLevelView(),
+    avatarLoadFailed: false,
     menu: MENU,
     version: APP_VERSION,
     loading: true,
@@ -91,12 +96,27 @@ Page<PageData, WechatMiniprogram.IAnyObject>({
 
   applyProfileAndStats(profile: UserProfile, list: Footprint[]) {
     if (list === this.lastFootprints && profile === this.lastProfile) return
+    const end = startPerformanceSpan('mine.applyProfileAndStats')
     this.lastFootprints = list
     this.lastProfile = profile
     const isLoggedIn = Boolean(profile.nickname && profile.avatarUrl)
     const stats = computeLighting(list)
     const growth = computeGrowthOverview(list, profile)
-    this.setData({ profile, isLoggedIn, stats, growth, loading: false })
+    const membershipLevel = getMembershipLevelView(profile.growth)
+    const avatarChanged = profile.avatarUrl !== this.data.profile?.avatarUrl
+    this.setData({
+      profile,
+      isLoggedIn,
+      stats,
+      growth,
+      membershipLevel,
+      loading: false,
+      ...(avatarChanged ? { avatarLoadFailed: false } : {}),
+    }, () => end({ records: list.length }))
+  },
+
+  onAvatarError() {
+    this.setData({ avatarLoadFailed: true })
   },
 
   onProfileTap() {

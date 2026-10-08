@@ -1,8 +1,10 @@
 import { describe, expect, it } from 'vitest'
 import {
+  MEMBERSHIP_BENEFITS,
   PAYMENT_PRODUCTS,
   extendPlusUntil,
   formatPrice,
+  getMembershipLevelView,
   getPaymentProduct,
   hasTimeCapsuleCapacity,
   isMembershipExpiringSoon,
@@ -24,6 +26,29 @@ describe('Plus 商品与权益', () => {
       priceFen: 9900,
       days: 372,
     })
+  })
+
+  it('keeps one explicit benefit matrix for free, Plus and Pro', () => {
+    expect(MEMBERSHIP_BENEFITS.map((benefit) => benefit.key)).toEqual([
+      'core', 'capsules', 'theme', 'history', 'annual',
+    ])
+    expect(MEMBERSHIP_BENEFITS.find((benefit) => benefit.key === 'history')).toMatchObject({
+      free: '—', plus: '可用', pro: '可用',
+    })
+    expect(MEMBERSHIP_BENEFITS.find((benefit) => benefit.key === 'annual')).toMatchObject({
+      free: '—', plus: '—', pro: '可用',
+    })
+  })
+
+  it('distinguishes free, trial, Plus and Pro display states', () => {
+    const now = Date.UTC(2026, 8, 26)
+    expect(getMembershipLevelView(undefined, now).level).toBe('free')
+    expect(getMembershipLevelView({ trialStartedAt: now, plusUntil: now + 7 * DAY }, now).level).toBe('trial')
+    expect(getMembershipLevelView({ trialStartedAt: now, plusUntil: now + 38 * DAY }, now).level).toBe('plus')
+    expect(getMembershipLevelView({
+      plusUntil: now + 372 * DAY,
+      proUntil: now + 372 * DAY,
+    }, now)).toMatchObject({ level: 'pro', daysLeft: 372 })
   })
 
   it('starts a new entitlement from fulfillment time', () => {
@@ -51,6 +76,7 @@ describe('Plus 商品与权益', () => {
     expect(hasTimeCapsuleCapacity(2, undefined, now)).toBe(true)
     expect(hasTimeCapsuleCapacity(3, undefined, now)).toBe(false)
     expect(hasTimeCapsuleCapacity(3, { plusUntil: now + DAY }, now)).toBe(true)
+    expect(hasTimeCapsuleCapacity(3, { proUntil: now + DAY }, now)).toBe(true)
   })
 
   it('counts remaining membership days up to the expiry moment', () => {

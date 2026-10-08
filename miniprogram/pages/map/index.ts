@@ -34,15 +34,20 @@ import type { CheckinCandidate } from '../../utils/checkin'
 import { matchesFilter, computeLighting, computeCityGrowth, placeKey, usedMoods, usedCategories } from '../../utils/footprint'
 import { formatVisitDate, todayKey } from '../../utils/date'
 import { moodEmoji } from '../../data/options'
+import { CITY_CENTERS } from '../../data/city-centers'
 import { MAP_STYLE_IDS, MAP_STYLE_SUBKEY } from '../../services/config'
-import { MAP_TARGET_STORAGE_KEY, MAP_TAB_ENTRY_STORAGE_KEY, CITY_STAMP_TARGET_STORAGE_KEY } from '../../utils/location'
+import { MAP_TARGET_STORAGE_KEY, MAP_TAB_ENTRY_STORAGE_KEY, CITY_STAMP_TARGET_STORAGE_KEY, shortCity, shortProvince } from '../../utils/location'
 import { computeGrowthOverview } from '../../utils/growth'
 import { installUpdatePerformanceLogger, recordInteraction } from '../../utils/performance'
+import { startPerformanceSpan } from '../../utils/performance'
+import { budgetMapItems, inMapViewport, visibleMapItems } from '../../utils/map-viewport'
+import type { MapViewport } from '../../utils/map-viewport'
 import {
   buildProvincePolygons,
   provinceAt,
   provinceOverviews,
   provinceViewport,
+  resolveProvince,
 } from '../../utils/province-map'
 import type { ProvinceOverview, ProvincePolygon } from '../../utils/province-map'
 import { trackProductEvent } from '../../services/product-events'
@@ -87,6 +92,9 @@ interface UnplacedFootprintItem {
   dateLabel: string
   statusLabel: string
   isWishlist: boolean
+  locationLabel: string
+  hasExactLocation: boolean
+  canFocusOnMap: boolean
 }
 
 interface GrowthCircle {
@@ -111,6 +119,10 @@ interface PageData {
   mode: MapMode
   markers: MapMarker[]
   unplacedFootprints: UnplacedFootprintItem[]
+  unplacedTotal: number
+  clusterItems: UnplacedFootprintItem[]
+  clusterTotal: number
+  selectedWishlistId: string
   filterVisible: boolean
   currentFilter: FilterState
   moods: string[]
@@ -142,6 +154,7 @@ interface PageData {
   selectedProvinceOverview: ProvinceOverview | null
   checkinVisible: boolean
   checkinClosing: boolean
+  recordSheetVisible: boolean
   checkinCandidate: CheckinCandidate | null
   checkinDistance: number
   isLocating: boolean
@@ -160,6 +173,7 @@ interface MarkerIndex {
   markers: MapMarker[]
   markerIdMap: Record<number, string>
   clusterMarkers: Record<number, ClusterMarker>
+  lightingCities: Record<number, { city: string; province: string }>
 }
 
 interface ModeView {
@@ -167,6 +181,7 @@ interface ModeView {
   fields: {
     modeEmpty: boolean
     unplacedFootprints: UnplacedFootprintItem[]
+    unplacedTotal: number
     modeEmptyTitle: string
     modeEmptyDescription: string
   }
@@ -184,6 +199,10 @@ const PENDING_MAP_ACTION_STORAGE_KEY = 'sgj:pending-map-action'
 const app = getApp<IAppOption>()
 let mapContext: WechatMiniprogram.MapContext | undefined
 const BRAND_MARKER_ICON = '/assets/icons/map-marker-brand.png'
+// Native map markers reuse their rendered icon when an id is reused. Keep
+// cluster ids apart from footprint ids when switching zoom levels.
+const CLUSTER_MARKER_ID_BASE = 1_000_000
+const LIGHTING_CITY_MARKER_ID_BASE = 2_000_000
 const MARKER_ICON_BY_COLOR: Record<string, string> = {
   '#5b6cff': BRAND_MARKER_ICON,
   '#ff8f84': '/assets/icons/map-marker-caramel.png',
@@ -198,6 +217,21 @@ const MARKER_ICON_BY_COLOR: Record<string, string> = {
   // Migrate records saved with the former purple marker to the current brand blue.
   '#8b6f9e': BRAND_MARKER_ICON,
   '#d4915c': '/assets/icons/map-marker-caramel.png',
+}
+
+// 城市参考点只表达城市范围；没有可核实的城市时不借用别人的 POI 或省份中心。
+const wishlistViewport = (fp: Footprint) => {
+  if (hasMapCoordinates(fp)) return { latitude: fp.lat!, longitude: fp.lng!, scale: 14, precision: 'exact' as const }
+  const city = shortCity(fp.city || fp.poiName || '')
+  const province = shortProvince(fp.province || '')
+  const center = CITY_CENTERS[`${province || city}/${city}`]
+  return center ? { latitude: center[0], longitude: center[1], scale: 11, precision: 'city' as const } : undefined
+}
+
+const selectedWishlistFor = (records: Footprint[], currentId: string): string => {
+  const current = records.find((fp) => fp.id === currentId)
+  if (current && wishlistViewport(current)) return currentId
+  return records.find((fp) => wishlistViewport(fp))?.id || ''
 }
 
 const buildMarker = (
@@ -250,14 +284,22 @@ const buildMarker = (
   }
 }
 
-const buildUnplacedFootprintItem = (fp: Footprint): UnplacedFootprintItem => ({
-  id: fp.id,
-  poiName: fp.poiName,
-  photo: fp.photoThumbs?.[0] || fp.photos?.[0] || '',
-  dateLabel: formatVisitDate(fp.visitDate),
-  statusLabel: fp.status === 'wishlist' ? '想去' : fp.status === 'fulfilled' ? '已实现' : '已到访',
-  isWishlist: fp.status !== 'visited',
-})
+const buildUnplacedFootprintItem = (fp: Footprint): UnplacedFootprintItem => {
+  const viewport = wishlistViewport(fp)
+  return {
+    id: fp.id,
+    poiName: fp.poiName,
+    photo: fp.photoThumbs?.[0] || fp.photos?.[0] || '',
+    dateLabel: formatVisitDate(fp.visitDate),
+    statusLabel: fp.status === 'wishlist' ? '想去' : fp.status === 'fulfilled' ? '已实现' : '已到访',
+    isWishlist: fp.status !== 'visited',
+    locationLabel: viewport?.precision === 'exact'
+      ? '精确位置'
+      : viewport?.precision === 'city' ? `${fp.city || fp.poiName} · 城市范围` : '待补充位置',
+    hasExactLocation: hasMapCoordinates(fp),
+    canFocusOnMap: Boolean(viewport),
+  }
+}
 
 const buildClusterMarker = (
   cluster: ClusterMarker,
@@ -270,9 +312,11 @@ const buildClusterMarker = (
     latitude: cluster.latitude,
     longitude: cluster.longitude,
     title: `${cluster.count} 个足迹`,
-    width: 48,
-    height: 48,
-    iconPath: '/assets/icons/location-marker.png',
+    // Keep a real tap target under the native count callout. A 2 px transparent
+    // marker looks right but makes the badge effectively impossible to open.
+    width: 44,
+    height: 44,
+    iconPath: '/assets/icons/map-marker-transparent.png',
     callout: {
       content: `${cluster.count}`,
       color: '#FFFFFF',
@@ -336,6 +380,54 @@ const buildGrowthCircles = (growthCities: CityGrowth[]): GrowthCircle[] =>
       strokeWidth: city.level === 3 ? 3 : 1,
     }))
 
+/** A city stamp is an actual visited city, never a live or draft location. */
+const buildLightingCityMarkers = (
+  footprints: Footprint[],
+  overviews: ProvinceOverview[],
+): Pick<MarkerIndex, 'markers' | 'lightingCities'> => {
+  const markers: MapMarker[] = []
+  const lightingCities: MarkerIndex['lightingCities'] = {}
+  for (const overview of overviews) {
+    for (const cityName of overview.cityNames) {
+      const city = shortCity(cityName)
+      const province = shortProvince(overview.name)
+      const reference = CITY_CENTERS[`${province}/${city}`]
+      const matching = footprints.filter((fp) =>
+        fp.status === 'visited'
+        && shortCity(fp.city || '') === city
+        && (resolveProvince(fp.province || '') || (hasMapCoordinates(fp) ? provinceAt(fp.lat!, fp.lng!) : undefined)) === overview.name
+        && hasMapCoordinates(fp),
+      )
+      const latitude = reference?.[0] ?? (matching.length
+        ? matching.reduce((sum, fp) => sum + fp.lat!, 0) / matching.length : undefined)
+      const longitude = reference?.[1] ?? (matching.length
+        ? matching.reduce((sum, fp) => sum + fp.lng!, 0) / matching.length : undefined)
+      if (latitude === undefined || longitude === undefined) continue
+      const id = LIGHTING_CITY_MARKER_ID_BASE + markers.length
+      lightingCities[id] = { city: cityName, province: overview.name }
+      markers.push({
+        id,
+        latitude,
+        longitude,
+        title: `${cityName} · 已点亮`,
+        width: 26,
+        height: 33,
+        iconPath: BRAND_MARKER_ICON,
+        callout: {
+          content: cityName,
+          color: '#3543A5',
+          fontSize: 13,
+          bgColor: '#FFFFFF',
+          padding: 7,
+          borderRadius: 10,
+          display: 'ALWAYS',
+        },
+      })
+    }
+  }
+  return { markers, lightingCities }
+}
+
 Page<PageData, WechatMiniprogram.IAnyObject>({
   detailCloseTimer: null,
   checkinCloseTimer: null,
@@ -351,6 +443,15 @@ Page<PageData, WechatMiniprogram.IAnyObject>({
   dataVersion: 0,
   markerCacheKey: '',
   markerCache: null as MarkerIndex | null,
+  viewportRegion: null as MapViewport | null,
+  viewportKey: '',
+  viewportRequestId: 0,
+  regionRefreshTimer: null as ReturnType<typeof setTimeout> | null,
+  allUnplacedItems: [] as UnplacedFootprintItem[],
+  unplacedLimit: 20,
+  allClusterItems: [] as UnplacedFootprintItem[],
+  clusterLimit: 20,
+  partialLoad: false,
   isVisible: false,
   mapReady: false,
   initialLocationStarted: false,
@@ -358,6 +459,7 @@ Page<PageData, WechatMiniprogram.IAnyObject>({
   initialLocationResolved: false,
   hasCenteredOnUser: false,
   hasExplicitMapTarget: false,
+  wasHidden: false,
   checkinLocationRequested: false,
   locationPromise: null as Promise<UserLocation> | null,
   initialDataPromise: null as Promise<void> | null,
@@ -373,6 +475,10 @@ Page<PageData, WechatMiniprogram.IAnyObject>({
     mode: 'visited',
     markers: [],
     unplacedFootprints: [],
+    unplacedTotal: 0,
+    clusterItems: [],
+    clusterTotal: 0,
+    selectedWishlistId: '',
     filterVisible: false,
     currentFilter: {},
     moods: [],
@@ -404,6 +510,7 @@ Page<PageData, WechatMiniprogram.IAnyObject>({
     selectedProvinceOverview: null,
     checkinVisible: false,
     checkinClosing: false,
+    recordSheetVisible: false,
     checkinCandidate: null,
     checkinDistance: 0,
     isLocating: false,
@@ -426,6 +533,8 @@ Page<PageData, WechatMiniprogram.IAnyObject>({
   },
 
   onShow() {
+    const returningToMap = this.wasHidden
+    this.wasHidden = false
     this.isVisible = true
     this.checkinNavigating = false
     this.emptyNavigating = false
@@ -472,8 +581,8 @@ Page<PageData, WechatMiniprogram.IAnyObject>({
       // 冷启动由快捷打卡接管本次定位，避免与首屏自动定位并发调用 getLocation。
       this.initialLocationStarted = true
       this.onCheckin()
-    } else if (!target) {
-      this.autoLocateOnEntry(enteredFromTab)
+    } else if (!target && this.data.mode === 'visited') {
+      this.autoLocateOnEntry(enteredFromTab || (returningToMap && !this.hasExplicitMapTarget))
     }
     const settings = getMapSettings()
     if (JSON.stringify(settings) !== JSON.stringify(this.data.settings)) {
@@ -494,7 +603,7 @@ Page<PageData, WechatMiniprogram.IAnyObject>({
       this.pendingFootprints = null
       // 快捷打卡返回时只刷新标记和数据，保留刚刚获取到的当前位置视野。
       // 未成功定位时才继续沿用“适配全部足迹”的原有行为。
-      this.applyFootprints(latestSnapshot, { fit: !this.hasCenteredOnUser })
+      this.applyFootprints(latestSnapshot, { fit: !this.hasCenteredOnUser && this.data.locationStatus !== 'locating' })
     } else if (this.pendingFootprints) {
       const pending = this.pendingFootprints
       this.pendingFootprints = null
@@ -503,10 +612,17 @@ Page<PageData, WechatMiniprogram.IAnyObject>({
   },
 
   onHide() {
+    this.wasHidden = true
     this.isVisible = false
+    if (this.regionRefreshTimer) clearTimeout(this.regionRefreshTimer)
+    this.regionRefreshTimer = null
     // 已隐藏页面的权限/定位回调不得抢回地图中心；下一次显示可重新发起。
     this.locationIntent += 1
     if (this.data.locationStatus === 'locating') this.setData({ locationStatus: 'idle' })
+  },
+
+  onRecordSheetVisibilityChange(visible: boolean) {
+    if (this.data.recordSheetVisible !== visible) this.setData({ recordSheetVisible: visible })
   },
 
   onReady() {
@@ -514,7 +630,28 @@ Page<PageData, WechatMiniprogram.IAnyObject>({
     this.mapReady = true
     this.scheduleMapReadyFallback()
     this.setData({ growthCircles: this.data.mode === 'lighting' ? [] : buildGrowthCircles(this.data.growthCities) }, () => {
+      this.captureMapRegion()
+    })
+  },
+
+  captureMapRegion() {
+    if (!mapContext?.getRegion) {
       this.refreshMarkers()
+      return
+    }
+    const requestId = ++this.viewportRequestId
+    mapContext.getRegion({
+      success: ({ northeast, southwest }) => {
+        if (requestId !== this.viewportRequestId) return
+        const key = [northeast.latitude, northeast.longitude, southwest.latitude, southwest.longitude]
+          .map((value) => value.toFixed(4)).join(':')
+        if (key !== this.viewportKey) {
+          this.viewportRegion = { northeast, southwest }
+          this.viewportKey = key
+          this.refreshMarkers()
+        }
+      },
+      fail: () => { if (requestId === this.viewportRequestId) this.refreshMarkers() },
     })
   },
 
@@ -547,6 +684,10 @@ Page<PageData, WechatMiniprogram.IAnyObject>({
     try {
       const list = await listFootprints({ maxAgeMs: FOOTPRINTS_MAX_AGE_MS })
       if (sequence !== this.loadSequence) return
+      if (didFootprintCloudLoadFail() && this.partialLoad && !list.length) {
+        this.setData({ loading: false, dataLoadFailed: true })
+        return
+      }
       if (!this.isVisible) {
         this.pendingFootprints = list
         return
@@ -562,8 +703,16 @@ Page<PageData, WechatMiniprogram.IAnyObject>({
     const sequence = ++this.loadSequence
     if (showLoading && !this.data.loading) this.setData({ loading: true })
     try {
-      const list = await listFootprints()
+      const list = await listFootprints({ onProgress: (items, hasMore) => {
+        if (hasMore && sequence === this.loadSequence && this.isVisible && !this.allFootprints.length) {
+          this.applyFootprints(items, { partial: true })
+        }
+      } })
       if (sequence !== this.loadSequence) return
+      if (didFootprintCloudLoadFail() && this.partialLoad && !list.length) {
+        this.setData({ loading: false, dataLoadFailed: true })
+        return
+      }
       if (!this.isVisible) {
         this.pendingFootprints = list
         return
@@ -577,11 +726,13 @@ Page<PageData, WechatMiniprogram.IAnyObject>({
     }
   },
 
-  applyFootprints(list: Footprint[], options: { fit?: boolean } = {}) {
+  applyFootprints(list: Footprint[], options: { fit?: boolean; partial?: boolean } = {}) {
+    const end = startPerformanceSpan('map.applyFootprints')
     const fit = options.fit === true
     // 引用相同说明数据未变（典型为热切回地图），整段重算与 setData 都可跳过
     if (list === this.allFootprints && !fit && !this.pendingCityProvince) return
     this.allFootprints = list
+    this.partialLoad = Boolean(options.partial)
     const byId: Record<string, Footprint> = {}
     for (const fp of list) byId[fp.id] = fp
     this.footprintsById = byId
@@ -598,7 +749,12 @@ Page<PageData, WechatMiniprogram.IAnyObject>({
       && !list.some((fp) => fp.status === 'visited' && fp.recordLevel !== 'city')
     if (autoLighting) this.cityAutoLightingDone = true
     const effectiveMode: MapMode = autoLighting ? 'lighting' : this.data.mode
-    const view = this.computeModeView(effectiveMode)
+    const view: ModeView = this.computeModeView(effectiveMode)
+    const selectedWishlistId = effectiveMode === 'wishlist'
+      ? selectedWishlistFor(view.modeList, this.data.selectedWishlistId) : ''
+    const shouldFocusNewWishlist = effectiveMode === 'wishlist'
+      && Boolean(selectedWishlistId)
+      && selectedWishlistId !== this.data.selectedWishlistId
     const regionCities: Record<string, string[]> = {}
     for (const fp of list) {
       if (!fp.province) continue
@@ -607,31 +763,34 @@ Page<PageData, WechatMiniprogram.IAnyObject>({
     }
     this.setData({
       mode: effectiveMode,
+      selectedWishlistId,
       regionCities,
       moods: usedMoods(list),
       categories: usedCategories(list),
-      lighting: computeLighting(filtered),
-      growthCities,
-      growthCircles: this.mapReady && effectiveMode !== 'lighting' ? buildGrowthCircles(growthCities) : [],
-      provinceOverviews: overviews,
-      provincePolygons: effectiveMode === 'lighting'
-        ? buildProvincePolygons(overviews.map((item) => item.name), this.data.selectedProvince)
-        : [],
-      selectedProvinceOverview: selectedOverview,
-      loading: false,
-      dataLoadFailed: list.length === 0 && didFootprintCloudLoadFail(),
+      ...(!options.partial ? {
+        lighting: computeLighting(filtered),
+        growthCities,
+        growthCircles: this.mapReady && effectiveMode !== 'lighting' ? buildGrowthCircles(growthCities) : [],
+        provinceOverviews: overviews,
+        provincePolygons: effectiveMode === 'lighting'
+          ? buildProvincePolygons(overviews.map((item) => item.name), this.data.selectedProvince)
+          : [],
+        selectedProvinceOverview: selectedOverview,
+        growth: computeGrowthOverview(list, app.globalData.profile),
+      } : {}),
+      loading: Boolean(options.partial),
+      dataLoadFailed: !options.partial && list.length === 0 && didFootprintCloudLoadFail(),
       activeFilterCount: chips.length,
       activeFilterChips: chips,
-      growth: computeGrowthOverview(list, app.globalData.profile),
       ...view.fields,
-    })
+    }, () => end({ records: list.length, partial: options.partial ? 1 : 0 }))
     if (this.pendingCityProvince) {
       const province = this.pendingCityProvince
       this.pendingCityProvince = ''
       if (this.data.mode !== 'lighting') this.applyMode('lighting')
       this.selectProvince(province, true)
     }
-    if (fit) this.fitToFootprints(view.modeList)
+    if (fit || shouldFocusNewWishlist || autoLighting) this.fitToFootprints(view.modeList)
     this.refreshMarkers()
   },
 
@@ -639,14 +798,16 @@ Page<PageData, WechatMiniprogram.IAnyObject>({
     const modeList = this.filteredFootprints.filter((fp: Footprint) =>
       mode === 'wishlist' ? fp.status !== 'visited' : fp.status === 'visited' && fp.recordLevel !== 'city',
     )
-    const unplaced = modeList.filter((fp: Footprint) => !hasMapCoordinates(fp))
+    const cards = mode === 'wishlist' ? modeList : modeList.filter((fp: Footprint) => !hasMapCoordinates(fp))
+    this.allUnplacedItems = cards.map((fp: Footprint) => buildUnplacedFootprintItem(fp))
     const copy = modeCopy(mode)
     const filtered = Object.values(filter || this.data.currentFilter).some(Boolean)
     return {
       modeList,
       fields: {
         modeEmpty: modeList.length === 0,
-        unplacedFootprints: unplaced.map(buildUnplacedFootprintItem),
+        unplacedFootprints: this.allUnplacedItems.slice(0, this.unplacedLimit),
+        unplacedTotal: this.allUnplacedItems.length,
         modeEmptyTitle: filtered ? '没有符合筛选的记录' : copy.title,
         modeEmptyDescription: filtered ? '试试调整条件，或清除筛选查看全部记录。' : copy.description,
       },
@@ -655,9 +816,13 @@ Page<PageData, WechatMiniprogram.IAnyObject>({
 
   /** 模式切换：合并提交模式与空态字段，仅在确需重定位时调整视野 */
   applyMode(mode: MapMode, options: { fit?: boolean } = {}) {
-    const view = this.computeModeView(mode)
+    this.unplacedLimit = 20
+    const view: ModeView = this.computeModeView(mode)
+    const selectedWishlistId = mode === 'wishlist'
+      ? selectedWishlistFor(view.modeList, this.data.selectedWishlistId) : ''
     this.setData({
       mode,
+      selectedWishlistId,
       selectedProvince: '',
       selectedProvinceOverview: null,
       provincePolygons: mode === 'lighting'
@@ -672,14 +837,18 @@ Page<PageData, WechatMiniprogram.IAnyObject>({
 
   /** 过滤条件变化：合并提交筛选与空态字段，标记按新数据版本重建 */
   applyFilter(filter: FilterState, options: { closeSheet?: boolean; fit?: boolean } = {}) {
+    this.unplacedLimit = 20
     this.dataVersion += 1
     this.filteredFootprints = this.allFootprints.filter((fp: Footprint) => matchesFilter(fp, filter))
     const chips = filterChips(filter)
     const overviews = provinceOverviews(this.filteredFootprints)
     const selectedOverview = overviews.find((item) => item.name === this.data.selectedProvince) || null
-    const view = this.computeModeView(this.data.mode, filter)
+    const view: ModeView = this.computeModeView(this.data.mode, filter)
+    const selectedWishlistId = this.data.mode === 'wishlist'
+      ? selectedWishlistFor(view.modeList, this.data.selectedWishlistId) : ''
     this.setData({
       currentFilter: filter,
+      selectedWishlistId,
       activeFilterCount: chips.length,
       activeFilterChips: chips,
       filterVisible: options.closeSheet ? false : this.data.filterVisible,
@@ -706,11 +875,28 @@ Page<PageData, WechatMiniprogram.IAnyObject>({
       this.zoomTier,
       settings.markerStyle,
       settings.theme,
+      this.data.selectedWishlistId,
+      this.viewportKey,
     ].join('|')
     if (!force && key === this.markerCacheKey && this.markerCache) return null
 
+    if (mode === 'lighting') {
+      const { markers, lightingCities } = buildLightingCityMarkers(this.filteredFootprints, this.data.provinceOverviews)
+      const visible = this.viewportRegion
+        ? markers.filter((marker) => inMapViewport(marker.latitude, marker.longitude, this.viewportRegion!))
+        : markers
+      // 省份面板保留完整城市入口，原生地图一次只绘制当前视野中的部分城市。
+      const index: MarkerIndex = { markers: visible.slice(0, 200), lightingCities, markerIdMap: {}, clusterMarkers: {} }
+      this.markerCacheKey = key
+      this.markerCache = index
+      return index
+    }
+
     const target = footprintsForMapMode(this.filteredFootprints, mode)
-    const validForMap = target.filter(hasMapCoordinates)
+    const selectedWishlist = mode === 'wishlist'
+      ? target.find((fp) => fp.id === this.data.selectedWishlistId)
+      : undefined
+    const validForMap = (selectedWishlist ? [selectedWishlist] : target).filter(hasMapCoordinates)
 
     // 同一 POI 可有多次到访，但地图默认只显示一个点。
     const visitCounts: Record<string, number> = {}
@@ -721,7 +907,7 @@ Page<PageData, WechatMiniprogram.IAnyObject>({
       const current = placeMap.get(key)
       if (!current || fp.updatedAt > current.updatedAt) placeMap.set(key, fp)
     }
-    const mapFootprints = [...placeMap.values()]
+    const mapFootprints = visibleMapItems([...placeMap.values()], this.viewportRegion)
     for (const fp of validForMap) {
       const representative = placeMap.get(placeKey(fp))
       if (representative) {
@@ -745,25 +931,49 @@ Page<PageData, WechatMiniprogram.IAnyObject>({
     } else {
       items = mapFootprints
     }
+    items = budgetMapItems(items, 200)
 
     const markers: MapMarker[] = []
     const markerIdMap: Record<number, string> = {}
     const clusterMarkers: Record<number, ClusterMarker> = {}
 
     items.forEach((item, idx) => {
-      const id = idx + 1
       if ((item as ClusterMarker).footprintIds) {
+        const id = CLUSTER_MARKER_ID_BASE + idx
         const cluster = item as ClusterMarker
         clusterMarkers[id] = cluster
         markers.push(buildClusterMarker(cluster, id, mode))
       } else {
+        const id = idx + 1
         const fp = item as Footprint
         markerIdMap[id] = fp.id
         markers.push(buildMarker(fp, id, mode, settings, this.zoomTier, visitCounts[fp.id] || 1))
       }
     })
 
-    const index: MarkerIndex = { markers, markerIdMap, clusterMarkers }
+    if (selectedWishlist && !hasMapCoordinates(selectedWishlist)) {
+      const viewport = wishlistViewport(selectedWishlist)
+      if (viewport) {
+        const id = markers.length + 1
+        markerIdMap[id] = selectedWishlist.id
+        markers.push({
+          id,
+          latitude: viewport.latitude,
+          longitude: viewport.longitude,
+          title: selectedWishlist.poiName,
+          width: 32,
+          height: 40,
+          iconPath: '/assets/icons/map-marker-amber.png',
+          callout: {
+            content: `${selectedWishlist.poiName} · ${viewport.precision === 'city' ? '城市范围' : '省区范围'}`,
+            color: '#5A421D', fontSize: 12, bgColor: '#FFF7E8', padding: 8, borderRadius: 12, display: 'ALWAYS',
+          },
+          markerId: selectedWishlist.id,
+        })
+      }
+    }
+
+    const index: MarkerIndex = { markers, markerIdMap, clusterMarkers, lightingCities: {} }
     this.markerCacheKey = key
     this.markerCache = index
     return index
@@ -772,30 +982,45 @@ Page<PageData, WechatMiniprogram.IAnyObject>({
   /** 仅在标记内容真正变化时提交 markers，减少原生地图重绘 */
   refreshMarkers() {
     if (!this.mapReady) return
+    const end = startPerformanceSpan('map.markers')
     const update = this.buildMarkers()
-    if (update) this.setData({ markers: update.markers })
+    if (update) this.setData({ markers: update.markers }, () => end({ markers: update.markers.length }))
+    else end({ cached: 1 })
   },
 
   fitToFootprints(list: Footprint[]) {
     const target = list.filter(hasMapCoordinates)
-    // 点亮展示的是全国省区版图；按足迹拟合会把只有一两个省份的用户
-    // 放大到街道级别，失去全局统览的意义。
+    // 点亮模式要能看清具体城市。用城市中心拟合，并限制最大缩放，
+    // 避免只有一两个城市时进入街道级地图，也避免全国缩放让近邻城市重叠。
+    const litCities = this.data.mode === 'lighting'
+      ? buildLightingCityMarkers(this.filteredFootprints, this.data.provinceOverviews).markers
+      : []
+    const litBounds = litCities.length > 1
+      ? fitBounds(litCities.map((marker) => ({ lat: marker.latitude, lng: marker.longitude })))
+      : null
+    const selectedWishlist = this.data.mode === 'wishlist'
+      ? list.find((fp) => fp.id === this.data.selectedWishlistId)
+      : undefined
+    const selectedViewport = selectedWishlist ? wishlistViewport(selectedWishlist) : undefined
     const next = this.data.mode === 'lighting'
-      ? { latitude: DEFAULT_CENTER.latitude, longitude: DEFAULT_CENTER.longitude, scale: LIGHTING_OVERVIEW_SCALE }
+      ? litBounds
+        ? { ...litBounds, scale: Math.min(9, Math.max(4, litBounds.scale)) }
+        : litCities.length === 1
+          ? { latitude: litCities[0].latitude, longitude: litCities[0].longitude, scale: 8 }
+          : { latitude: DEFAULT_CENTER.latitude, longitude: DEFAULT_CENTER.longitude, scale: LIGHTING_OVERVIEW_SCALE }
+      : selectedViewport
+        ? selectedViewport
       : target.length
         ? fitBounds(target)
         : { latitude: DEFAULT_CENTER.latitude, longitude: DEFAULT_CENTER.longitude, scale: DEFAULT_SCALE }
-    const prev = this.data.center
-    if (
-      prev &&
-      Math.abs(prev.latitude - next.latitude) < 1e-9 &&
-      Math.abs(prev.longitude - next.longitude) < 1e-9 &&
-      this.data.scale === next.scale
-    ) {
-      return
-    }
+    // A native map gesture changes its real viewport without updating bound
+    // data.scale/center. An explicit fit must still move it back even when the
+    // requested view equals the last data sent to the component.
     this.mapScale = next.scale
     this.zoomTier = scaleToZoom(next.scale)
+    this.viewportRequestId += 1
+    this.viewportRegion = null
+    this.viewportKey = ''
     this.setData({
       center: { latitude: next.latitude, longitude: next.longitude },
       scale: next.scale,
@@ -809,7 +1034,8 @@ Page<PageData, WechatMiniprogram.IAnyObject>({
     const mode = e.currentTarget.dataset.mode as MapMode
     if (mode === this.data.mode) return
     this.closeDetailSheet()
-    this.applyMode(mode, { fit: true })
+    this.applyMode(mode, { fit: mode !== 'visited' })
+    if (mode === 'visited') this.autoLocateOnEntry(true)
   },
 
   onMarkerTap(
@@ -819,11 +1045,31 @@ Page<PageData, WechatMiniprogram.IAnyObject>({
     const markerId = e.detail.markerId
     const cache = this.markerCache
     if (!cache) return
+    const lightingCity = cache.lightingCities[markerId]
+    if (lightingCity) {
+      this.selectProvince(lightingCity.province)
+      return
+    }
     const cluster = cache.clusterMarkers[markerId]
     if (cluster) {
+      if (this.mapScale >= 18) {
+        this.allClusterItems = cluster.footprintIds
+          .map((id: string) => this.footprintsById[id])
+          .filter((fp: Footprint | undefined): fp is Footprint => Boolean(fp))
+          .map((fp: Footprint) => buildUnplacedFootprintItem(fp))
+        this.clusterLimit = 20
+        this.setData({
+          clusterItems: this.allClusterItems.slice(0, this.clusterLimit),
+          clusterTotal: this.allClusterItems.length,
+        })
+        return
+      }
       const nextScale = Math.min(this.mapScale + 3, 18)
       this.mapScale = nextScale
       this.zoomTier = scaleToZoom(nextScale)
+      this.viewportRequestId += 1
+      this.viewportRegion = null
+      this.viewportKey = ''
       this.setData({
         center: { latitude: cluster.latitude, longitude: cluster.longitude },
         scale: nextScale,
@@ -837,12 +1083,17 @@ Page<PageData, WechatMiniprogram.IAnyObject>({
     if (!footprintId) return
     const fp = this.footprintsById[footprintId]
     if (!fp) return
+    if (!hasMapCoordinates(fp)) {
+      wx.navigateTo({ url: `/pages/footprint-form/index?id=${fp.id}` })
+      return
+    }
     this.closeDetailSheet()
     this.setData({ selectedFootprint: fp, detailVisible: true, detailClosing: false })
     this.syncTabBarForSheets()
   },
 
   onMapTap(e: WechatMiniprogram.CustomEvent<{ latitude?: number; longitude?: number }>) {
+    if (this.data.clusterItems.length) this.setData({ clusterItems: [], clusterTotal: 0 })
     if (this.data.detailVisible) {
       this.closeDetailSheet()
     }
@@ -934,6 +1185,7 @@ Page<PageData, WechatMiniprogram.IAnyObject>({
 
   onMapUpdated() {
     this.clearMapReadyFallback()
+    if (!this.viewportRegion) this.captureMapRegion()
     if (!this.data.mapTilesReady || this.data.mapLoadFailed) {
       this.setData({ mapTilesReady: true, mapLoadFailed: false, mapLoadDelayed: false })
     }
@@ -989,11 +1241,19 @@ Page<PageData, WechatMiniprogram.IAnyObject>({
   },
 
   onRegionChange(
-    e: WechatMiniprogram.CustomEvent<{ type: 'begin' | 'end'; scale?: number }>,
+    e: WechatMiniprogram.CustomEvent<{ type: 'begin' | 'end'; scale?: number; causedBy?: 'drag' | 'scale' | 'update' }>,
   ) {
     if (e.detail.type !== 'end') return
+    if (this.regionRefreshTimer) clearTimeout(this.regionRefreshTimer)
+    this.regionRefreshTimer = setTimeout(() => {
+      this.regionRefreshTimer = null
+      if (this.isVisible) this.captureMapRegion()
+    }, 120)
     const settle = (scale: number) => {
       if (typeof scale !== 'number' || !Number.isFinite(scale)) return
+      // Native map update events may arrive out of order after setData changes
+      // the viewport. Only user zooming may override the requested scale.
+      if (e.detail.causedBy === 'update' && Math.abs(scale - this.data.scale) >= 0.05) return
       // 拖动或程序设定视野的回声：缩放档位未跨越时不写 data、不重建标记，
       // 避免反写 scale 触发原生地图再渲染以及与 regionchange 相互触发。
       if (Math.abs(scale - this.mapScale) < 0.05) return
@@ -1031,19 +1291,11 @@ Page<PageData, WechatMiniprogram.IAnyObject>({
           return
         }
         if (authSetting['scope.userLocation'] === true) this.setData({ hasLocationAuth: true })
-        if (!manual && !this.allFootprints.some((fp: Footprint) => fp.status === 'visited' && fp.recordLevel !== 'city') && authSetting['scope.userLocation'] !== true) {
-          this.setData({ locationStatus: 'idle' })
-          this.resolveInitialLocation(false)
-          return
-        }
         this.requestInitialLocation(manual)
       },
       fail: () => {
         if (intent !== this.locationIntent) return
-        if (!manual && !this.allFootprints.some((fp: Footprint) => fp.status === 'visited' && fp.recordLevel !== 'city')) {
-          this.setData({ locationStatus: 'idle' })
-          this.resolveInitialLocation(false)
-        } else this.requestInitialLocation(manual)
+        this.requestInitialLocation(manual)
       },
     })
   },
@@ -1105,8 +1357,8 @@ Page<PageData, WechatMiniprogram.IAnyObject>({
         if (this.checkinLocationRequested || intent !== this.locationIntent) return
         this.resolveInitialLocation(true)
         this.setData({ locationStatus: 'located', hasLocationAuth: true })
-        // 用户可能在异步定位完成前切到了点亮；保留全国视角。
-        if (this.data.mode === 'lighting' && !focusLighting) return
+        // 用户可能在异步定位完成前切到了想去或点亮；保留当前模式的目标视角。
+        if (this.data.mode !== 'visited' && !focusLighting) return
         this.hasCenteredOnUser = true
         this.mapScale = USER_AREA_SCALE
         this.zoomTier = scaleToZoom(USER_AREA_SCALE)
@@ -1116,7 +1368,11 @@ Page<PageData, WechatMiniprogram.IAnyObject>({
           hasLocationAuth: true,
           mapTilesReady: false,
           mapLoadFailed: false,
-        }, () => this.scheduleMapReadyFallback())
+        }, () => {
+          this.scheduleMapReadyFallback()
+          // 原生地图可能仍停在手势拖动后的视角；经纬度未变化时 setData 不一定触发移动。
+          if (this.mapReady) mapContext?.moveToLocation({ latitude, longitude })
+        })
         this.refreshMarkers()
       })
       .catch((error: unknown) => {
@@ -1167,7 +1423,7 @@ Page<PageData, WechatMiniprogram.IAnyObject>({
   },
 
   async requestCheckinLocation() {
-    wx.showLoading({ title: '正在获取位置', mask: true })
+    wx.showLoading({ title: '正在准备打卡', mask: true })
     try {
       const res = await this.getCurrentLocation()
       this.resolveInitialLocation(true)
@@ -1184,7 +1440,6 @@ Page<PageData, WechatMiniprogram.IAnyObject>({
       }, () => this.scheduleMapReadyFallback())
       this.refreshMarkers()
 
-      wx.showLoading({ title: '正在匹配附近地点', mask: true })
       await this.ensureFootprintsForCheckin()
       const candidate = findNearbyCheckinCandidate(
         res.latitude,
@@ -1361,7 +1616,64 @@ Page<PageData, WechatMiniprogram.IAnyObject>({
 
   onUnplacedTap(e: WechatMiniprogram.TouchEvent) {
     const id = String(e.currentTarget.dataset.id || '')
+    if (!id) return
+    if (this.data.mode !== 'wishlist') {
+      wx.navigateTo({ url: `/pages/footprint-form/index?id=${id}` })
+      return
+    }
+    const fp = this.footprintsById[id]
+    if (!fp) return
+    const viewport = wishlistViewport(fp)
+    if (!viewport) {
+      wx.showModal({
+        title: '补充地图位置',
+        content: '这个地点还没有可确认的城市或地图坐标。补充位置后才能在地图上查看。',
+        confirmText: '补位置',
+        cancelText: '稍后',
+        success: ({ confirm }) => { if (confirm) this.onUnplacedEdit(e) },
+      })
+      return
+    }
+    this.setData({ selectedWishlistId: id })
+    this.mapScale = viewport.scale
+    this.zoomTier = scaleToZoom(viewport.scale)
+    this.refreshMarkers()
+    this.setData({
+      center: { latitude: viewport.latitude, longitude: viewport.longitude },
+      scale: viewport.scale,
+      mapTilesReady: false,
+      mapLoadFailed: false,
+    }, () => {
+      this.scheduleMapReadyFallback()
+      if (this.mapReady) mapContext?.moveToLocation({ latitude: viewport.latitude, longitude: viewport.longitude })
+    })
+  },
+
+  onUnplacedEdit(e: WechatMiniprogram.TouchEvent) {
+    const id = String(e.currentTarget.dataset.id || '')
     if (id) wx.navigateTo({ url: `/pages/footprint-form/index?id=${id}` })
+  },
+
+  onUnplacedLoadMore() {
+    this.unplacedLimit += 20
+    this.setData({ unplacedFootprints: this.allUnplacedItems.slice(0, this.unplacedLimit) })
+  },
+
+  onClusterLoadMore() {
+    this.clusterLimit += 20
+    this.setData({ clusterItems: this.allClusterItems.slice(0, this.clusterLimit) })
+  },
+
+  onClusterClose() {
+    this.setData({ clusterItems: [], clusterTotal: 0 })
+  },
+
+  onClusterItemTap(e: WechatMiniprogram.TouchEvent) {
+    const id = String(e.currentTarget.dataset.id || '')
+    const fp = this.footprintsById[id]
+    if (!fp) return
+    this.setData({ clusterItems: [], clusterTotal: 0, selectedFootprint: fp, detailVisible: true, detailClosing: false })
+    this.syncTabBarForSheets()
   },
 
   onDetailClose() {

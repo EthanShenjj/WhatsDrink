@@ -2,9 +2,9 @@
   <text class="eyebrow">SHIGUANGJI · 私人记忆地图</text>
   <text class="display-title">我的拾光</text>
 
-  <brand-card variant="default" interactive ariaLabel="进入个人设置" bind:tap="onProfileTap">
-    <view class="profile-hero">
-      <image wx:if="{{profile.avatarUrl}}" class="profile-avatar" src="{{profile.avatarUrl}}" mode="aspectFill" />
+  <view class="mine-overview card">
+    <view class="profile-hero" hover-class="press-tint" bindtap="onProfileTap" role="button" aria-label="进入个人设置">
+      <image wx:if="{{profile.avatarUrl && !avatarLoadFailed}}" class="profile-avatar" src="{{profile.avatarUrl}}" mode="aspectFill" binderror="onAvatarError" />
       <view wx:else class="profile-avatar profile-avatar-empty">拾</view>
       <view class="profile-copy">
         <text class="profile-name">{{profile.nickname || '你好'}}</text>
@@ -12,17 +12,55 @@
       </view>
       <text class="profile-arrow">›</text>
     </view>
-  </brand-card>
-
-  <view class="stats-card card">
-    <view class="stats-heading">
-      <view><text class="section-title">我的足迹版图</text><text class="stats-subtitle">生活正在地图上慢慢生长</text></view>
-      <text class="stats-hint">{{stats.visitedCount || 0}} 次到访</text>
+    <view class="overview-divider"></view>
+    <view class="stats-card">
+      <view class="stats-heading">
+        <view><text class="section-title">我的足迹版图</text><text class="stats-subtitle">生活正在地图上慢慢生长</text></view>
+        <text class="stats-hint">{{stats.visitedCount || 0}} 次到访</text>
+      </view>
+      <view class="stats-grid">
+        <view class="stat-item"><text class="stat-number">{{stats.places || 0}}</text><text class="stat-label">足迹地点</text></view>
+        <view class="stat-item"><text class="stat-number">{{stats.cities || 0}}</text><text class="stat-label">点亮城市</text></view>
+        <view class="stat-item"><text class="stat-number">{{stats.wishlistCount || 0}}</text><text class="stat-label">想去清单</text></view>
+      </view>
     </view>
-    <view class="stats-grid">
-      <view class="stat-item"><text class="stat-number">{{stats.places || 0}}</text><text class="stat-label">足迹地点</text></view>
-      <view class="stat-item"><text class="stat-number">{{stats.cities || 0}}</text><text class="stat-label">点亮城市</text></view>
-      <view class="stat-item"><text class="stat-number">{{stats.wishlistCount || 0}}</text><text class="stat-label">想去清单</text></view>
+  </view>
+
+  <view class="membership-card membership-wallet is-{{membershipLevel.level}}" hover-class="press-dim" bindtap="onMembershipTap" role="button" aria-label="查看会员等级与权益">
+    <view class="wallet-route" aria-hidden="true"><view></view><view></view><view></view></view>
+    <view class="wallet-topline">
+      <view class="wallet-brand"><view>拾</view><text>拾光迹会员</text></view>
+      <text class="membership-pill">{{membershipLevel.badge}}</text>
+    </view>
+    <view class="wallet-heading">
+      <text class="membership-title">{{membershipLevel.title}}</text>
+      <text wx:if="{{membershipLevel.level === 'free'}}" class="membership-note">记录此刻，免费能力长期可用</text>
+      <text wx:elif="{{membershipLevel.level === 'pro'}}" class="membership-note">剩余 {{membershipLevel.daysLeft}} 天 · 已解锁年度时光回顾</text>
+      <text wx:elif="{{membershipLevel.level === 'plus'}}" class="membership-note">剩余 {{membershipLevel.daysLeft}} 天 · 持续回看每一段旅程</text>
+      <text wx:else class="membership-note">剩余 {{membershipLevel.daysLeft}} 天 · 正在体验 Plus 全部权益</text>
+    </view>
+    <view class="wallet-benefits">
+      <block wx:if="{{membershipLevel.level === 'free'}}">
+        <view><view class="wallet-benefit-icon"><local-icon name="calendar" size="30rpx" /></view><text>本月回顾</text></view>
+        <view><view class="wallet-benefit-icon"><local-icon name="clock-brand" size="30rpx" /></view><text>3 个胶囊</text></view>
+        <view><view class="wallet-benefit-icon"><local-icon name="download" size="30rpx" /></view><text>基础导出</text></view>
+      </block>
+      <block wx:elif="{{membershipLevel.level === 'pro'}}">
+        <view><view class="wallet-benefit-icon"><local-icon name="sparkles" size="30rpx" /></view><text>年度回顾</text></view>
+        <view><view class="wallet-benefit-icon"><local-icon name="route" size="30rpx" /></view><text>跨年对比</text></view>
+        <view><view class="wallet-benefit-icon"><local-icon name="secured" size="30rpx" /></view><text>全部 Plus</text></view>
+      </block>
+      <block wx:else>
+        <view><view class="wallet-benefit-icon"><local-icon name="calendar" size="30rpx" /></view><text>历史回顾</text></view>
+        <view><view class="wallet-benefit-icon"><local-icon name="unlock" size="30rpx" /></view><text>不限胶囊</text></view>
+        <view><view class="wallet-benefit-icon"><local-icon name="sparkles" size="30rpx" /></view><text>Lumi 主题</text></view>
+      </block>
+    </view>
+    <view class="wallet-footer">
+      <text wx:if="{{membershipLevel.level === 'free'}}">Plus 新增历史回顾等 3 项权益</text>
+      <text wx:elif="{{membershipLevel.level === 'plus' || membershipLevel.level === 'trial'}}">升级 Pro 新增年度回顾</text>
+      <text wx:else>已包含全部会员权益</text>
+      <text class="membership-action">查看权益 ›</text>
     </view>
   </view>
 
@@ -46,23 +84,6 @@
       <text wx:if="{{item.hint}}" class="menu-hint">{{item.hint}}</text>
       <text class="menu-arrow">›</text>
     </view>
-  </view>
-
-  <view class="membership-card {{growth.isPlus ? 'is-active' : ''}} {{growth.isPro ? 'is-pro' : ''}}" hover-class="press-dim" bindtap="onMembershipTap" role="button" aria-label="查看会员方案">
-    <view class="membership-symbol" aria-hidden="true">
-      <view class="membership-sparkles">
-        <text class="membership-sparkle-main">✦</text>
-        <text class="membership-sparkle-small">✦</text>
-      </view>
-    </view>
-    <view class="membership-copy">
-      <view class="membership-title-row">
-        <text class="membership-title">{{growth.isPro ? 'Pro 会员已开通' : (growth.isPlus ? 'Plus 会员已开通' : '会员')}}</text>
-        <text class="membership-pill">{{growth.isPro ? '年度 PRO' : (growth.isPlus ? '已生效' : '31 天 ¥6 起')}}</text>
-      </view>
-      <text class="membership-note">{{growth.isPro ? ('剩余 ' + growth.proDaysLeft + ' 天') : (growth.isPlus ? ('剩余 ' + growth.plusDaysLeft + ' 天') : '完整回顾、专属主题与更多时光胶囊')}}</text>
-    </view>
-    <text class="membership-arrow">›</text>
   </view>
 
   <text class="version-label">拾光迹 v{{version}}</text>

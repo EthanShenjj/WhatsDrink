@@ -21,9 +21,9 @@
   width: 84rpx;
   height: 84rpx;
   border-radius: 50%;
-  border: 1rpx solid rgba(255,255,255,.9);
-  background: rgba(255, 255, 255, 0.94);
-  box-shadow: var(--shadow-control);
+  border: 1rpx solid #FFFFFF;
+  background-color: #FFFFFF;
+  box-shadow: 0 10rpx 28rpx rgba(42, 50, 103, 0.18);
   transition: transform 140ms ease-out, background 140ms ease-out;
 }
 

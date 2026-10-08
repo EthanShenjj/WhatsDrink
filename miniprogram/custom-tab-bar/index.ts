@@ -24,6 +24,14 @@ Component({
     ] as TabItem[],
   },
   methods: {
+    syncMapRecordSheet(visible: boolean) {
+      const pages = getCurrentPages()
+      const currentPage = pages[pages.length - 1] as unknown as {
+        route?: string
+        onRecordSheetVisibilityChange?: (visible: boolean) => void
+      }
+      if (currentPage?.route === 'pages/map/index') currentPage.onRecordSheetVisibilityChange?.(visible)
+    },
     noop() {
       /* 阻止弹层滚动穿透 */
     },
@@ -38,6 +46,7 @@ Component({
           clearTimeout(timer)
           sheetTimers.delete(this)
         }
+        this.syncMapRecordSheet(true)
         this.setData({ hidden: true, sheetVisible: true, sheetClosing: false })
         return
       }
@@ -66,12 +75,14 @@ Component({
       const timerId = setTimeout(() => {
         sheetTimers.delete(this)
         this.setData({ sheetClosing: false, hidden: false })
+        this.syncMapRecordSheet(false)
       }, 260) as unknown as number
       sheetTimers.set(this, timerId)
     },
     chooseAction(event: WechatMiniprogram.TouchEvent) {
       const index = Number(event.currentTarget.dataset.index)
       this.setData({ sheetVisible: false, sheetClosing: false, hidden: false })
+      this.syncMapRecordSheet(false)
       if (index === 0) {
         const pages = getCurrentPages()
         const currentPage = pages[pages.length - 1] as unknown as {

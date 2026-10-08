@@ -50,4 +50,30 @@ describe('map tab location intent', () => {
     expect(storage['sgj:map-tab-entry']).toBeUndefined()
     expect(tab.data.selected).toBe(3)
   })
+
+  it('hides the native map shortcut for the whole record-sheet animation', () => {
+    vi.useFakeTimers()
+    const visibility = vi.fn()
+    ;(globalThis as any).getCurrentPages = () => [{
+      route: 'pages/map/index',
+      onRecordSheetVisibilityChange: visibility,
+    }]
+    try {
+      const tab = createTab(0)
+      tab.switchTab({ currentTarget: { dataset: { index: 2 } } })
+      expect(tab.data.sheetVisible).toBe(true)
+      expect(tab.data.hidden).toBe(true)
+      expect(visibility).toHaveBeenCalledWith(true)
+      tab.closeSheet()
+      expect(tab.data.sheetClosing).toBe(true)
+      expect(visibility).toHaveBeenCalledTimes(1)
+      vi.advanceTimersByTime(260)
+      expect(tab.data.sheetClosing).toBe(false)
+      expect(tab.data.hidden).toBe(false)
+      expect(visibility).toHaveBeenLastCalledWith(false)
+    } finally {
+      vi.useRealTimers()
+      ;(globalThis as any).getCurrentPages = () => [{ onLocate: locate }]
+    }
+  })
 })

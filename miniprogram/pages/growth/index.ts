@@ -1,21 +1,42 @@
-import type { GrowthColorId, GrowthSnapshot, UserProfile } from '../../domain/types'
+import type {
+  AnnualMemoryReport,
+  GrowthColorId,
+  GrowthSnapshot,
+  HistoricalMonthReport,
+  MembershipLevelView,
+  UserProfile,
+} from '../../domain/types'
 import {
   ensureProfile,
   listFootprints,
   saveGrowthPreferences,
   startGrowthTrial,
 } from '../../services/repository'
-import { computeGrowthSnapshot, hasDistantPairDeferred } from '../../utils/growth'
-import { installUpdatePerformanceLogger, recordInteraction } from '../../utils/performance'
+import { trackProductEvent } from '../../services/product-events'
+import {
+  buildAnnualMemoryReports,
+  buildHistoricalMonthReports,
+  computeGrowthSnapshot,
+  hasDistantPairDeferred,
+} from '../../utils/growth'
+import { getMembershipLevelView } from '../../utils/payment'
+import { installUpdatePerformanceLogger, recordInteraction, startPerformanceSpan } from '../../utils/performance'
 
 interface PageData {
   profile: UserProfile | null
   snapshot: GrowthSnapshot | null
   loading: boolean
   saving: boolean
+  applyingColorId: GrowthColorId | 'auto' | ''
   progressPercent: number
   iconColorId: GrowthColorId
   reportVisible: boolean
+  reportMode: 'current' | 'history' | 'annual'
+  historicalReports: HistoricalMonthReport[]
+  annualReports: AnnualMemoryReport[]
+  membershipLevel: MembershipLevelView
+  selectedMonthReport: HistoricalMonthReport | null
+  selectedAnnualReport: AnnualMemoryReport | null
   heavySectionsReady: boolean
 }
 
@@ -30,9 +51,16 @@ Page<PageData, WechatMiniprogram.IAnyObject>({
     snapshot: null,
     loading: true,
     saving: false,
+    applyingColorId: '',
     progressPercent: 0,
     iconColorId: 'journey',
     reportVisible: false,
+    reportMode: 'current',
+    historicalReports: [],
+    annualReports: [],
+    membershipLevel: getMembershipLevelView(),
+    selectedMonthReport: null,
+    selectedAnnualReport: null,
     heavySectionsReady: false,
   },
 
@@ -62,6 +90,7 @@ Page<PageData, WechatMiniprogram.IAnyObject>({
 
   async loadGrowth() {
     const sequence = ++this.loadSequence
+    const end = startPerformanceSpan('growth.load')
     this.setData({ loading: true })
     try {
       const [profile, footprints] = await Promise.all([
@@ -69,15 +98,29 @@ Page<PageData, WechatMiniprogram.IAnyObject>({
         listFootprints({ maxAgeMs: 60_000 }),
       ])
       const snapshot = computeGrowthSnapshot(footprints, profile, undefined, { skipDistance: true })
-      if (sequence !== this.loadSequence || !this.isVisible) return
+      const historicalReports = buildHistoricalMonthReports(footprints)
+      const annualReports = buildAnnualMemoryReports(footprints)
+      const membershipLevel = getMembershipLevelView(profile.growth)
+      if (sequence !== this.loadSequence || !this.isVisible) {
+        end({ stale: 1 })
+        return
+      }
       app.globalData.profile = profile
       this.setData({
         profile,
         snapshot,
+        historicalReports,
+        annualReports,
+        membershipLevel,
         loading: false,
         progressPercent: Math.min(100, Math.round(snapshot.nextGoalProgress / snapshot.nextGoalTarget * 100)),
-        iconColorId: profile.growth?.iconColorId || snapshot.activeColorId,
-      }, () => this.observeHeavySections())
+        iconColorId: snapshot.isPlus
+          ? profile.growth?.iconColorId || snapshot.activeColorId
+          : snapshot.activeColorId,
+      }, () => {
+        end({ records: footprints.length })
+        this.observeHeavySections()
+      })
       const hasDistantPair = await hasDistantPairDeferred(footprints)
       if (sequence !== this.loadSequence || !this.isVisible) return
       const current = this.data.snapshot
@@ -88,6 +131,7 @@ Page<PageData, WechatMiniprogram.IAnyObject>({
         })
       }
     } catch (error) {
+      end({ failed: 1 })
       console.warn('[growth] load failed', error)
       this.setData({ loading: false })
       wx.showToast({ title: '成长状态加载失败', icon: 'none' })
@@ -95,6 +139,7 @@ Page<PageData, WechatMiniprogram.IAnyObject>({
   },
 
   async onColorTap(event: WechatMiniprogram.TouchEvent) {
+    if (this.data.saving) return
     recordInteraction('growth.color')
     const id = String(event.currentTarget.dataset.id || '') as GrowthColorId
     const color = this.data.snapshot?.colors.find((item) => item.id === id)
@@ -103,15 +148,22 @@ Page<PageData, WechatMiniprogram.IAnyObject>({
       return
     }
     if (this.data.snapshot?.colorMode === 'fixed' && this.data.snapshot.activeColorId === id) return
-    if (await this.persistPreferences({ lockedColorId: id })) {
+    this.setData({ applyingColorId: id })
+    const saved = await this.persistPreferences({ lockedColorId: id })
+    this.setData({ applyingColorId: '' })
+    if (saved) {
       wx.showToast({ title: '已固定展示这个颜色', icon: 'none' })
     }
   },
 
   async onAutoColorTap() {
+    if (this.data.saving) return
     recordInteraction('growth.color.auto')
     if (this.data.snapshot?.colorMode === 'auto') return
-    if (await this.persistPreferences({ lockedColorId: null })) {
+    this.setData({ applyingColorId: 'auto' })
+    const saved = await this.persistPreferences({ lockedColorId: null })
+    this.setData({ applyingColorId: '' })
+    if (saved) {
       wx.showToast({ title: '已开启自动调整', icon: 'none' })
     }
   },
@@ -138,15 +190,57 @@ Page<PageData, WechatMiniprogram.IAnyObject>({
     const snapshot = this.data.snapshot
     if (!snapshot) return
     const viewed = this.data.profile?.growth?.viewedMonthlyReports || []
-    this.setData({ reportVisible: true })
+    this.setData({ reportVisible: true, reportMode: 'current' })
     if (!viewed.includes(snapshot.monthKey)) {
       this.persistPreferences({ viewedMonthlyReports: [...viewed, snapshot.monthKey] })
         .catch(() => undefined)
     }
   },
 
+  async onHistoricalReportTap(event: WechatMiniprogram.TouchEvent) {
+    const snapshot = this.data.snapshot
+    if (!snapshot) return
+    if (!snapshot.isPlus) {
+      await this.offerTrial('Plus 可以回看每个有足迹的历史月份。')
+      return
+    }
+    const key = String(event.currentTarget.dataset.key || '')
+    const report = this.data.historicalReports.find((item) => item.key === key)
+    if (!report) return
+    trackProductEvent('growth_history_opened')
+    this.setData({ reportVisible: true, reportMode: 'history', selectedMonthReport: report })
+  },
+
+  async onAnnualReportTap(event: WechatMiniprogram.TouchEvent) {
+    const snapshot = this.data.snapshot
+    if (!snapshot) return
+    if (!snapshot.isPro) {
+      const confirmed = await new Promise<boolean>((resolve) => {
+        wx.showModal({
+          title: 'Pro 年度时光回顾',
+          content: '升级 Pro 后，可以查看年度统计、规则化年度故事；连续两年有记录时还会显示跨年对比。',
+          confirmText: '查看 Pro',
+          cancelText: '稍后再说',
+          success: (result) => resolve(Boolean(result.confirm)),
+          fail: () => resolve(false),
+        })
+      })
+      if (confirmed) wx.navigateTo({ url: '/pages/membership/index' })
+      return
+    }
+    const year = Number(event.currentTarget.dataset.year)
+    const report = this.data.annualReports.find((item) => item.year === year)
+    if (!report) return
+    trackProductEvent('growth_annual_opened')
+    this.setData({ reportVisible: true, reportMode: 'annual', selectedAnnualReport: report })
+  },
+
   onReportClose() {
-    this.setData({ reportVisible: false })
+    this.setData({
+      reportVisible: false,
+      selectedMonthReport: null,
+      selectedAnnualReport: null,
+    })
   },
 
   noop() {
@@ -179,6 +273,10 @@ Page<PageData, WechatMiniprogram.IAnyObject>({
   },
 
   async onStartTrial() {
+    if (this.data.snapshot?.isPlus) {
+      wx.navigateTo({ url: '/pages/membership/index' })
+      return
+    }
     await this.activateTrial()
   },
 
@@ -187,6 +285,20 @@ Page<PageData, WechatMiniprogram.IAnyObject>({
   },
 
   async offerTrial(content: string) {
+    if (this.data.profile?.growth?.trialStartedAt) {
+      const confirmed = await new Promise<boolean>((resolve) => {
+        wx.showModal({
+          title: 'Plus 体验已结束',
+          content: `${content} 开通 Plus 后可以继续使用。`,
+          confirmText: '查看 Plus',
+          cancelText: '继续成长',
+          success: (result) => resolve(Boolean(result.confirm)),
+          fail: () => resolve(false),
+        })
+      })
+      if (confirmed) wx.navigateTo({ url: '/pages/membership/index' })
+      return
+    }
     const confirmed = await new Promise<boolean>((resolve) => {
       wx.showModal({
         title: '让 Lumi 更像你',
@@ -239,8 +351,11 @@ Page<PageData, WechatMiniprogram.IAnyObject>({
       this.setData({
         profile,
         snapshot,
+        membershipLevel: getMembershipLevelView(profile.growth),
         saving: false,
-        iconColorId: profile.growth?.iconColorId || snapshot.activeColorId,
+        iconColorId: snapshot.isPlus
+          ? profile.growth?.iconColorId || snapshot.activeColorId
+          : snapshot.activeColorId,
       })
       return true
     } catch (error) {

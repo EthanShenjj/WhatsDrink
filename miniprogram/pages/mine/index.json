@@ -3,7 +3,6 @@
   "usingComponents": {
     "local-icon": "/components/local-icon/index",
     "ip-mascot": "/components/ip-mascot/index",
-    "brand-card": "/components/brand-card/index",
     "privacy-popup": "/components/privacy-popup/index"
   }
 }

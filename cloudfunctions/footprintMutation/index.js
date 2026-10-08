@@ -1,6 +1,7 @@
 const crypto = require('crypto')
 const cloud = require('wx-server-sdk')
 const { isOwnedCloudFile, sanitizeFootprint, text, toFootprintSummary } = require('./validation')
+const { parsePageLimit, parseCursor, pageFromRows } = require('./pagination')
 
 cloud.init({ env: cloud.DYNAMIC_CURRENT_ENV })
 const db = cloud.database()
@@ -50,6 +51,24 @@ const listOwned = async (openid) => {
   return result
 }
 
+const listOwnedPage = async (openid, rawLimit, rawCursor) => {
+  const limit = parsePageLimit(rawLimit)
+  const cursor = parseCursor(rawCursor)
+  const _ = db.command
+  const condition = cursor
+    ? _.or([
+      { _openid: openid, updatedAt: _.lt(cursor.updatedAt) },
+      { _openid: openid, updatedAt: cursor.updatedAt, _id: _.lt(cursor.id) },
+    ])
+    : { _openid: openid }
+  const rows = (await footprints.where(condition)
+    .orderBy('updatedAt', 'desc')
+    .orderBy('_id', 'desc')
+    .limit(limit + 1)
+    .get()).data
+  return pageFromRows(rows, limit, (item) => publicFootprint(item, undefined, true))
+}
+
 const deleteCloudFiles = async (paths, openid) => {
   const cloudPaths = (paths || []).filter((path) => isOwnedCloudFile(path, openid))
   for (let i = 0; i < cloudPaths.length; i += 50) {
@@ -68,6 +87,10 @@ exports.main = async (event = {}) => {
 
     if (action === 'list') {
       return { ok: true, data: await listOwned(OPENID) }
+    }
+
+    if (action === 'listPage') {
+      return { ok: true, data: await listOwnedPage(OPENID, event.limit, event.cursor) }
     }
 
     if (action === 'get') {

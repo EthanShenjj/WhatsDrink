@@ -9,7 +9,7 @@
 | `product_events` | `_openid`, `action`, `at` | `productEvents`；仅统计动作与时间，不记录内容或位置 |
 | `travel_plans` | `_openid`, `title`, `city`, `days`, `preferences`, `poiIds`, `dayPlans`, `status`, `createdAt`, `updatedAt` | `travelPlanMutation` |
 | `time_capsules` | `_openid`, `title`, `footprintId?`, `text?`, `photos`, `unlockDate`, `status`, `subscriptionId?`, `createdAt`, `updatedAt`, `unlockedAt?`, `reminderAttemptedAt?`, `reminderAttempts?`, `reminderSentAt?`, `reminderFailedAt?`, `reminderTerminalAt?` | `timeCapsuleMutation`、`sendCapsuleReminder` |
-| `payment_orders` | `_openid`, `outTradeNo`, `wxOrderId?`, `catalogProductId`, `platformProductId`, `productName`, `amountFen`, `durationDays`, `status`, `entitlementStartsAt?`, `entitlementEndsAt?`, `createdAt`, `updatedAt`, `paidAt?`, `fulfilledAt?`, `refundedAt?` | `paymentMutation`、`paymentNotify` |
+| `payment_orders` | `_openid`, `outTradeNo`, `wxOrderId?`, `catalogProductId`, `platformProductId`, `productName`, `amountFen`, `durationDays`, `status`, `entitlementStartsAt?`, `entitlementEndsAt?`, `hiddenAt?`, `createdAt`, `updatedAt`, `paidAt?`, `fulfilledAt?`, `refundedAt?` | `paymentMutation`、`paymentNotify` |
 | `user_entitlements` | `_openid`, `entitlementKey`, `sourceOrderId`, `startsAt`, `expiresAt`, `status`, `createdAt`, `updatedAt`, `revokedAt?` | `paymentNotify`、支付查单兜底 |
 
 `?` 表示可选字段。`status` 在 `footprints` 中为 `visited`、`wishlist` 或 `fulfilled`；在 `travel_plans` 中为 `planning`、`ongoing` 或 `completed`；在 `time_capsules` 中为 `locked` 或 `unlocked`。`visitDate`、`unlockDate` 使用 `YYYY-MM-DD` 字符串；时间戳字段使用毫秒数。
@@ -23,7 +23,8 @@
 | 集合 | 索引字段 | 唯一 | 对应查询 |
 | --- | --- | --- | --- |
 | `user_profiles` | `_openid` 升序 | 否（沿用现有索引） | 登录和账号资料查询 |
-| `footprints` | `_openid` 升序，`updatedAt` 降序 | 否 | 按用户列出足迹 |
+| `footprints` | `_openid` 升序，`updatedAt` 降序 | 否 | 兼容旧版全量足迹列表 |
+| `footprints` | `_openid` 升序，`updatedAt` 降序，`_id` 降序 | 否 | `listPage` 稳定游标分页；部署新版云函数前需创建 |
 | `footprints` | `_openid` 升序，`clientRequestId` 升序 | 建议唯一 | 创建足迹的幂等检查 |
 | `product_events` | `_openid` 升序，`at` 升序 | 否 | 新用户漏斗与回访分析 |
 | `travel_plans` | `_openid` 升序，`updatedAt` 降序 | 否 | 按用户列出旅行计划 |
@@ -31,6 +32,8 @@
 | `time_capsules` | `status` 升序，`unlockDate` 升序 | 否 | 定时查找待解锁胶囊 |
 | `time_capsules` | `subscriptionId` 升序，`unlockDate` 升序，`reminderAttemptedAt` 升序 | 否 | 定时查找待发送与待重试提醒 |
 | `payment_orders` | `_openid` 升序，`createdAt` 降序 | 否 | 用户购买记录 |
+| `payment_orders` | `_openid` 升序，`hiddenAt` 升序，`createdAt` 降序 | 否 | 分页读取未隐藏购买记录 |
+| `payment_orders` | `_openid` 升序，`status` 升序，`createdAt` 降序 | 否 | 判断是否有已生效历史订单 |
 | `payment_orders` | `outTradeNo` 升序 | 是 | 商户订单幂等与通知定位 |
 | `payment_orders` | `wxOrderId` 升序 | 建议唯一 | 微信订单幂等 |
 | `user_entitlements` | `_openid` 升序，`expiresAt` 降序 | 否 | 用户权益查询 |
@@ -45,5 +48,5 @@
 - 保留原有 `brands`、`drink_records`、`drinks`、`wheels` 和系统集合及其数据。
 - 沿用原有空集合 `user_profiles` 及 `_openid_1` 索引。
 - 新建 `footprints`、`travel_plans`、`time_capsules`。
-- 已创建本节表格所列索引，并通过 `listIndexes` 逐项复查。
+- 当时已创建并通过 `listIndexes` 复查的索引不包含 2026-10-08 新增的 `(_openid, updatedAt, _id)` 分页索引；发布 `listPage` 前需补建并复查该索引。
 - 原有五个业务集合均已关闭客户端直接读写。支付上线前，还需按本文创建并关闭 `payment_orders`、`user_entitlements` 的客户端读写。

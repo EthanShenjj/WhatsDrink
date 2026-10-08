@@ -5,6 +5,9 @@ const db = cloud.database()
 const allowed = new Set([
   'first_open', 'city_picker_opened', 'city_saved', 'province_card_opened',
   'place_added', 'old_record_opened', 'album_saved',
+  'membership_page_viewed', 'membership_plus_selected', 'membership_pro_selected',
+  'membership_benefits_viewed', 'membership_purchase_started',
+  'membership_entitlement_activated', 'growth_history_opened', 'growth_annual_opened',
 ])
 
 exports.main = async (event = {}) => {

@@ -69,7 +69,7 @@ Page({
         capsules: unlocked,
         footprints: linkable,
         footprintIndex: Math.max(0, linkable.findIndex((fp) => fp.id === this.data.footprintId)),
-        isPlus: Boolean(profile.growth?.plusUntil && profile.growth.plusUntil > Date.now()),
+        isPlus: hasTimeCapsuleCapacity(3, profile.growth),
         loading: false,
       })
       if (this.data.formVisible && !this.data.id && !hasTimeCapsuleCapacity(unlocked.length, profile.growth)) {

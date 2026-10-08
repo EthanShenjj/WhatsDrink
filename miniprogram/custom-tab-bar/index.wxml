@@ -28,8 +28,8 @@
   </view>
 </view>
 
-<view wx:if="{{sheetVisible || sheetClosing}}" class="tab-sheet-layer {{sheetClosing ? 'is-closing' : ''}}" catchtouchmove="noop">
-  <view class="tab-sheet-mask" bindtap="closeSheet"></view>
+<view wx:if="{{sheetVisible || sheetClosing}}" class="tab-sheet-layer {{sheetClosing ? 'is-closing' : ''}}">
+  <view class="tab-sheet-mask" bindtap="closeSheet" catchtouchmove="noop"></view>
   <view class="tab-sheet" role="dialog" aria-label="添加记录">
     <view class="tab-sheet-handle"></view>
     <view class="tab-sheet-option" data-index="3" bindtap="chooseAction" role="button" aria-label="点亮去过的城市">
